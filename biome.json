@@ -1,8 +1,100 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "includes": ["**", "!**/node_modules", "!**/dist", "!**/.wrangler", "!**/*.md"] },
-  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
-  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
-  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } }
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.wrangler",
+      "!**/*.md",
+      "!pnpm-lock.yaml"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/core/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "*",
+                      "!@world-emotion/shared",
+                      "!vitest",
+                      "!fast-check",
+                      "!./*",
+                      "!../*"
+                    ],
+                    "message": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71."
+                  }
+                ]
+              }
+            },
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "fetch": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "Date": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "crypto": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "setTimeout": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "setInterval": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "localStorage": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "sessionStorage": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "indexedDB": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "performance": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "process": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "XMLHttpRequest": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
+                  "WebSocket": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71."
+                }
+              }
+            }
+          },
+          "nursery": {
+            "noJsRestrictedProperties": {
+              "level": "error",
+              "options": {
+                "entries": [
+                  {
+                    "object": "Math",
+                    "property": "random",
+                    "message": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

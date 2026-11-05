@@ -120,7 +120,7 @@ The same formula applies at every level, forming a chain: **country → continen
 ### 5.5 Smoothing and stability (new)
 Raw per-minute data twitches, and a twitchy globe feels fake.
 - **Temporal smoothing:** each snapshot blends with the previous one, done in the aggregator so every client sees the same thing. Smoothing is defined as a **half-life in minutes**, with the blend weight derived from the time since the last run (`alpha = 1 - 2^(-dt / halfLife)`), so changing the aggregation cadence does not change how the globe feels.
-- **Where the state lives:** the aggregator reads the previous published snapshot from R2 for smoothing, and keeps hysteresis state (current headline, challenger, streak) in a private `aggregator-state.json` in R2, never in the public snapshot.
+- **Where the state lives:** all state carried between runs (unrounded distributions for every region, including those below the privacy floor, plus current headline, challenger and streak) lives in a private `aggregator-state.json` in R2. The public snapshot is output only and is never read back, because it is rounded and omits small regions.
 - **Headline hysteresis:** the headline mood only flips when the new leader is ahead by a margin (e.g. 3 percentage points) or has led for two consecutive snapshots. Prevents flip-flopping between two close moods.
 - Both are pure functions with tests (ties, near-ties, sudden spikes, a single noisy country).
 
@@ -154,11 +154,13 @@ CREATE INDEX idx_votes_window ON votes (created_at, country, mood);
 **Snapshot (`snapshot.json`)** is versioned and small (a few KB gzipped):
 ```
 { "v": 1, "generatedAt": ..., "windowSeconds": 21600,
-  "world":      { "n": ..., "dist": [..] },
-  "continents": { "NA": { "n": ..., "dist": [..] }, ... },
-  "countries":  { "CA": { "n": ..., "dist": [..] }, ... } }
+  "world":      { "n": ..., "dist": [..], "h": 1 },
+  "continents": { "NA": { "n": ..., "dist": [..], "h": 1 }, ... },
+  "countries":  { "CA": { "n": ..., "dist": [..], "h": 0 }, ... } }
 ```
 Distributions are arrays indexed by mood id and are **final**: already shrunk and smoothed by the aggregator, so clients never redo the maths and every client agrees. `n` is the **raw** vote count, always included so the UI can show "quiet here". The client rejects snapshot versions it doesn't understand and keeps the last good one.
+
+`h` is the headline mood **after hysteresis**, computed once in the aggregator so every client shows the same word (ADR 0003). **Privacy floor:** countries and continents with fewer than 5 votes are omitted; the client falls back to the parent and shows "quiet here". The floor alone does not stop differencing (parent minus published children); see ADR 0003.
 
 **Retention:** purge votes older than the window plus a small buffer on each aggregation run. Deletes count as rows written, so purging is part of the write budget (section 7). No history at launch (also a privacy feature).
 

@@ -2,7 +2,9 @@
 
 Companion to `README.md` (the spec). The README says **what** and **why**; this file says **in what order, how we know a phase is done, and what is still undecided**.
 
-Status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
+Status: **Phase 1 in progress (branch `phase-1/core`); code and tests done, privacy decision P3 open.** Phase 0 + 0.5 merged (PR #2).
+
+Previous status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
 
 ### Phase 0 report
 ```
