@@ -12,7 +12,10 @@
       "!**/dist",
       "!**/.wrangler",
       "!**/*.md",
-      "!pnpm-lock.yaml"
+      "!pnpm-lock.yaml",
+      "!**/*.generated.ts",
+      "!packages/geo-data/data",
+      "!packages/geo-data/vendor"
     ]
   },
   "formatter": {

@@ -1,0 +1,27 @@
+{
+  "name": "@world-emotion/geo-data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./world-110m.topo.json": "./data/world-110m.topo.json",
+    "./world-50m.topo.json": "./data/world-50m.topo.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build:data": "node scripts/build.ts",
+    "check:data": "node scripts/build.ts --check"
+  },
+  "dependencies": {
+    "@world-emotion/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/geojson": "7946.0.16",
+    "@types/topojson-client": "3.1.5",
+    "@types/topojson-server": "3.0.4",
+    "@world-emotion/core": "workspace:*",
+    "topojson-client": "3.1.0",
+    "topojson-server": "3.0.1"
+  }
+}
