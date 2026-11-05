@@ -1,2 +1,8 @@
-/** Pure domain logic (moods, windows, pooling, shrinkage, smoothing). No I/O. Filled in Phase 1. */
-export const PACKAGE_NAME = "@world-emotion/core" as const;
+export * from "./dist";
+export * from "./hysteresis";
+export * from "./pool";
+export * from "./shrink";
+export * from "./smooth";
+export * from "./snapshot";
+export * from "./suppress";
+export * from "./window";
