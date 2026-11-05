@@ -1,6 +1,6 @@
 # Phase 1 design: `packages/core` + `packages/shared`
 
-Status: **implemented** (branch `phase-1/core`). P1 approved (headline `h` in snapshot); P2(a) approved (floor of 5) but shown insufficient against differencing: open decision P3 in [ADR 0003](../decisions/0003-snapshot-headline-and-privacy-floor.md).
+Status: **implemented** (branch `phase-1/core`). P1 approved (headline `h` in snapshot); P2(a) approved (floor of 5); shown insufficient against differencing, so P3 = A added complementary suppression ([ADR 0003](../decisions/0003-snapshot-headline-and-privacy-floor.md)).
 
 Deviation from §3 as first drafted: smoothing reads the previous **private state**, not the published snapshot (the snapshot is rounded and omits small regions, so smoothing from it would jump when a region crosses the floor).
 

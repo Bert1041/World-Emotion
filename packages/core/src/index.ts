@@ -4,4 +4,5 @@ export * from "./pool";
 export * from "./shrink";
 export * from "./smooth";
 export * from "./snapshot";
+export * from "./suppress";
 export * from "./window";

@@ -15,6 +15,7 @@ import { nextHeadline } from "./hysteresis";
 import { type CountryToContinent, poolCounts, type VoteCount } from "./pool";
 import { shrink } from "./shrink";
 import { blend, smoothingAlpha } from "./smooth";
+import { publishable } from "./suppress";
 
 export interface BuildInput {
   /** Active-window vote counts, as returned by the aggregator's GROUP BY query. */
@@ -41,7 +42,7 @@ export interface BuildOutput {
 export function buildSnapshot(input: BuildInput): BuildOutput {
   const config = input.config ?? DEFAULT_CONFIG;
   const state = nextState(input, config);
-  return { snapshot: renderSnapshot(state, config), state };
+  return { snapshot: renderSnapshot(state, input.countryToContinent, config), state };
 }
 
 export function nextState(input: BuildInput, config: AggregationConfig): AggregatorState {
@@ -100,26 +101,54 @@ export function nextState(input: BuildInput, config: AggregationConfig): Aggrega
 }
 
 /**
- * Public view of the state: regions below the privacy floor are omitted (decision P2a) and
- * distributions are rounded. The world is always published. Key order is deterministic, so the
- * same state always serialises to byte-identical JSON.
+ * Public view of the state. Privacy (ADR 0003): regions below the floor are omitted (P2a), and
+ * complementary suppression keeps every hidden remainder at 0 or >= floor (P3 = A), both for
+ * countries within each continent and for continents within the world. The world is always
+ * published. Distributions are rounded. Key order is deterministic, so the same state always
+ * serialises to byte-identical JSON.
  */
-export function renderSnapshot(state: AggregatorState, config: AggregationConfig): Snapshot {
+export function renderSnapshot(
+  state: AggregatorState,
+  countryToContinent: CountryToContinent,
+  config: AggregationConfig,
+): Snapshot {
   const publish = (r: StateRegion): SnapshotRegion => ({
     n: r.n,
     dist: r.dist.map((p) => round(p, config.distDecimals)),
     h: r.headline,
   });
 
+  const floor = config.publishMinN;
+
+  // Continents within the world. The world's remainder also holds unknown-country votes.
+  const continentRows = CONTINENTS.map((c) => [c, state.continents[c]?.n ?? 0] as const);
+  const safeContinents = publishable(state.world.n, continentRows, floor);
   const continents: Partial<Record<Continent, SnapshotRegion>> = {};
   for (const c of CONTINENTS) {
     const r = state.continents[c];
-    if (r !== undefined && r.n >= config.publishMinN) continents[c] = publish(r);
+    if (r !== undefined && safeContinents.has(c)) continents[c] = publish(r);
+  }
+
+  // Countries within each continent, whether or not the continent itself is published: a
+  // hidden continent's counts may still be derivable from the world, so its own remainder
+  // must be safe too.
+  const byContinent = new Map<Continent, [string, number][]>();
+  for (const [code, r] of Object.entries(state.countries)) {
+    const c = countryToContinent.get(code);
+    if (c === undefined) continue; // not in the map: never published
+    const list = byContinent.get(c) ?? [];
+    list.push([code, r.n]);
+    byContinent.set(c, list);
+  }
+  const safeCountries = new Set<string>();
+  for (const [c, list] of byContinent) {
+    for (const code of publishable(state.continents[c]?.n ?? 0, list, floor))
+      safeCountries.add(code);
   }
   const countries: Record<string, SnapshotRegion> = {};
   for (const code of Object.keys(state.countries).sort()) {
     const r = state.countries[code];
-    if (r !== undefined && r.n >= config.publishMinN) countries[code] = publish(r);
+    if (r !== undefined && safeCountries.has(code)) countries[code] = publish(r);
   }
 
   return {

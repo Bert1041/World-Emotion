@@ -49,14 +49,45 @@ describe("buildSnapshot: privacy floor (decision P2a)", () => {
   });
 
   it("applies the same floor to continents", () => {
-    const { snapshot } = build(rows(["AU", 1, 4], ["FR", 0, 50]));
+    // OC has 4; the world remainder is OC (4) + JP (6) = 10, which is safe.
+    const { snapshot } = build(rows(["AU", 1, 4], ["FR", 0, 50], ["US", 0, 50], ["JP", 0, 6]));
     expect(snapshot.continents.OC).toBeUndefined();
     expect(snapshot.continents.EU?.n).toBe(50);
   });
+});
 
-  it("does not leak a single vote: a country with n = 1 is absent from the snapshot", () => {
+describe("buildSnapshot: complementary suppression (decision P3 = A)", () => {
+  it("defeats the differencing attack: EU − FR − DE no longer isolates LU's single vote", () => {
+    // The exact case that leaked before P3 (ADR 0003): LU's 1 sad vote was recoverable.
+    const { snapshot } = build(
+      rows(["FR", 0, 40], ["FR", 1, 30], ["DE", 2, 25], ["LU", 4, 1], ["US", 1, 100]),
+    );
+    expect(snapshot.countries.LU).toBeUndefined();
+    expect(snapshot.countries.DE).toBeUndefined(); // the smallest published sibling is hidden too
+    expect(snapshot.countries.FR?.n).toBe(70);
+    // What an attacker can now isolate is DE + LU together: 26 votes, not 1.
+    expect((snapshot.continents.EU?.n ?? 0) - (snapshot.countries.FR?.n ?? 0)).toBe(26);
+  });
+
+  it("hides the only published sibling when it alone would expose the rest", () => {
     const { snapshot } = build(rows(["LU", 3, 1], ["FR", 0, 100]));
-    expect(Object.keys(snapshot.countries)).toEqual(["FR"]);
+    expect(snapshot.countries).toEqual({});
+    expect(snapshot.continents.EU?.n).toBe(101); // the continent stays: world remainder is 0
+  });
+
+  it("protects unknown-country votes at the world level", () => {
+    // 2 Tor votes count toward the world only; world − EU − NA would reveal them.
+    const { snapshot } = build(rows(["FR", 0, 50], ["US", 1, 60], ["T1", 5, 2]));
+    expect(snapshot.continents.EU).toBeUndefined(); // smaller of the two is hidden
+    expect(snapshot.continents.NA?.n).toBe(60);
+  });
+
+  it("protects countries of a continent that is itself hidden", () => {
+    // EU is hidden at world level (world remainder would be 3), but EU − FR would still be
+    // derivable from world − NA, so LU (1) must not be exposed through FR either.
+    const { snapshot } = build(rows(["FR", 0, 20], ["LU", 4, 1], ["US", 1, 5], ["T1", 0, 3]));
+    expect(snapshot.countries.LU).toBeUndefined();
+    expect(snapshot.countries.FR).toBeUndefined();
   });
 });
 
@@ -145,6 +176,38 @@ describe("buildSnapshot: invariants over random input", () => {
           expect(st.ok ? "ok" : st.error).toBe("ok");
         }
       }),
+    );
+  });
+
+  it("never leaves a hidden remainder between 1 and floor − 1 beside a published sibling", () => {
+    // Differencing needs at least one published child to subtract. With none published, the
+    // remainder is the parent's own total (the world is always published; ADR 0003).
+    const f = DEFAULT_CONFIG.publishMinN;
+    const safe = (parentN: number, kids: number[]) => {
+      if (kids.length === 0) return true;
+      const remainder = parentN - kids.reduce((a, b) => a + b, 0);
+      return remainder === 0 || remainder >= f;
+    };
+    fc.assert(
+      fc.property(rowsArb, (r) => {
+        const { snapshot, state } = build(r);
+        expect(
+          safe(
+            state.world.n,
+            Object.values(snapshot.continents).map((c) => c.n),
+          ),
+        ).toBe(true);
+        for (const [c, region] of Object.entries(state.continents)) {
+          const kids = Object.entries(snapshot.countries).filter(([code]) => GEO.get(code) === c);
+          expect(
+            safe(
+              region.n,
+              kids.map(([, k]) => k.n),
+            ),
+          ).toBe(true);
+        }
+      }),
+      { numRuns: 500 },
     );
   });
 

@@ -1,6 +1,6 @@
 # 0003 — Snapshot headline and privacy floor
 
-- **Status:** accepted (P1, P2a); **P3 open**
+- **Status:** accepted (P1, P2a, P3 = A)
 - **Date:** 2026-11-05
 
 ## Context
@@ -16,7 +16,7 @@
 - Smoothing and hysteresis read the **private** state (unrounded, every region), never the public
   snapshot, so a region crossing the floor does not jump.
 
-## Known gap (P3, open)
+## P3: the floor alone was not sufficient
 The floor alone is **not sufficient**. Verified against real `buildSnapshot` output on 2026-11-05:
 with FR (70 votes) and DE (25) published and LU (1 sad vote) omitted, `EU − FR − DE` recovers
 LU's counts exactly as `[0,0,0,0,1,0]`. Two attack shapes:
@@ -24,7 +24,21 @@ LU's counts exactly as `[0,0,0,0,1,0]`. Two attack shapes:
 2. **Temporal differencing:** consecutive snapshots differ by the votes cast in between; at low
    traffic that can be a single vote. Smoothing is invertible, so it doesn't hide this.
 
-Options are in the Phase 1 report. Until P3 is decided, the floor is a partial control.
+**Decision (P3 = A): complementary suppression.** Whenever a parent's hidden remainder (parent
+minus published children) would be between 1 and `floor − 1`, the smallest published child is
+hidden too (ties by key). Applied to countries within every continent (published or not) and to
+continents within the world, whose remainder also holds unknown-country votes. Implemented in
+`packages/core/src/suppress.ts`; the original attack is a regression test.
+
+Rejected for now: **(B) noise** (closes temporal differencing too, but needs injected randomness
+and makes small regions jitter); **(C) accept and disclose**.
+
+## Residual risks (accepted, must appear on the privacy page, Phase 8)
+1. **Temporal differencing** is not addressed: at low traffic, two consecutive snapshots can differ
+   by a single vote, revealing that one person somewhere (in a published region) felt a given mood.
+   No identity is attached. Revisit with (B) if this matters.
+2. **The world is always published**, so with fewer than 5 votes worldwide (launch only) world
+   counts are recoverable. No geography is attached.
 
 ## Consequences
 - Clients must handle an absent country or continent (render the parent, "quiet here").
