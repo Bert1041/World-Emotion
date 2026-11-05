@@ -1,0 +1,3 @@
+# Vendored third-party data is checksum-verified by its build: store it byte-for-byte,
+# never normalise line endings (core.autocrlf=input would otherwise rewrite CRLF).
+packages/geo-data/vendor/** -text
