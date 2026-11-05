@@ -15,7 +15,7 @@ Mutations run (each made `pnpm check` exit 1, then restored):
   - all test files removed → caught (passWithNoTests: false)
   - unused variable + `==` → caught by biome lint
 Verified: all 103 resolved packages (incl. transitive/platform binaries) published ≥14 days ago
-NOT verified: CI (no remote yet); Node 24 (only Node 26 is installed locally)
+NOT verified: CI (no remote yet) → addressed in Phase 0.5
 Incidents: biome formatted README.md during setup → restored byte-identical from
   ~/Downloads/README.md (cmp), Markdown now excluded. `biome migrate` disabled all
   lint rules → fixed, see ADR 0002.
@@ -25,6 +25,7 @@ Incidents: biome formatted README.md during setup → restored byte-identical fr
 
 ## 0. How we work
 
+- **One branch + pull request per phase.** Merging the PR is the phase sign-off; CI must be green.
 - **One phase at a time.** A phase starts only when the previous phase's exit criteria are met and reviewed.
 - **Every phase has exit criteria that can be checked.** "It works" is not an exit criterion.
 - **Tests are mutation-checked.** For every test that guards behaviour: break the code, watch the test fail, restore it. Each phase report lists the mutations run.
@@ -78,6 +79,10 @@ These come from reading the README closely. Each one would ship as a defect if b
 - Gaps G1–G10 resolved into the README (or explicitly rejected with reasons).
   **Not in scope:** CI (needs a remote), any app code.
 
+### Phase 0.5: CI gate (pulled forward from Phase 8)
+**Scope:** GitHub Actions runs `pnpm check` on every push; actions pinned to commit SHAs; Node raised to 26.
+**Exit criteria:** a green run on the branch, **and** a red run on a deliberately broken commit (CI mutation check).
+
 ### Phase 1: `packages/core` + `packages/shared`
 
 **Scope:** mood enum, window expiry, pooling (country/continent/world), shrinkage chain (G5), time-based smoothing (G3), headline hysteresis, snapshot schema (Zod, versioned), check-in request schema.
@@ -130,7 +135,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 
 ### Phase 8: Hardening
 
-**Scope:** CI (lint, check, budget, deploy), limit-hit behaviour, Turnstile on spikes, CSP, usage alerts at 70%, privacy page.
+**Scope:** CI additions (bundle budget, deploy; base `pnpm check` gate exists since Phase 0.5), limit-hit behaviour, Turnstile on spikes, CSP, usage alerts at 70%, privacy page.
 **Exit criteria:** limit-hit simulated (forced 429/503 from API) → app shows "will count shortly" and recovers; CI fails on a budget breach (mutation: bloat the bundle).
 
 ### Phase 9: Soft launch
