@@ -2,7 +2,7 @@
 
 Companion to `README.md` (the spec). The README says **what** and **why**; this file says **in what order, how we know a phase is done, and what is still undecided**.
 
-Status: **Phase 1 complete on branch `phase-1/core`, awaiting PR review.** Phase 0 + 0.5 merged (PR #2).
+Status: **Phase 2 complete on branch `phase-2/geo-data`, awaiting PR review.** Phases 0–1 merged. Phase 0 + 0.5 merged (PR #2).
 
 Previous status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
 
@@ -117,7 +117,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 
 ### Phase 5: API + D1
 
-**Scope:** `migrations/0001_init.sql` (+ rollback), Hono Worker `POST /checkin`, Zod validation, idempotency (G7), country derivation (G9), manual override + rate limit (G8), `tools/simulate`.
+**Scope:** `migrations/0001_init.sql` (+ rollback), Hono Worker `POST /checkin`, Zod validation **plus `isKnownCountry` membership check** (docs/geo-decisions.md), log unknown `cf.country` codes (verify Kosovo), idempotency (G7), country derivation (G9), manual override + rate limit (G8), `tools/simulate`.
 **Exit criteria:**
 - Migration forward **and** rollback run against local D1; row counts checked before/after both.
 - Real `rows_written` per check-in, per replay (expect 0) and per purge, measured and written back into README §7.
@@ -132,7 +132,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 
 ### Phase 7: PWA, offline, accessibility, sharing
 
-**Scope:** vite-plugin-pwa, offline queue (latest-only), foreground retry, accessible list/table view, keyboard nav, tiny-country search/picker, share card PNG + Web Share, iOS install hint.
+**Scope:** vite-plugin-pwa, offline queue (latest-only), foreground retry, accessible list/table view, keyboard nav, Natural Earth + GeoNames credit (docs/licenses.md), verify `Intl.DisplayNames` on target phones, tiny-country search/picker, share card PNG + Web Share, iOS install hint.
 **Exit criteria:** Playwright smoke test (load → tap mood → UI updates, against local Worker); offline → online replay verified in a real browser; screen-reader pass on the list view; JS < 150 KB gz measured.
 
 ### Phase 8: Hardening

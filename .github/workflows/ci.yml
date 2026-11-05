@@ -26,3 +26,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      # Generated geo files must match a fresh build from the pinned, checksum-verified sources.
+      - run: pnpm --filter @world-emotion/geo-data check:data
