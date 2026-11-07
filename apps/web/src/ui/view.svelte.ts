@@ -36,4 +36,6 @@ export interface UiActions {
   back(): void;
   previewMood(m: MoodId): void;
   toggleAuto(): void;
+  /** The region card finished moving (peek ↔ open): re-measure and re-fit the map. */
+  cardMoved(): void;
 }

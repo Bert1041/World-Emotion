@@ -2,13 +2,14 @@
 import type { Bar } from "./view.svelte";
 
 let { bar }: { bar: Bar } = $props();
-let fill: HTMLElement | undefined = $state();
+// bind:this assigns null on unmount.
+let fill: HTMLElement | null = $state(null);
 let grown = $state(false);
 
 // Bars fill from empty when they appear (README §8.2.6), then flow between values. The start
 // value must be styled before the change, or the browser skips the transition: read it first.
 $effect(() => {
-  if (fill === undefined || grown) return;
+  if (fill === null || grown) return;
   void getComputedStyle(fill).transform;
   grown = true;
 });

@@ -61,6 +61,12 @@ const perf = $("perf");
 const baseCtx = baseCanvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
 const fxCtx = fxCanvas.getContext("2d") as CanvasRenderingContext2D;
 // UI (Svelte) renders `view`; the engine writes to it. Called back on clicks only, after init.
+/**
+ * Layout callbacks from the UI are ignored until start() has measured once: a component may
+ * report during mount (under reduced motion the card settles synchronously), before the
+ * engine's element references and canvases exist.
+ */
+let layoutReady = false;
 mount(App, {
   target: $("ui"),
   props: {
@@ -70,6 +76,9 @@ mount(App, {
         sim.bias = m;
         autoCycle = false;
         view.autoCycle = false;
+      },
+      cardMoved: () => {
+        if (layoutReady) refitToCard();
       },
       toggleAuto: () => {
         autoCycle = !autoCycle;
@@ -130,7 +139,10 @@ function measureLayout(): void {
     return;
   }
   const wide = SIDE_CARD.matches;
-  const card = boxOf(ui.panel);
+  // A peek card is pushed down by a translate (offset* ignores it): measure its visible part.
+  const box = boxOf(ui.panel);
+  const pushed = Math.min(box.h, Number(ui.panel.dataset.peekOffset) || 0);
+  const card = { x: box.x, y: box.y + pushed, w: box.w, h: box.h - pushed };
   lastCardH = card.h;
   regionFree = freeArea({
     viewport,
@@ -676,6 +688,15 @@ function frame(ts: number): void {
   requestAnimationFrame(frame);
 }
 
+/** Re-measure; if the card's visible height changed, re-fit the continent beside it. */
+function refitToCard(): void {
+  const before = lastCardH;
+  measureLayout();
+  if (focus !== null && Math.abs(lastCardH - before) > 8 && !camera.gliding)
+    camera.glideTo(fitFrame(focus), 0.5);
+  dirty = true;
+}
+
 // ---- Startup ----------------------------------------------------------------------------------
 async function start(): Promise<void> {
   const [m, a, b] = await Promise.all([
@@ -691,6 +712,7 @@ async function start(): Promise<void> {
   particles = new ParticleField(config.particles, [], rng(42));
   perf.hidden = !(config.debug || config.bench);
   resize();
+  layoutReady = true;
   mixer.setTarget(snapshot.world.h, true);
   view.themeName = mixer.current.name;
   onSnapshot(snapshot);
@@ -702,13 +724,7 @@ async function start(): Promise<void> {
   window.addEventListener("resize", resize);
   // Any change in the size of text/UI (content, fonts, rotation) re-measures the free area.
   // Fires only on actual size changes, never per frame.
-  const ro = new ResizeObserver(() => {
-    const before = lastCardH;
-    measureLayout();
-    if (focus !== null && Math.abs(lastCardH - before) > 8 && !camera.gliding)
-      camera.glideTo(fitFrame(focus), 0.5);
-    dirty = true;
-  });
+  const ro = new ResizeObserver(refitToCard);
   for (const el of [header, ui.panel, ui.back, ui.dev]) ro.observe(el);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) prevTs = 0; // don't integrate the time spent hidden
