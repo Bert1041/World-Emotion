@@ -85,6 +85,12 @@ TypeScript, and this phase adds most of the UI (picker, peek card, counters, liv
 two small components now. Today's initial JS is 49 KB gzipped (map data is lazy-loaded: 27 KB for
 110m, 133 KB for 50m), so the < 150 KB budget has room.
 
+*Measured after adopting it (2026-11-07):* initial JS **49.4 → 64.6 KB gzipped** (+15 KB, more
+than the "few KB" estimated above; 43% of the budget). Type-checking `.svelte` files with TypeScript
+7 needs `svelte-check --tsgo`, which requires TypeScript 6 installed beside 7: `apps/web` has
+`typescript@6.0.3` (used only by svelte-check) and TS 7 as `@typescript/native`, which its own
+`tsc` typecheck calls explicitly. The rest of the repo is unchanged on TS 7.
+
 **M2. Which country a demo check-in lands on** (before Phase 5 derives it from the request).
 *Recommend:* guess it from the browser's language region (`navigator.language`, e.g. `en-NG` →
 Nigeria), with a "change" link to a country list. No location permission is asked for. Phase 5

@@ -85,20 +85,8 @@
     <div id="scanlines" class="overlay"></div>
     <div id="frost" class="overlay"></div>
     <div id="heat" class="overlay"></div>
-    <header>
-      <div class="kicker">Right now</div>
-      <h1>The world feels <span id="world-mood" aria-live="polite"></span></h1>
-      <div id="theme-name"></div>
-    </header>
-    <button id="back" type="button" hidden>← World</button>
-    <section id="panel" hidden aria-live="polite">
-      <div class="kicker">Right now</div>
-      <h2 id="panel-title">Region</h2>
-      <div id="panel-mood"></div>
-      <div id="panel-sub"></div>
-      <ul id="bars"></ul>
-    </section>
-    <nav id="dev" aria-label="Preview a world mood (prototype only)"></nav>
+    <!-- Header, back button, region card, dev bar: src/ui/App.svelte (mounted by main.ts). -->
+    <div id="ui"></div>
     <div id="perf" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

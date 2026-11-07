@@ -9,6 +9,7 @@ import {
   type SnapshotRegion,
 } from "@world-emotion/shared";
 import { geoCentroid, geoContains, geoDistance, geoOrthographic } from "d3-geo";
+import { flushSync, mount } from "svelte";
 import { SnapshotSim } from "./demo/snapshot-sim";
 import { Camera, CONTINENT_NAMES, CONTINENT_VIEWS, type View } from "./engine/camera";
 import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
@@ -18,6 +19,8 @@ import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng, type SpawnPoint } from "./engine/particles";
 import { FrameRecorder, type FrameSummary } from "./engine/stats";
 import { ThemeMixer } from "./engine/themes";
+import App from "./ui/App.svelte";
+import { type Bar, view } from "./ui/view.svelte";
 
 // ---- Configuration (URL params; the bench runner sweeps scenarios with bench=1) -------------
 const params = new URLSearchParams(location.search);
@@ -51,15 +54,30 @@ const fxCanvas = $<HTMLCanvasElement>("fx");
 const perf = $("perf");
 const baseCtx = baseCanvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
 const fxCtx = fxCanvas.getContext("2d") as CanvasRenderingContext2D;
+// UI (Svelte) renders `view`; the engine writes to it. Called back on clicks only, after init.
+mount(App, {
+  target: $("ui"),
+  props: {
+    actions: {
+      back: () => leave(),
+      previewMood: (m: MoodId) => {
+        sim.bias = m;
+        autoCycle = false;
+        view.autoCycle = false;
+      },
+      toggleAuto: () => {
+        autoCycle = !autoCycle;
+        cycleAt = performance.now();
+        view.autoCycle = autoCycle;
+      },
+    },
+  },
+});
+flushSync();
+/** Boxes the layout measures (ids kept stable for index.html CSS and e2e/layout.spec.ts). */
 const ui = {
-  worldMood: $("world-mood"),
-  themeName: $("theme-name"),
   back: $<HTMLButtonElement>("back"),
   panel: $("panel"),
-  panelTitle: $("panel-title"),
-  panelMood: $("panel-mood"),
-  panelSub: $("panel-sub"),
-  bars: $("bars"),
   dev: $("dev"),
   overlays: { scanlines: $("scanlines"), frost: $("frost"), heat: $("heat") },
 };
@@ -249,83 +267,64 @@ function onSnapshot(next: Snapshot): void {
   snapshot = next;
   if (next.world.h !== mixer.target) {
     mixer.setTarget(next.world.h);
-    ui.worldMood.classList.remove("swap");
-    void ui.worldMood.offsetWidth; // restart the CSS animation
-    ui.worldMood.classList.add("swap");
+    view.worldSwap++; // replay the word's entrance
   }
-  ui.worldMood.textContent = MOODS[next.world.h] ?? "";
+  view.worldMood = MOODS[next.world.h] ?? "";
   recomputeFills();
   recomputeWeather();
   renderPanel();
 }
 
 // ---- Panels -----------------------------------------------------------------------------------
-function renderBars(r: SnapshotRegion): void {
-  ui.bars.replaceChildren(
-    ...MOODS.map((name, m) => {
-      const li = document.createElement("li");
-      const pct = Math.round((r.dist[m] ?? 0) * 100);
-      li.innerHTML = `<span class="label">${name}</span><span class="track"><span class="fill"></span></span><span class="pct">${pct}%</span>`;
-      const fill = li.querySelector(".fill") as HTMLElement;
-      fill.style.background = MOOD_COLORS[m] ?? "#fff";
-      // Compositor-only animation (README §8.1 layer 4): scaleX, never width.
-      requestAnimationFrame(() => {
-        fill.style.transform = `scaleX(${(r.dist[m] ?? 0).toFixed(3)})`;
-      });
-      if (m === r.h) li.classList.add("lead");
-      return li;
-    }),
-  );
+function barsOf(r: SnapshotRegion): Bar[] {
+  return MOODS.map((name, m) => ({
+    name,
+    share: r.dist[m] ?? 0,
+    pct: Math.round((r.dist[m] ?? 0) * 100),
+    color: MOOD_COLORS[m] ?? "#fff",
+    lead: m === r.h,
+  }));
 }
 
-/** "feels <mood>", with the mood word in its own colour (it is always named, never colour alone). */
-function setPanelMood(m: MoodId | null): void {
-  if (m === null) {
-    ui.panelMood.textContent = "";
-    return;
-  }
-  const word = document.createElement("span");
-  word.textContent = MOODS[m] ?? "";
-  word.style.color = MOOD_COLORS[m] ?? "";
-  ui.panelMood.replaceChildren("feels ", word);
-}
+/** "feels <mood>": the mood is always named, never colour alone. */
+const moodOf = (m: MoodId | null) =>
+  m === null ? null : { id: m, name: MOODS[m] ?? "", color: MOOD_COLORS[m] ?? "" };
 
 function renderPanel(): void {
-  ui.back.hidden = focus === null;
-  ui.dev.hidden = config.bench || focus !== null; // prototype bar never covers the panel
+  view.zoomed = focus !== null;
+  view.devVisible = !config.bench && focus === null; // prototype bar never covers the panel
   document.body.classList.toggle("zoomed", focus !== null);
-  if (focus === null) {
-    ui.panel.hidden = true;
-    return;
-  }
-  ui.panel.hidden = false;
-  if (selected !== null) {
+  if (focus === null) view.panel = null;
+  else if (selected !== null) {
     const r = regionOf(selected);
-    ui.panelTitle.textContent = countryName.of(selected) ?? selected;
-    setPanelMood(r && !r.quiet ? r.region.h : null);
-    ui.panelSub.textContent = !r
-      ? "No check-ins yet"
-      : r.quiet
-        ? `Quiet here: showing ${CONTINENT_NAMES[focus]}`
-        : `${r.region.n} check-ins`;
-    if (r) renderBars(r.region);
-    else ui.bars.replaceChildren();
-    return;
+    view.panel = {
+      title: countryName.of(selected) ?? selected,
+      mood: moodOf(r && !r.quiet ? r.region.h : null),
+      sub: !r
+        ? "No check-ins yet"
+        : r.quiet
+          ? `Quiet here: showing ${CONTINENT_NAMES[focus]}`
+          : `${r.region.n} check-ins`,
+      bars: r ? barsOf(r.region) : [],
+    };
+  } else {
+    const r = snapshot.continents[focus];
+    view.panel = {
+      title: CONTINENT_NAMES[focus],
+      mood: moodOf(r ? r.h : null),
+      sub: r ? `${r.n} check-ins` : "Quiet here",
+      bars: r ? barsOf(r) : [],
+    };
   }
-  const r = snapshot.continents[focus];
-  ui.panelTitle.textContent = CONTINENT_NAMES[focus];
-  setPanelMood(r ? r.h : null);
-  ui.panelSub.textContent = r ? `${r.n} check-ins` : "Quiet here";
-  if (r) renderBars(r);
-  else ui.bars.replaceChildren();
+  // Render now so a measurement that follows reads the new DOM. Defensive: today's callers also
+  // get corrected by the ResizeObserver (a mutation removing this passed the layout tests).
+  flushSync();
 }
 
 /** Bring the world headline back with the CURRENT world mood, animated. */
 function replayWorldHeadline(): void {
-  ui.worldMood.textContent = MOODS[snapshot.world.h] ?? "";
-  ui.worldMood.classList.remove("swap");
-  void ui.worldMood.offsetWidth; // restart the CSS animation
-  ui.worldMood.classList.add("swap");
+  view.worldMood = MOODS[snapshot.world.h] ?? "";
+  view.worldSwap++;
 }
 
 /** True between a tap and the start of its glide (one frame), so callers never see "arrived". */
@@ -356,7 +355,6 @@ function leave(): void {
   measureLayout();
   replayWorldHeadline();
 }
-ui.back.addEventListener("click", leave);
 
 // ---- Input: drag with crude inertia (Phase 4 replaces this), tap to drill down ---------------
 let lods: Record<LodName, Lod>;
@@ -419,33 +417,11 @@ const endDrag = (e: PointerEvent) => {
 fxCanvas.addEventListener("pointerup", endDrag);
 fxCanvas.addEventListener("pointercancel", endDrag);
 
-// ---- Dev switcher: preview any theme, or let the demo cycle ----------------------------------
+// ---- Dev switcher: preview any theme, or let the demo cycle (buttons in ui/App.svelte) -------
 let autoCycle = !config.bench && params.get("auto") !== "0";
 let cycleAt = performance.now();
-ui.dev.hidden = config.bench;
-ui.dev.replaceChildren(
-  ...MOODS.map((name, m) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = name;
-    b.style.borderColor = MOOD_COLORS[m] ?? "#fff";
-    b.addEventListener("click", () => {
-      sim.bias = m as MoodId;
-      autoCycle = false;
-      autoBtn.textContent = "auto: off";
-    });
-    return b;
-  }),
-);
-const autoBtn = document.createElement("button");
-autoBtn.type = "button";
-autoBtn.textContent = "auto: on";
-autoBtn.addEventListener("click", () => {
-  autoCycle = !autoCycle;
-  cycleAt = performance.now();
-  autoBtn.textContent = `auto: ${autoCycle ? "on" : "off"}`;
-});
-ui.dev.append(autoBtn);
+view.autoCycle = autoCycle;
+view.devVisible = !config.bench;
 
 // ---- Frame loop -------------------------------------------------------------------------------
 let prevTs = 0;
@@ -505,7 +481,7 @@ function frame(ts: number): void {
   if (themeChanging) {
     recomputeFills();
     const th = mixer.current;
-    ui.themeName.textContent = th.name;
+    view.themeName = th.name;
     ui.overlays.scanlines.style.opacity = th.scanlines.toFixed(3);
     ui.overlays.frost.style.opacity = th.frost.toFixed(3);
     ui.overlays.heat.style.opacity = th.heat.toFixed(3);
@@ -618,7 +594,7 @@ async function start(): Promise<void> {
   perf.hidden = !(config.debug || config.bench);
   resize();
   mixer.setTarget(snapshot.world.h, true);
-  ui.themeName.textContent = mixer.current.name;
+  view.themeName = mixer.current.name;
   onSnapshot(snapshot);
   const th = mixer.current;
   ui.overlays.scanlines.style.opacity = String(th.scanlines);
