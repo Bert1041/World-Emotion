@@ -169,22 +169,51 @@ test("a swipe that pauses before letting go does not fling", async ({ page }) =>
   expect(await lonDrift(page, 400)).toBeLessThan(0.01);
 });
 
+/**
+ * Wheel notches dispatched in-page, `gapMs` apart by the page clock: the app ends a wheel gesture
+ * after a quiet spell, so test-runner latency between notches must not decide the outcome.
+ */
+const wheelNotches = (page: Page, at: [number, number], deltaY: number, n: number, gapMs: number) =>
+  page.evaluate(
+    ([x, y, d, count, gap]) =>
+      new Promise<void>((done) => {
+        const fx = document.getElementById("fx") as HTMLCanvasElement;
+        let i = 0;
+        const fire = () => {
+          fx.dispatchEvent(
+            new WheelEvent("wheel", {
+              clientX: x,
+              clientY: y,
+              deltaY: d,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+          if (++i < count) setTimeout(fire, gap);
+          else done();
+        };
+        fire();
+      }),
+    [at[0], at[1], deltaY, n, gapMs] as [number, number, number, number, number],
+  );
+
 test("wheel: a small turn springs back; a big one over Europe drills in; out returns", async ({
   page,
 }) => {
-  const [x, y] = await pointOf(page, 10, 50);
-  await page.mouse.move(x, y);
-  await page.mouse.wheel(0, -60); // one small notch inward
+  const at = await pointOf(page, 10, 50);
+  await wheelNotches(page, at, -60, 1, 0); // one small notch inward
   await expect.poll(async () => (await layout(page)).zoom, { timeout: 400 }).toBeGreaterThan(1.05);
   await expect.poll(async () => (await layout(page)).moving, { timeout: 3000 }).toBe(false);
   expect((await layout(page)).focus, "springs back, no drill-down").toBeNull();
   expect((await layout(page)).zoom).toBe(1);
 
-  for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -120);
+  // A slow, deliberate scroll (a notch every 200 ms) still adds up to a drill-down.
+  await wheelNotches(page, at, -120, 3, 200);
   await expect.poll(async () => (await layout(page)).focus, { timeout: 3000 }).toBe("EU");
 
   await expect.poll(async () => (await layout(page)).gliding, { timeout: 4000 }).toBe(false);
-  for (let i = 0; i < 3; i++) await page.mouse.wheel(0, 120);
+  const mid = await pointOf(page, 12, 53);
+  await wheelNotches(page, mid, 120, 3, 60);
   await expect.poll(async () => (await layout(page)).focus, { timeout: 3000 }).toBeNull();
 });
 

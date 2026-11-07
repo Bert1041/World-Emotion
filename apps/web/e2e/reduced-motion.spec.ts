@@ -65,6 +65,11 @@ test.beforeEach(async ({ page }, info) => {
 });
 
 test("no particles and no idle rotation", async ({ page }) => {
+  // face() holds idle rotation for tests; a real input (a click on empty sky, which selects
+  // nothing) releases it, so rotation would start after 4 s if reduced motion allowed it.
+  const vp = page.viewportSize() ?? { width: 0, height: 0 };
+  await page.mouse.click(vp.width - 4, vp.height / 2);
+  expect((await layout(page)).focus, "the click hit the sky, not a country").toBeNull();
   const a = await layout(page);
   await page.waitForTimeout(5000); // idle rotation would start after 4 s
   const b = await layout(page);

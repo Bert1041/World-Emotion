@@ -25,6 +25,40 @@ async function tapEurope(page: Page) {
   await page.mouse.click(p[0], p[1]);
 }
 
+/**
+ * Resolves when the headline word is next replaced, with whether the new element got the "swap"
+ * entrance. Checked at the moment it appears (MutationObserver; getAnimations() resolves styles),
+ * so test-runner latency cannot make a 600 ms animation look absent.
+ */
+async function nextWordEntrance(page: Page): Promise<{ result(): Promise<boolean> }> {
+  // Parked on window: evaluate/evaluateHandle would wait for the promise before returning.
+  await page.evaluate(() => {
+    (window as unknown as { __entrance: Promise<boolean> }).__entrance = new Promise<boolean>(
+      (resolve) => {
+        const h1 = document.querySelector("header h1") as HTMLElement;
+        const before = document.getElementById("world-mood");
+        const mo = new MutationObserver(() => {
+          const now = document.getElementById("world-mood");
+          if (!now || now === before) return;
+          mo.disconnect();
+          resolve(
+            now
+              .getAnimations()
+              .some(
+                (a) => (a as CSSAnimation).animationName === "swap" && a.playState !== "finished",
+              ),
+          );
+        });
+        mo.observe(h1, { childList: true, subtree: true });
+      },
+    );
+  });
+  return {
+    result: () =>
+      page.evaluate(() => (window as unknown as { __entrance: Promise<boolean> }).__entrance),
+  };
+}
+
 test("region bars fill from empty, then rest at their share", async ({ page }) => {
   // Sample the first bar's scaleX on every frame for 1.5 s from the moment it exists. Timed by
   // the page clock from first appearance, not by a frame count: CI renders far below 60 fps.
@@ -61,43 +95,26 @@ test("region bars fill from empty, then rest at their share", async ({ page }) =
 test("a new world mood replays the headline word's entrance", async ({ page }) => {
   const before = (await page.locator("#world-mood").textContent()) ?? "";
   const other = ["happy", "calm", "excited", "stressed", "sad", "angry"].find((m) => m !== before);
+  const entrance = await nextWordEntrance(page);
   await page.locator("#dev button", { hasText: other as string }).click();
   // The demo needs a few aggregation steps (hysteresis) before the world mood flips.
-  await page.waitForFunction(
-    (b) => document.getElementById("world-mood")?.textContent !== b,
-    before,
-    {
-      timeout: 20_000,
-      polling: "raf",
-    },
-  );
-  const animating = await page.evaluate(() =>
-    (document.getElementById("world-mood")?.getAnimations() ?? []).some(
-      (a) => (a as CSSAnimation).animationName === "swap" && a.playState === "running",
-    ),
-  );
-  expect(animating, "word changed without its entrance animation").toBe(true);
+  await expect(page.locator("#world-mood")).not.toHaveText(before, { timeout: 20_000 });
+  expect(await entrance.result(), "word changed without its entrance animation").toBe(true);
   await expect(page.locator("h1")).toHaveAttribute("aria-live", "polite");
 });
 
 test("coming back out replays the headline entrance every time, not just once", async ({
   page,
 }) => {
-  const swapRunning = () =>
-    page.evaluate(() =>
-      (document.getElementById("world-mood")?.getAnimations() ?? []).some(
-        (a) => (a as CSSAnimation).animationName === "swap" && a.playState === "running",
-      ),
-    );
   for (let round = 1; round <= 2; round++) {
     await tapEurope(page);
     await expect(page.locator("#back")).toBeVisible();
+    const entrance = await nextWordEntrance(page);
     await page.locator("#back").click();
-    expect(await swapRunning(), `round ${round}: headline came back without its entrance`).toBe(
+    expect(await entrance.result(), `round ${round}: headline came back without its entrance`).toBe(
       true,
     );
     await page.waitForTimeout(900); // let the 600 ms entrance finish before the next round
-    expect(await swapRunning(), `round ${round}: entrance never ended`).toBe(false);
   }
 });
 

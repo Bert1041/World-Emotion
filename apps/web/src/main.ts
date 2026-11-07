@@ -514,7 +514,10 @@ function releaseVelocity(now: number): [number, number] {
 fxCanvas.addEventListener("pointerup", endDrag);
 fxCanvas.addEventListener("pointercancel", endDrag);
 
-// Mouse wheel and trackpad pinch (ctrl+wheel) stretch the zoom the same way.
+// Mouse wheel and trackpad pinch (ctrl+wheel) stretch the zoom the same way. One gesture lasts
+// until the wheel is quiet for WHEEL_GESTURE_MS: long enough that a slow, deliberate scroll (a
+// notch every ~200 ms) still adds up, short enough that a single notch springs back promptly.
+const WHEEL_GESTURE_MS = 250;
 let wheelRaw = 0;
 let wheelTimer: ReturnType<typeof setTimeout> | undefined;
 fxCanvas.addEventListener(
@@ -531,7 +534,7 @@ fxCanvas.addEventListener(
     wheelTimer = setTimeout(() => {
       wheelRaw = 0;
       releaseStretch(at);
-    }, 160);
+    }, WHEEL_GESTURE_MS);
   },
   { passive: false },
 );
@@ -868,6 +871,9 @@ window.__bench = {
   },
   face(lon, lat) {
     camera.stop();
+    // Hold idle rotation until the next real input: otherwise, under load, the globe turns
+    // between a test reading a point's position and its tap landing there.
+    lastInput = Number.POSITIVE_INFINITY;
     camera.view = { center: [lon, lat], zoom: camera.view.zoom };
     lastInput = performance.now();
     dirty = true;
