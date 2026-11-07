@@ -37,10 +37,32 @@ async function settled(page: Page, focus: string | null) {
     focus,
     { timeout: 8000 },
   );
-  await page.waitForTimeout(700); // the anchor eases after the glide; let CSS transitions finish
+  await page.waitForTimeout(400); // CSS transitions (card slide, header fade)
+  await stable(page);
+}
+
+/**
+ * Wait until the layout has stopped moving: two reads 250 ms apart agree within half a pixel.
+ * Late font loads (slower CI machines, other platforms' fonts) resize the headline, and the globe
+ * then eases to its new place; asserting mid-ease would test a transition, not the layout.
+ */
+async function stable(page: Page) {
+  let prev = await layout(page);
+  for (let i = 0; i < 40; i++) {
+    await page.waitForTimeout(250);
+    const next = await layout(page);
+    const d =
+      Math.abs(next.globe.cx - prev.globe.cx) +
+      Math.abs(next.globe.cy - prev.globe.cy) +
+      Math.abs(next.globe.r - prev.globe.r);
+    if (d < 0.5 && !next.gliding) return;
+    prev = next;
+  }
+  throw new Error("layout never settled");
 }
 
 async function expectWorldClear(page: Page) {
+  await stable(page);
   const vp = page.viewportSize() ?? { width: 0, height: 0 };
   const L = await layout(page);
   const halo = { cx: L.globe.cx, cy: L.globe.cy, r: L.globe.r * L.globe.halo };
