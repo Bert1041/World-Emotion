@@ -29,6 +29,13 @@ at 60 Hz and 120 Hz frame rates and expects the same trajectory within 1e-9 (PLA
 - **Camera:** glide and zoom move onto springs and tokens. Drag inertia uses friction plus a spring
   settle, with a rubber band at the zoom limits (README §8.2.2). This replaces the spike's crude
   inertia (ADR 0005: throwaway).
+- **Zoom gestures (as built, 2026-11-07):** pinch and wheel (ctrl+wheel for a trackpad pinch) are a
+  rubber band between the two fitted levels, not free zoom. Free zoom in world view would put the
+  globe under the headline and break "no text on the Earth". Pulled in past ×1.25 over a continent,
+  the camera drills in; pulled out past ×0.8 while zoomed, it returns to the world; anything less
+  springs back.
+- **Fling:** the release velocity is the mean over the last 100 ms of moves (a pause before
+  letting go leaves none, so no fling), with at least one frame of span and a 720°/s cap.
 - **World mood change:** colours tween in OKLab over the token duration. The headline word
   cross-fades and the breakdown bars flow to their new shape (§8.2.4).
 - **Phone peek card** (decided 2026-11-07): collapsed to region plus mood by default; swipe up for

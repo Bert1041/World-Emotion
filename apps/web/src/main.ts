@@ -11,7 +11,13 @@ import {
 import { geoCentroid, geoContains, geoDistance, geoOrthographic } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { SnapshotSim } from "./demo/snapshot-sim";
-import { Camera, CONTINENT_NAMES, CONTINENT_VIEWS, type View } from "./engine/camera";
+import {
+  Camera,
+  CONTINENT_NAMES,
+  CONTINENT_VIEWS,
+  STRETCH_COMMIT,
+  type View,
+} from "./engine/camera";
 import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";
@@ -87,7 +93,7 @@ const countryName = new Intl.DisplayNames([navigator.language, "en"], { type: "r
 const projection = geoOrthographic().clipAngle(90);
 if (config.opt.has("precision0")) projection.precision(0);
 const globe = new GlobeLayer(baseCtx, projection);
-const camera = new Camera({ center: [10, 20], zoom: 1 });
+const camera = new Camera({ center: [10, 20], zoom: 1 }, { reducedMotion });
 let dpr = 1;
 /** Globe radius at zoom 1 (canvas px): the largest globe whose halo fits the world free area. */
 let baseRadius = 1;
@@ -197,9 +203,10 @@ function resize(): void {
 }
 
 function applyCamera(): void {
-  const [lon, lat] = camera.view.center;
-  const scale = baseRadius * camera.view.zoom;
-  const [ox, oy] = camera.view.offset ?? [0, 0];
+  const v = camera.rendered; // includes a zoom gesture's rubber-band stretch
+  const [lon, lat] = v.center;
+  const scale = baseRadius * v.zoom;
+  const [ox, oy] = v.offset ?? [0, 0];
   projection
     .rotate([-lon, -lat])
     .scale(scale)
@@ -356,66 +363,166 @@ function leave(): void {
   replayWorldHeadline();
 }
 
-// ---- Input: drag with crude inertia (Phase 4 replaces this), tap to drill down ---------------
+// ---- Input: drag + fling, tap to drill down, pinch/wheel stretch between world and continent ---
 let lods: Record<LodName, Lod>;
 let particles: ParticleField;
 let dirty = true;
 let dragging = false;
 let lastInput = performance.now();
-let velocity: [number, number] = [0, 0];
+/**
+ * Recent drag moves, for the release velocity: averaged over a window, not the last pair of
+ * events. One pair is noisy (timestamp jitter), and where moves arrive in a burst (Chrome aligns
+ * them to frames, but not every browser or input path does) one tiny gap would read a normal
+ * swipe as thousands of degrees per second. Capped as a last guard.
+ */
+const moves: { t: number; dLon: number; dLat: number }[] = [];
+const VELOCITY_WINDOW_MS = 100;
+const MAX_FLING_DEG_S = 720;
 let last: { x: number; y: number; t: number } | null = null;
 let downAt: { x: number; y: number } | null = null;
+/** Active pointers (CSS px), for two-finger pinch. */
+const pointers = new Map<number, { x: number; y: number }>();
+let pinch: { startDist: number } | null = null;
+
+/** Country and continent under a screen point (CSS px), or null for ocean/space. */
+function hitAt(x: number, y: number): { code: string; continent: Continent } | null {
+  const lonLat = projection.invert?.([x * dpr, y * dpr]);
+  const [tx, ty] = projection.translate();
+  if (!lonLat || Math.hypot(x * dpr - tx, y * dpr - ty) > projection.scale()) return null;
+  const hit = lods["50m"].countries.find((f) => geoContains(f, lonLat));
+  const code = hit ? String(hit.id) : null;
+  const continent = code ? COUNTRY_TO_CONTINENT.get(code) : undefined;
+  return code !== null && continent !== undefined ? { code, continent } : null;
+}
+
+/**
+ * A zoom gesture let go (README §8.2.2). Free zoom would put the globe under the headline (the
+ * "no text on the Earth" rule), so zoom moves between the two fitted levels: pulled far enough in
+ * over a continent it drills in, far enough out it returns to the world; otherwise it springs back.
+ */
+function releaseStretch(at: { x: number; y: number }): void {
+  const s = camera.releaseStretch();
+  dirty = true;
+  if (s > STRETCH_COMMIT && focus === null) {
+    const hit = hitAt(at.x, at.y);
+    if (hit) enter(hit.continent);
+  } else if (s < -STRETCH_COMMIT && focus !== null) leave();
+}
+
+const pinchDist = () => {
+  const [a, b] = [...pointers.values()];
+  return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+};
+const pinchMid = () => {
+  const [a, b] = [...pointers.values()];
+  return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : { x: 0, y: 0 };
+};
 
 fxCanvas.addEventListener("pointerdown", (e) => {
   fxCanvas.setPointerCapture(e.pointerId);
-  dragging = true;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   camera.stop();
+  lastInput = performance.now();
+  if (pointers.size === 2) {
+    // Second finger: the drag becomes a pinch; it is never a tap.
+    dragging = false;
+    downAt = null;
+    pinch = { startDist: Math.max(1, pinchDist()) };
+    return;
+  }
+  dragging = true;
   last = { x: e.clientX, y: e.clientY, t: e.timeStamp };
   downAt = { x: e.clientX, y: e.clientY };
-  velocity = [0, 0];
-  lastInput = performance.now();
+  moves.length = 0;
 });
 fxCanvas.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  lastInput = performance.now();
+  if (pinch !== null) {
+    camera.holdStretch(Math.log(pinchDist() / pinch.startDist));
+    dirty = true;
+    return;
+  }
   if (!dragging || last === null) return;
   const k = 180 / Math.PI / (projection.scale() / dpr); // degrees per CSS px at the centre
   const dLon = -(e.clientX - last.x) * k;
   const dLat = (e.clientY - last.y) * k;
   camera.pan(dLon, dLat);
-  const dt = Math.max(1, e.timeStamp - last.t);
-  velocity = [(dLon / dt) * 1000, (dLat / dt) * 1000];
+  moves.push({ t: e.timeStamp, dLon, dLat });
+  while (moves.length > 0 && e.timeStamp - (moves[0] as { t: number }).t > VELOCITY_WINDOW_MS)
+    moves.shift();
   last = { x: e.clientX, y: e.clientY, t: e.timeStamp };
-  lastInput = performance.now();
   dirty = true;
 });
 const endDrag = (e: PointerEvent) => {
+  const wasPinch = pinch !== null;
+  const mid = pinchMid();
+  pointers.delete(e.pointerId);
+  lastInput = performance.now();
+  dirty = true;
+  if (wasPinch) {
+    if (pointers.size < 2) {
+      pinch = null;
+      releaseStretch(mid);
+    }
+    return; // the finger left on the glass does not start a drag until it lifts
+  }
   if (!dragging) return;
   dragging = false;
-  dirty = true;
-  lastInput = performance.now();
   if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 6) {
-    velocity = [0, 0];
-    const lonLat = projection.invert?.([e.clientX * dpr, e.clientY * dpr]);
-    const onGlobe =
-      lonLat &&
-      Math.hypot(
-        e.clientX * dpr - projection.translate()[0],
-        e.clientY * dpr - projection.translate()[1],
-      ) <= projection.scale();
-    const hit = onGlobe ? lods["50m"].countries.find((f) => geoContains(f, lonLat)) : undefined;
-    const code = hit ? String(hit.id) : null;
-    const continent = code ? COUNTRY_TO_CONTINENT.get(code) : undefined;
-    if (code === null || continent === undefined) {
+    const hit = hitAt(e.clientX, e.clientY);
+    if (hit === null) {
       if (focus !== null) leave();
-    } else if (focus !== continent) enter(continent);
+    } else if (focus !== hit.continent) enter(hit.continent);
     else {
-      selected = code;
-      dirty = true;
+      selected = hit.code;
       renderPanel(); // the ResizeObserver re-fits if the card's height changes
     }
+    return;
   }
+  // A pause before letting go leaves no moves in the window: velocity 0, no fling.
+  camera.fling(...releaseVelocity(e.timeStamp));
 };
+/** Mean velocity (°/s) over the moves in the window before `now`, capped. */
+function releaseVelocity(now: number): [number, number] {
+  const recent = moves.filter((m) => now - m.t <= VELOCITY_WINDOW_MS);
+  if (recent.length === 0) return [0, 0];
+  // Span from the moment before the first counted move: at least one 60 Hz frame.
+  const span = Math.max(1000 / 60, now - (recent[0] as { t: number }).t) / 1000;
+  let lon = recent.reduce((a, m) => a + m.dLon, 0) / span;
+  let lat = recent.reduce((a, m) => a + m.dLat, 0) / span;
+  const speed = Math.hypot(lon, lat);
+  if (speed > MAX_FLING_DEG_S) {
+    lon *= MAX_FLING_DEG_S / speed;
+    lat *= MAX_FLING_DEG_S / speed;
+  }
+  return [lon, lat];
+}
 fxCanvas.addEventListener("pointerup", endDrag);
 fxCanvas.addEventListener("pointercancel", endDrag);
+
+// Mouse wheel and trackpad pinch (ctrl+wheel) stretch the zoom the same way.
+let wheelRaw = 0;
+let wheelTimer: ReturnType<typeof setTimeout> | undefined;
+fxCanvas.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault(); // no page zoom on ctrl+wheel
+    camera.stop();
+    lastInput = performance.now();
+    wheelRaw -= e.deltaY * (e.ctrlKey ? 0.01 : 0.0025);
+    camera.holdStretch(wheelRaw);
+    dirty = true;
+    clearTimeout(wheelTimer);
+    const at = { x: e.clientX, y: e.clientY };
+    wheelTimer = setTimeout(() => {
+      wheelRaw = 0;
+      releaseStretch(at);
+    }, 160);
+  },
+  { passive: false },
+);
 
 // ---- Dev switcher: preview any theme, or let the demo cycle (buttons in ui/App.svelte) -------
 let autoCycle = !config.bench && params.get("auto") !== "0";
@@ -437,6 +544,8 @@ let idle: number[] | null = null;
 /** Per idle frame: script ms, whether the base layer was redrawn, and at which LOD (diagnostics). */
 let idleFrames: { script: number; base: boolean; lod: string; rotating: boolean }[] | null = null;
 let drewBase = false;
+/** Whether the last frame drew mood-weather particles (off under reduced motion). */
+let particlesDrawn = false;
 
 function frame(ts: number): void {
   const t0 = performance.now();
@@ -459,13 +568,7 @@ function frame(ts: number): void {
     camera.view = { center: [10 - 90 * t, 20 - 15 * Math.sin(t * 1.3)], zoom: 1 };
     dirty = true;
   } else if (camera.update(dt)) {
-    dirty = true;
-  } else if (!dragging && (velocity[0] !== 0 || velocity[1] !== 0)) {
-    camera.pan(velocity[0] * dt, velocity[1] * dt);
-    const decay = Math.exp(-3 * dt);
-    velocity = [velocity[0] * decay, velocity[1] * decay];
-    if (Math.hypot(velocity[0], velocity[1]) < 1) velocity = [0, 0];
-    dirty = true;
+    dirty = true; // glide, fling or stretch (fixed step, packages/motion)
   } else if (
     !dragging &&
     focus === null &&
@@ -491,13 +594,7 @@ function frame(ts: number): void {
   const anchorEasing = easeAnchor(dt);
   if (anchorEasing) dirty = true;
   applyCamera();
-  const moving =
-    bench !== null ||
-    dragging ||
-    camera.gliding ||
-    idleRotating ||
-    velocity[0] !== 0 ||
-    velocity[1] !== 0;
+  const moving = bench !== null || dragging || camera.moving || idleRotating;
   // Any frame that is part of an animation uses the light map; the detailed 50m map (~80k
   // points) is drawn once, when everything has settled. Before this, the theme cross-fade and
   // layout easing redrew 50m every frame: 7–8 full redraws in a 2 s "idle" window, 531 ms
@@ -549,6 +646,7 @@ function frame(ts: number): void {
   fxCtx.arc(cx, cy, r * 1.16, 0, Math.PI * 2);
   fxCtx.arc(cx, cy, r * 0.97, 0, Math.PI * 2, true);
   fxCtx.fill();
+  particlesDrawn = !reducedMotion;
   if (!reducedMotion) {
     particles.update(dt);
     const [rl, rp] = projection.rotate();
@@ -703,6 +801,11 @@ declare global {
         focusBox: Rect | null;
         gliding: boolean;
         worldMood: string;
+        /** Resting camera centre [lon, lat], rendered zoom, and whether anything still moves. */
+        center: [number, number];
+        zoom: number;
+        moving: boolean;
+        particles: boolean;
       };
       run(): Promise<FrameSummary & { config: unknown; dpr: number; idleIntervalP50: number }>;
     };
@@ -734,6 +837,10 @@ window.__bench = {
       focus,
       focusBox,
       gliding: camera.gliding || fitPending,
+      center: [camera.view.center[0], camera.view.center[1]],
+      zoom: camera.rendered.zoom,
+      moving: camera.moving || dragging,
+      particles: particlesDrawn,
       worldMood: MOODS[snapshot.world.h] ?? "",
     };
   },
