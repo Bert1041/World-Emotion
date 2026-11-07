@@ -1,6 +1,6 @@
 # Phase 3b: look & feel prototype (mood-driven Earth)
 
-Status: **in progress** (2026-11-07). Inserted before the Phase 3 verdict at the user's request; the
+Status: **prototype approved** (2026-11-07: "yh i like"), then refined: text moves out of the way when zoomed, and the layout rule "no text on the Earth" is enforced by browser tests. README §8.5 updated. Inserted before the Phase 3 verdict at the user's request; the
 Pixel speed test will then measure this real look instead of the placeholder.
 
 ## Direction (user decision, 2026-11-07)

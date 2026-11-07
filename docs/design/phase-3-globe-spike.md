@@ -1,6 +1,6 @@
 # Phase 3 design: globe performance spike (go/no-go)
 
-Status: **proposed**. Code starts once §6 is approved.
+Status: **done: GO** (ADR 0005). §6 S1–S3 approved. The gate now measures the shipped "move" map on animation frames instead of 110m (README §8.8, second fallback).
 
 **Question this phase answers:** can a d3-geo orthographic globe on layered Canvas 2D hold the frame
 budget while dragging, with idle weather particles, on the reference device (Pixel 6 Pro, ADR 0004)?

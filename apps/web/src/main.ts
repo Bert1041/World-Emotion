@@ -11,7 +11,7 @@ import { geoCentroid, geoContains, geoDistance, geoOrthographic } from "d3-geo";
 import { SnapshotSim } from "./demo/snapshot-sim";
 import { Camera, CONTINENT_NAMES, CONTINENT_VIEWS, type View } from "./engine/camera";
 import { hexToOklab, mixOklab, oklabToCss } from "./engine/color";
-import { type Lod, type LodName, loadLod } from "./engine/geo";
+import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";
 import { MOOD_COLORS } from "./engine/palette";
@@ -28,11 +28,17 @@ const num = (k: string, d: number) => {
 const config = {
   bench: params.get("bench") === "1",
   particles: num("particles", 700),
-  dragLod: (params.get("dragLod") === "50m" ? "50m" : "110m") as LodName,
+  /** Map drawn on animation frames; "move" unless a bench scenario compares another. */
+  dragLod: (["110m", "50m"].includes(params.get("dragLod") ?? "")
+    ? params.get("dragLod")
+    : "move") as LodName,
+  /** Share of the 110m points the moving map keeps (tuned on the Pixel, docs/bench). */
+  moveKeep: num("moveKeep", 0.25),
   dprCap: num("dpr", 2),
   benchSeconds: num("seconds", 10),
   expectedHz: num("hz", 60),
-  /** Render optimisations (verified pixel-identical, see verifyRender): on unless switched off. */
+  /** Render optimisations (pixel-identical on 110m/50m; ≤0.06% of pixels on the moving map, see
+   * verifyRender): on unless switched off. */
   opt: new Set((params.get("opt") ?? "precision0,cull").split(",").filter(Boolean)),
   debug: params.get("debug") === "1",
 };
@@ -322,14 +328,19 @@ function replayWorldHeadline(): void {
   ui.worldMood.classList.add("swap");
 }
 
+/** True between a tap and the start of its glide (one frame), so callers never see "arrived". */
+let fitPending = false;
 function enter(c: Continent): void {
   focus = c;
+  fitPending = true;
   selected = null;
   recomputeFills();
   recomputeWeather();
   renderPanel();
   // Fit once the card has its final size, so the continent lands beside it, not under it.
   requestAnimationFrame(() => {
+    fitPending = false;
+    if (focus !== c) return; // left again before the frame
     measureLayout();
     camera.glideTo(fitFrame(c));
   });
@@ -441,13 +452,19 @@ let prevTs = 0;
 let perfAt = 0;
 let stepAt = 0;
 let lastFrameMs = 0;
+let idleRotating = false;
+let wasAnimating = false;
 let bench: { start: number; recorder: FrameRecorder; resolve: (s: FrameSummary) => void } | null =
   null;
 /** Intervals recorded while idle (no drag), to measure the frame rate Chrome actually delivers. */
 let idle: number[] | null = null;
+/** Per idle frame: script ms, whether the base layer was redrawn, and at which LOD (diagnostics). */
+let idleFrames: { script: number; base: boolean; lod: string; rotating: boolean }[] | null = null;
+let drewBase = false;
 
 function frame(ts: number): void {
   const t0 = performance.now();
+  idleRotating = false;
   const dt = prevTs === 0 ? 0 : Math.min((ts - prevTs) / 1000, 0.05);
 
   // Demo data: one aggregation run every 2 s; the world bias moves every 20 s.
@@ -480,10 +497,12 @@ function frame(ts: number): void {
     performance.now() - lastInput > 4000
   ) {
     camera.pan(-4 * dt, 0); // idle life: slow rotation
+    idleRotating = true;
     dirty = true;
   }
 
-  if (mixer.update(dt)) {
+  const themeChanging = mixer.update(dt);
+  if (themeChanging) {
     recomputeFills();
     const th = mixer.current;
     ui.themeName.textContent = th.name;
@@ -493,12 +512,29 @@ function frame(ts: number): void {
     document.documentElement.style.setProperty("--accent", th.css.rim);
   }
 
-  if (easeAnchor(dt)) dirty = true;
+  const anchorEasing = easeAnchor(dt);
+  if (anchorEasing) dirty = true;
   applyCamera();
   const moving =
-    bench !== null || dragging || camera.gliding || velocity[0] !== 0 || velocity[1] !== 0;
-  const lod = lods[moving ? config.dragLod : "50m"];
+    bench !== null ||
+    dragging ||
+    camera.gliding ||
+    idleRotating ||
+    velocity[0] !== 0 ||
+    velocity[1] !== 0;
+  // Any frame that is part of an animation uses the light map; the detailed 50m map (~80k
+  // points) is drawn once, when everything has settled. Before this, the theme cross-fade and
+  // layout easing redrew 50m every frame: 7–8 full redraws in a 2 s "idle" window, 531 ms
+  // frames at 4× on the Pixel (2026-11-07 gate run).
+  const animating = moving || anchorEasing || themeChanging;
+  if (wasAnimating && !animating) dirty = true; // settle: one detailed redraw
+  wasAnimating = animating;
+  // Zoomed into a continent the simplified outline is visibly crude, and culling already skips
+  // the far side, so zoomed animation frames use 110m (docs/bench: zoom comparison).
+  const moveLod = config.dragLod === "move" && camera.view.zoom > 1.5 ? "110m" : config.dragLod;
+  const lod = lods[animating ? moveLod : "50m"];
   const tBase = performance.now();
+  drewBase = dirty;
   if (dirty) {
     const th = mixer.current.css;
     globe.draw(
@@ -546,6 +582,8 @@ function frame(ts: number): void {
   const tEnd = performance.now();
   lastFrameMs = tEnd - t0;
   if (idle && prevTs !== 0) idle.push(ts - prevTs);
+  if (idleFrames && prevTs !== 0)
+    idleFrames.push({ script: lastFrameMs, base: drewBase, lod: lod.name, rotating: idleRotating });
   if (bench && prevTs !== 0) {
     const elapsed = (ts - bench.start) / 1000;
     // skip 1 s warm-up
@@ -566,8 +604,12 @@ function frame(ts: number): void {
 
 // ---- Startup ----------------------------------------------------------------------------------
 async function start(): Promise<void> {
-  const [a, b] = await Promise.all([loadLod("110m"), loadLod("50m")]);
-  lods = { "110m": a, "50m": b };
+  const [m, a, b] = await Promise.all([
+    loadMoveLod(config.moveKeep),
+    loadLod("110m"),
+    loadLod("50m"),
+  ]);
+  lods = { move: m, "110m": a, "50m": b };
   centroids = b.countries.map((f) => {
     const [lon, lat] = geoCentroid(f);
     return { code: String(f.id), lon, lat };
@@ -633,8 +675,10 @@ async function verifyRender(variant: {
   const ref = make(false);
   const alt = make(variant.precision0);
   let worst = { px: 0, rotate: [0, 0] as [number, number] };
+  /** Per map: precision0 is exact on 110m/50m, but draws the long simplified edges as chords. */
+  const worstByLod: Record<string, number> = {};
   let poses = 0;
-  for (const res of ["110m", "50m"] as const) {
+  for (const res of ["move", "110m", "50m"] as const) {
     for (let lon = -180; lon < 180; lon += 30) {
       for (let lat = -60; lat <= 60; lat += 30) {
         const rotate: [number, number] = [lon, lat];
@@ -659,10 +703,11 @@ async function verifyRender(variant: {
         }
         poses++;
         if (px > worst.px) worst = { px, rotate };
+        worstByLod[res] = Math.max(worstByLod[res] ?? 0, px);
       }
     }
   }
-  return { poses, worstPx: worst.px, worstRotate: worst.rotate, totalPx: size * size };
+  return { poses, worstPx: worst.px, worstRotate: worst.rotate, worstByLod, totalPx: size * size };
 }
 
 // ---- Benchmark API for tools/bench ------------------------------------------------------------
@@ -712,7 +757,7 @@ window.__bench = {
       globe: { cx: tx / dpr, cy: ty / dpr, r: projection.scale() / dpr, halo: HALO },
       focus,
       focusBox,
-      gliding: camera.gliding,
+      gliding: camera.gliding || fitPending,
       worldMood: MOODS[snapshot.world.h] ?? "",
     };
   },
@@ -730,14 +775,33 @@ window.__bench = {
     await ready;
     // Idle probe: 2 s with nothing moving shows the frame rate Chrome actually gives this page.
     idle = [];
+    idleFrames = [];
     await new Promise((r) => setTimeout(r, 2000));
     const samples = idle.sort((a, b) => a - b);
     idle = null;
+    const idleDiag = idleFrames;
+    idleFrames = null;
     const idleIntervalP50 = samples[Math.floor(samples.length / 2)] ?? Number.NaN;
     const recorder = new FrameRecorder(Math.ceil((config.benchSeconds + 2) * 150));
     const summary = await new Promise<FrameSummary>((resolve) => {
       bench = { start: performance.now(), recorder, resolve };
     });
-    return { ...summary, config: { ...config, opt: [...config.opt] }, dpr, idleIntervalP50 };
+    const n = idleDiag.length;
+    const idleDetail = {
+      frames: n,
+      scriptP50:
+        [...idleDiag].map((f) => f.script).sort((a, b) => a - b)[Math.floor(n / 2)] ?? Number.NaN,
+      baseRedraws: idleDiag.filter((f) => f.base).length,
+      lods: [...new Set(idleDiag.map((f) => f.lod))],
+      rotatingFrames: idleDiag.filter((f) => f.rotating).length,
+    };
+    return {
+      ...summary,
+      config: { ...config, opt: [...config.opt] },
+      points: { move: pointCount(lods.move), "110m": pointCount(lods["110m"]) },
+      dpr,
+      idleIntervalP50,
+      idleDetail,
+    };
   },
 };

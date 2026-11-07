@@ -27,7 +27,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface Scenario {
   particles: number;
-  dragLod: "110m" | "50m";
+  dragLod: "move" | "110m" | "50m";
   dpr: number;
   hz: 60 | 120;
   throttle: number;
@@ -63,13 +63,19 @@ function matrix(kind: string): Scenario[] {
     );
   }
   if (kind === "gate") {
-    // The pass bar (§3): 500 particles, 110m while dragging, DPR 2; native 120 Hz, 60 Hz, 60 Hz at 4×.
+    // The pass bar (design §3) on what SHIPS: precision0 + cull, the simplified "move" map on
+    // animation frames, 500 particles, DPR 2: 120 Hz, 60 Hz, 60 Hz at 4×. Baseline: the previous
+    // shipped setup (110m on animation frames) at 60 Hz 1× and 4×, to show what simplifying buys.
+    const shipped = "precision0,cull";
     return [
-      { particles: 500, dragLod: "110m", dpr: 2, hz: 120, throttle: 1 },
-      { particles: 500, dragLod: "110m", dpr: 2, hz: 60, throttle: 1 },
-      { particles: 500, dragLod: "110m", dpr: 2, hz: 60, throttle: 4 },
+      { particles: 500, dragLod: "move", dpr: 2, hz: 120, throttle: 1, opt: shipped },
+      { particles: 500, dragLod: "move", dpr: 2, hz: 60, throttle: 1, opt: shipped },
+      { particles: 500, dragLod: "move", dpr: 2, hz: 60, throttle: 4, opt: shipped },
+      { particles: 500, dragLod: "110m", dpr: 2, hz: 60, throttle: 1, opt: shipped },
+      { particles: 500, dragLod: "110m", dpr: 2, hz: 60, throttle: 4, opt: shipped },
     ];
   }
+
   const out: Scenario[] = [];
   for (const hz of [120, 60] as const)
     for (const throttle of [1, 4])
@@ -123,19 +129,36 @@ function androidDevice(): Device {
   let original: [string, string, string][] | null = null;
   let tornDown = false;
 
-  const chromeSocket = (): string => {
-    const sockets = [
-      ...new Set(adb("shell", "cat /proc/net/unix").match(/chrome_devtools_remote_\d+/g) ?? []),
+  /**
+   * Chrome's DevTools socket name varies between Chrome versions and launches: seen as
+   * `chrome_devtools_remote_<pid>` (Chrome 156, the plain name hung) and as plain
+   * `chrome_devtools_remote` (Chrome 158). Try every candidate; keep the first that answers and
+   * says it is com.android.chrome. Leaves the port forwarded to the winner.
+   */
+  const connectChrome = async (): Promise<string> => {
+    const unix = adb("shell", "cat /proc/net/unix");
+    const suffixed = [...new Set(unix.match(/chrome_devtools_remote_\d+/g) ?? [])].filter(
+      (s) =>
+        adb("shell", `cat /proc/${s.split("_").pop()}/cmdline`)
+          .replace(/\0/g, " ")
+          .trim() === "com.android.chrome",
+    );
+    const candidates = [
+      ...suffixed,
+      ...(/@chrome_devtools_remote\b(?!_)/.test(unix) ? ["chrome_devtools_remote"] : []),
     ];
-    for (const s of sockets) {
-      const pid = s.split("_").pop();
-      if (
-        adb("shell", `cat /proc/${pid}/cmdline`).replace(/\0/g, " ").trim() === "com.android.chrome"
-      )
-        return s;
+    for (const sock of candidates) {
+      adb("forward", `tcp:${CDP_PORT}`, `localabstract:${sock}`);
+      const v = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`, {
+        signal: AbortSignal.timeout(3000),
+      }).then(
+        (r) => r.json() as Promise<{ "Android-Package"?: string }>,
+        () => null,
+      );
+      if (v?.["Android-Package"] === "com.android.chrome") return sock;
     }
     throw new Error(
-      "Chrome's DevTools socket not found: open Chrome on the phone and keep it unlocked.",
+      `Chrome's DevTools socket not found (tried: ${candidates.join(", ") || "none"}). Open Chrome on the phone and keep it unlocked.`,
     );
   };
   const thermalNow = (): Thermal => {
@@ -163,7 +186,8 @@ function androidDevice(): Device {
       ]);
       writeFileSync(PHONE_BACKUP, JSON.stringify(original));
       adb("reverse", `tcp:${PORT}`, `tcp:${PORT}`);
-      adb("forward", `tcp:${CDP_PORT}`, `localabstract:${chromeSocket()}`);
+      const socket = await connectChrome();
+      console.log(`chrome socket: ${socket}`);
       adb("shell", "svc", "power", "stayon", "usb");
       const v = (await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).json()) as {
         webSocketDebuggerUrl: string;
@@ -181,7 +205,9 @@ function androidDevice(): Device {
       // The Pixel 6 Pro throttles when warm (status 2 at 41 °C made one scenario 1.8× slower).
       const t0 = Date.now();
       let th = thermalNow();
-      while (th.status > 0 && Date.now() - t0 < 10 * 60_000) {
+      // Wait for status <= 1. Android: 1 = LIGHT (no UX impact), 2 = MODERATE (UX impacted). The
+      // confounded runs were at 2. Plugged in with the screen on, this phone rarely reaches 0.
+      while (th.status > 1 && Date.now() - t0 < 10 * 60_000) {
         await sleep(15_000);
         th = thermalNow();
       }
@@ -373,10 +399,23 @@ async function main() {
       cwd: ROOT,
       stdio: "inherit",
     });
-  const preview: ChildProcess = spawn("pnpm", ["--filter", "@world-emotion/web", "preview"], {
-    cwd: ROOT,
-    stdio: "ignore",
-  });
+  // Refuse a busy port: a leaked server from an earlier run would otherwise be reused silently.
+  if (
+    await fetch(`http://127.0.0.1:${PORT}/`).then(
+      () => true,
+      () => false,
+    )
+  )
+    throw new Error(`port ${PORT} is already in use (a leaked preview server?); stop it first`);
+  // Vite directly, not via pnpm: killing a pnpm wrapper leaves its vite child running.
+  const preview: ChildProcess = spawn(
+    join(ROOT, "apps/web/node_modules/.bin/vite"),
+    ["preview", "--port", String(PORT), "--strictPort"],
+    {
+      cwd: join(ROOT, "apps/web"),
+      stdio: "ignore",
+    },
+  );
 
   // Restore on Ctrl-C / terminal close too. (A hard kill can't be caught: that is what the
   // phone backup file is for.)
@@ -527,7 +566,7 @@ async function main() {
       const order = scenarios.map((_, i) => scenarios[(i + shift) % scenarios.length] as Scenario);
       for (const s of order) {
         const before = await device.beforeRun(s);
-        if (before.status > 0)
+        if (before.status > 1)
           console.log(
             `  (warning: still thermal status ${before.status} after ${before.waitedS}s)`,
           );
@@ -553,6 +592,7 @@ async function main() {
             ...s,
             repeat: r,
             device: device.name,
+            deviceLabel: label,
             ...v,
             thermalBefore: before,
             thermalAfter: after,
@@ -562,7 +602,7 @@ async function main() {
             `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}] #${r}: ` +
               `idle ${f(v.idleIntervalP50)} · interval p50 ${f(v.intervalP50)} p95 ${f(v.intervalP95)} · ` +
               `script p50 ${f(v.scriptP50)} p95 ${f(v.scriptP95)} (base ${f(v.baseP50)} fx ${f(v.fxP50)}) · ` +
-              `missed ${((v.missedRatio ?? 0) * 100).toFixed(2)}% · thermal ${before.status}→${after.status} (waited ${before.waitedS}s)`,
+              `idleDetail ${JSON.stringify((v as unknown as Record<string, unknown>).idleDetail)} · missed ${((v.missedRatio ?? 0) * 100).toFixed(2)}% · thermal ${before.status}→${after.status} (waited ${before.waitedS}s)`,
           );
         });
       }

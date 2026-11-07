@@ -110,6 +110,29 @@ const TAPS: Record<string, { face: [number, number]; tap: [number, number] }> = 
   SA: { face: [-55, -10], tap: [-55, -10] },
 };
 
+test("a tap never reports arrival before the glide has started", async ({ page }) => {
+  await page.evaluate(() => {
+    const b = (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench;
+    b.face(10, 45);
+  });
+  await page.waitForTimeout(200);
+  const p = await page.evaluate(() =>
+    (
+      window as unknown as { __bench: { screenPoint(a: number, b: number): [number, number] } }
+    ).__bench.screenPoint(2.5, 46.5),
+  );
+  // Dispatch the tap and read the layout in the same task, before any animation frame runs.
+  const l = await page.evaluate(([x, y]) => {
+    const fx = document.getElementById("fx") as HTMLCanvasElement;
+    const o = { clientX: x, clientY: y, bubbles: true, pointerId: 1, isPrimary: true };
+    fx.dispatchEvent(new PointerEvent("pointerdown", o));
+    fx.dispatchEvent(new PointerEvent("pointerup", o));
+    return (window as unknown as { __bench: { layout(): Layout } }).__bench.layout();
+  }, p);
+  expect(l.focus, "tap selected the continent").toBe("EU");
+  expect(l.gliding, "focused but reported as arrived before gliding").toBe(true);
+});
+
 for (const [continent, { face, tap }] of Object.entries(TAPS)) {
   test(`zoomed into ${continent}: card and controls clear of the continent, then back`, async ({
     page,

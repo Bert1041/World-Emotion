@@ -2,7 +2,7 @@
 
 Companion to `README.md` (the spec). The README says **what** and **why**; this file says **in what order, how we know a phase is done, and what is still undecided**.
 
-Status: **Phase 2 complete on branch `phase-2/geo-data`, awaiting PR review.** Phases 0–1 merged. Phase 0 + 0.5 merged (PR #2).
+Status: **Phase 3 (+3b) complete on branch `phase-3/globe-spike`, awaiting PR review: Canvas 2D GO ([ADR 0005](decisions/0005-globe-go-no-go.md)).** Phases 0–2 merged.
 
 Previous status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
 

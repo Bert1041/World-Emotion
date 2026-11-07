@@ -41,6 +41,9 @@ importers:
       topojson-client:
         specifier: 3.1.0
         version: 3.1.0
+      topojson-simplify:
+        specifier: 3.0.3
+        version: 3.0.3
     devDependencies:
       '@playwright/test':
         specifier: 1.64.1
@@ -54,6 +57,9 @@ importers:
       '@types/topojson-client':
         specifier: 3.1.5
         version: 3.1.5
+      '@types/topojson-simplify':
+        specifier: 3.0.3
+        version: 3.0.3
       vite:
         specifier: 8.3.5
         version: 8.3.5(@types/node@26.6.5)
@@ -304,6 +310,9 @@ packages:
 
   '@types/topojson-server@3.0.4':
     resolution: {integrity: sha512-5+ieK8ePfP+K2VH6Vgs1VCt+fO1U8XZHj0UsF+NktaF0DavAo1q3IvCBXgokk/xmtvoPltSUs6vxuR/zMdOE1g==}
+
+  '@types/topojson-simplify@3.0.3':
+    resolution: {integrity: sha512-sBO5UZ0O2dB0bNwo0vut2yLHhj3neUGi9uL7/ROdm8Gs6dtt4jcB9OGDKr+M2isZwQM2RuzVmifnMZpxj4IGNw==}
 
   '@types/topojson-specification@1.0.5':
     resolution: {integrity: sha512-C7KvcQh+C2nr6Y2Ub4YfgvWvWCgP2nOQMtfhlnwsRL4pYmmwzBS7HclGiS87eQfDOU/DLQpX6GEscviaz4yLIQ==}
@@ -669,6 +678,10 @@ packages:
     resolution: {integrity: sha512-/VS9j/ffKr2XAOjlZ9CgyyeLmgJ9dMwq6Y0YEON8O7p/tGGk+dCWnrE03zEdu7i4L7YsFZLEPZPzCvcB7lEEXw==}
     hasBin: true
 
+  topojson-simplify@3.0.3:
+    resolution: {integrity: sha512-V+pBjLVzSQ3+hSOxBiV01OVXgFiCmMO8ia3huxKEyIMTC1ApQHBcdXdOqcQ6U2JJJD31TZduwY6KyF15R8sUgg==}
+    hasBin: true
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -896,6 +909,11 @@ snapshots:
       '@types/topojson-specification': 1.0.5
 
   '@types/topojson-server@3.0.4':
+    dependencies:
+      '@types/geojson': 7946.0.16
+      '@types/topojson-specification': 1.0.5
+
+  '@types/topojson-simplify@3.0.3':
     dependencies:
       '@types/geojson': 7946.0.16
       '@types/topojson-specification': 1.0.5
@@ -1168,6 +1186,11 @@ snapshots:
   topojson-server@3.0.1:
     dependencies:
       commander: 2.20.3
+
+  topojson-simplify@3.0.3:
+    dependencies:
+      commander: 2.20.3
+      topojson-client: 3.1.0
 
   typescript@7.0.2:
     optionalDependencies:

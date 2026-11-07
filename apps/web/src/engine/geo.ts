@@ -1,8 +1,13 @@
 import { geoCentroid, geoDistance } from "d3-geo";
 import type { Feature, FeatureCollection, MultiLineString, Position } from "geojson";
 import { feature, mesh } from "topojson-client";
+import { presimplify, quantile, simplify, sphericalTriangleArea } from "topojson-simplify";
 
-export type LodName = "110m" | "50m";
+/**
+ * "move" is the 110m map simplified further. It is drawn on every animation frame (drag, glide,
+ * theme fade), where drawing cost scales with the number of points; "50m" is drawn once on settle.
+ */
+export type LodName = "move" | "110m" | "50m";
 
 export interface Lod {
   readonly name: LodName;
@@ -44,12 +49,41 @@ function asTopology(raw: unknown): Topology {
 }
 
 /** Each level of detail is a separate lazy chunk, so neither counts toward initial JS. */
-export async function loadLod(name: LodName): Promise<Lod> {
+export async function loadLod(name: "110m" | "50m"): Promise<Lod> {
   const raw =
     name === "110m"
       ? (await import("@world-emotion/geo-data/world-110m.topo.json")).default
       : (await import("@world-emotion/geo-data/world-50m.topo.json")).default;
-  const topo = asTopology(raw);
+  return buildLod(name, asTopology(raw));
+}
+
+/**
+ * The moving map: 110m with only the most significant `keep` share of its points (Visvalingam,
+ * spherical area). Simplifying the topology, not each country, keeps shared borders identical on
+ * both sides, so neighbours can never gap or overlap. Arc endpoints are always kept.
+ */
+export async function loadMoveLod(keep: number): Promise<Lod> {
+  const raw = (await import("@world-emotion/geo-data/world-110m.topo.json")).default;
+  // presimplify returns a new topology; the shared 110m module object is not modified.
+  const pre = presimplify(asTopology(raw) as never, sphericalTriangleArea);
+  // quantile(t, p) is the minimum weight that retains the share p of points.
+  const out = simplify(pre, quantile(pre, Math.min(1, Math.max(0, keep))));
+  return buildLod("move", out as unknown as Topology);
+}
+
+/** Total points in a level of detail (for the bench report and tests). */
+export function pointCount(lod: Lod): number {
+  let n = 0;
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v) && typeof v[0] === "number") n++;
+    else if (Array.isArray(v)) for (const x of v) walk(x);
+  };
+  for (const f of [...lod.countries, ...lod.neutral])
+    walk((f.geometry as { coordinates?: unknown }).coordinates);
+  return n;
+}
+
+function buildLod(name: LodName, topo: Topology): Lod {
   const obj = topo.objects.countries as Parameters<typeof mesh>[1];
   // topojson-client's overloads don't accept a loosely typed object; call the collection form.
   const toFeatures = feature as unknown as (t: Topology, o: unknown) => FeatureCollection;

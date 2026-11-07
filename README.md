@@ -4,6 +4,8 @@ A small, warm PWA where anyone can check in with how they feel right now and wat
 
 This README is the source of truth for **what we are building, why it is shaped this way, and what we chose not to do**. Sketches and other planning docs live in `/docs` and are referenced from here.
 
+> Revision 4 (2026-11-07): §8.5 design direction replaced by the mood-driven Earth; reference device is a Pixel 6 Pro (ADR 0004).
+>
 > Revision 3. Changes from revision 2: resolved spec gaps G1–G10 from `docs/PLAN.md` (write cost of purges, 5-minute cadence, time-based smoothing, aggregator state, shrinkage chain, processed snapshot, idempotent replays, manual-country validation, unknown-country handling); closed the launch open questions (`docs/decisions/0001-launch-product-decisions.md`).
 >
 > Revision 2. Changes from revision 1: animation promoted to a core pillar with its own architecture (section 8); added accessibility, tiny-country tap targets, platform caveats, mood smoothing, a traffic simulator, security and licensing; build order now starts with a performance spike.
@@ -243,10 +245,13 @@ One file defines durations, easings and spring constants (`fast 120ms`, `base 24
 - Visible in-app "Calm motion" toggle, and **`prefers-reduced-motion` is honoured**: static globe, crossfades only, no particles or rotation.
 - Battery saver / low-power hints (where exposed) also push the tier down.
 
-### 8.5 Design direction: warm, earthy, immersive
-Warm and tactile, like a hand-painted globe on paper.
-- **Palette (starting point):** parchment background, deep umber text; mood colours: happy = ochre, calm = sage, excited = terracotta, stressed = plum, sad = dusk indigo, angry = rust. All text/background pairs pass WCAG contrast; moods also differ by face and label.
-- **Texture:** subtle paper grain, soft shadows, slightly irregular hand-drawn coastlines stylised at render time from the TopoJSON.
+### 8.5 Design direction: the Earth follows the world's mood
+*Revised 2026-11-07 (user direction, prototype approved; replaces "warm paper globe"). Detail: `docs/design/phase-3b-look-and-feel.md`.*
+- **One Earth per world mood,** driven by the snapshot's world headline `h` (which has hysteresis, so the theme never flickers): happy = Overgrown, calm = Waterworld, excited = City lights, stressed = Simulation, sad = Ice age, angry = Ruined. A change cross-fades in OKLab over ~2.5 s. Themes are data (`apps/web/src/engine/themes.ts`).
+- **Regions keep their own mood weather** on top (fireflies, mist, sparkle bursts, static, rain, embers).
+- **Mood colours are constant across themes** (a colour never changes meaning); moods are always named in the UI, never colour alone.
+- **Layout rule: text never sits on the Earth.** The globe is fitted into the space the UI leaves free; zooming fits the continent beside the card (landscape) or above it (portrait). Enforced by browser tests at 11 viewports (`apps/web/e2e/layout.spec.ts`).
+- **Type scales with the screen** (fluid root size, UI in rem).
 - **Sound (optional, off by default):** small compressed ambient loops per dominant mood; subtle tick and chime on check-in. Browsers block autoplay, so audio only starts after a user gesture.
 - Design tokens (colours, type, spacing) in one CSS variables file.
 
@@ -265,6 +270,7 @@ Warm and tactile, like a hand-painted globe on paper.
 
 ### 8.8 Risk: is Canvas 2D enough? (decide with evidence)
 This is the biggest technical assumption, so we test it **first** (section 11, step 3). Go/no-go gate: 60 fps drag with idle weather particles on the reference low-end phone.
+- **Outcome (2026-11-07): GO** on the Pixel 6 Pro after the second fallback (lower map detail while moving); OffscreenCanvas was skipped because particles cost ~0.3 ms. Numbers and caveats: `docs/decisions/0005-globe-go-no-go.md`.
 - **If it passes:** proceed as designed.
 - **If it fails:** first move FX to an `OffscreenCanvas` worker and reduce map detail while dragging; if still short, move the globe to a small WebGL renderer (e.g. regl) while keeping the same engine, tokens and data. The architecture above is deliberately layered so this swap touches only the rendering layer.
 
