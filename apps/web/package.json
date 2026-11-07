@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -p tsconfig.json",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "budget": "vite build && node scripts/budget.ts"
   },
   "dependencies": {
     "@world-emotion/core": "workspace:*",

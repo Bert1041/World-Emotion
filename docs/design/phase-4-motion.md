@@ -1,6 +1,6 @@
 # Phase 4 design: `packages/motion` + the check-in moment
 
-Status: **proposed**. Code starts once §6 is approved and Phase 3 (PR #5) is merged.
+Status: **approved** (2026-11-07: M1(a) Svelte 5, M2 language-region guess, M3 yes, M4 yes; "follow your recommendation").
 
 **Question this phase answers:** does the app *feel* alive and identical on 60 Hz and 120 Hz
 screens? And does checking in feel like the "dopamine hit" README §8.2.5 asks for, on the Pixel,
