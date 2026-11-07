@@ -64,7 +64,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 - **D3 World weighting:** pure pool or population-weighted. _Recommend: pure pool at launch (honest, simple), and say so on the page._
 - **D4 Gap fixes G1–G9** above: accept, or amend.
 
-**Blocks Phase 3:** reference low-end Android model and its pass bar. A real physical device is required.
+**Phase 3 device:** Pixel 6 Pro, the only reference device (ADR 0004, low-end risk accepted).
 
 **Can wait:** sound (recommend: post-launch), domain/brand (needed before Phase 6 for the CDN), daily history (recommend: none at launch).
 
@@ -108,7 +108,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 **Exit criteria:**
 - Measured on the **physical reference phone**: median and p95 frame time during drag with particles. Numbers go in a decision record with GO / fallback path (OffscreenCanvas → WebGL).
 - Spike code is either promoted deliberately (reviewed) or deleted. No accidental keep.
-  **Needs from you:** the device.
+  **Device:** Pixel 6 Pro via USB (ADR 0004).
 
 ### Phase 4: `packages/motion` + check-in moment
 

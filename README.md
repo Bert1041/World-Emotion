@@ -260,7 +260,7 @@ Warm and tactile, like a hand-painted globe on paper.
 - Initial JS **< 150 KB gzipped** (map data excluded, lazy-loaded). Enforced in CI.
 - **Frame budget:** under ~8 ms of script per frame on a mid-range Android, leaving headroom for the browser to paint.
 - Sustained **60 fps drag** on the reference low-end device, with the Low tier as the floor.
-- **Test on a real cheap Android early.** Emulators and desktop Chrome lie about this.
+- **Test on a real cheap Android early.** Emulators and desktop Chrome lie about this. *Decision (ADR 0004): the reference device is a Pixel 6 Pro (flagship); no low-end phone is tested before launch. Risk accepted.*
 - Dev-only overlay (toggle with a key) shows frame time, particle count, tier and DPR.
 
 ### 8.8 Risk: is Canvas 2D enough? (decide with evidence)
@@ -358,7 +358,7 @@ world-emotion/
 **Resolved** (see `docs/decisions/0001-launch-product-decisions.md`): six moods (happy, calm, excited, stressed, sad, angry); fixed 6-hour window; world mood is a pure pool of check-ins, stated openly in the app.
 
 **Still open:**
-- Which reference low-end phone do we test on, and what is its pass bar?
+- ~~Which reference low-end phone do we test on?~~ Pixel 6 Pro (ADR 0004). Pass bar: see `docs/design/phase-3-globe-spike.md`.
 - Is sound in scope for launch, or a later polish?
 - Domain name and brand name.
 - Any daily "world mood" history, and if so how do we keep it anonymous?

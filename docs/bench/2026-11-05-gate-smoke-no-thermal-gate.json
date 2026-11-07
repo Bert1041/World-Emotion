@@ -1,0 +1,80 @@
+[
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 120,
+    "throttle": 1,
+    "repeat": 0,
+    "frames": 603,
+    "intervalP50": 16.600000000000364,
+    "intervalP95": 16.700000000000728,
+    "intervalP99": 16.700000000000728,
+    "scriptP50": 9.299999952316284,
+    "scriptP95": 10.299999952316284,
+    "missed": 603,
+    "missedRatio": 0.5,
+    "baseP50": 9.100000143051147,
+    "fxP50": 0.10000014305114746,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 120
+    },
+    "idleIntervalP50": 16.600000000000023
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "repeat": 0,
+    "frames": 603,
+    "intervalP50": 16.600000000000364,
+    "intervalP95": 16.700000000000728,
+    "intervalP99": 16.700000000000728,
+    "scriptP50": 10.599999904632568,
+    "scriptP95": 11.800000190734863,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 10.400000095367432,
+    "fxP50": 0.10000014305114746,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60
+    },
+    "idleIntervalP50": 16.600000000000023
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "repeat": 0,
+    "frames": 252,
+    "intervalP50": 33.30000000000018,
+    "intervalP95": 50,
+    "intervalP99": 50.70000000000073,
+    "scriptP50": 36.90000009536743,
+    "scriptP95": 46.40000009536743,
+    "missed": 351,
+    "missedRatio": 0.582089552238806,
+    "baseP50": 36.299999952316284,
+    "fxP50": 0.5,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60
+    },
+    "idleIntervalP50": 16.600000000000023
+  }
+]

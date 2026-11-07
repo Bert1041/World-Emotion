@@ -1,0 +1,10 @@
+{
+  "name": "@world-emotion/bench",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node run.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
