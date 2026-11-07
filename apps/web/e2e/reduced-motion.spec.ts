@@ -16,6 +16,38 @@ type L = {
 const layout = (page: Page) =>
   page.evaluate(() => (window as unknown as { __bench: { layout(): L } }).__bench.layout());
 
+/**
+ * A swipe paced by the page's own frames: one move per animation frame, release on the next.
+ * Driving it from the test with mouse.move would put the test runner's round-trip latency
+ * between the last move and the release; on a loaded CI machine that exceeds 100 ms, which the
+ * app rightly reads as a pause before letting go (no fling).
+ */
+const pacedSwipe = (page: Page, from: [number, number], dx: number) =>
+  page.evaluate(
+    ([x, y, d]) =>
+      new Promise<void>((done) => {
+        const fx = document.getElementById("fx") as HTMLCanvasElement;
+        const ev = (type: string, cx: number) =>
+          fx.dispatchEvent(
+            new PointerEvent(type, { clientX: cx, clientY: y, pointerId: 1, bubbles: true }),
+          );
+        ev("pointerdown", x);
+        let i = 0;
+        const tick = () => {
+          i++;
+          if (i <= 8) {
+            ev("pointermove", x + (d * i) / 8);
+            requestAnimationFrame(tick);
+          } else {
+            ev("pointerup", x + d);
+            done();
+          }
+        };
+        requestAnimationFrame(tick);
+      }),
+    [from[0], from[1], dx] as [number, number, number],
+  );
+
 test.use({ reducedMotion: "reduce" });
 const errors: string[] = [];
 test.afterEach(() => expect(errors, "page errors").toEqual([]));
@@ -64,13 +96,7 @@ test("drill-down and back are jumps, not glides; the headline fades, not slides"
 
 test("a fast swipe stops dead on release", async ({ page }) => {
   const L = await layout(page);
-  await page.mouse.move(L.globe.cx, L.globe.cy);
-  await page.mouse.down();
-  for (let i = 1; i <= 8; i++) {
-    await page.mouse.move(L.globe.cx - 20 * i, L.globe.cy);
-    await page.waitForTimeout(16);
-  }
-  await page.mouse.up();
+  await pacedSwipe(page, [L.globe.cx, L.globe.cy], -160);
   const a = (await layout(page)).center[0];
   expect(Math.abs(a - L.center[0]), "the drag itself still works").toBeGreaterThan(10);
   await page.waitForTimeout(300);

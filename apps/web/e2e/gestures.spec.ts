@@ -57,6 +57,51 @@ async function drag(page: Page, dx: number, pauseMs: number) {
   await page.mouse.up();
 }
 
+/**
+ * A swipe paced by the page's own frames: one move per animation frame, release on the next.
+ * Driving it from the test with mouse.move would put the test runner's round-trip latency
+ * between the last move and the release; on a loaded CI machine that exceeds 100 ms, which the
+ * app rightly reads as a pause before letting go (no fling).
+ */
+const pacedSwipe = (page: Page, from: [number, number], dx: number) =>
+  page.evaluate(
+    ([x, y, d]) =>
+      new Promise<void>((done) => {
+        const fx = document.getElementById("fx") as HTMLCanvasElement;
+        const ev = (type: string, cx: number) =>
+          fx.dispatchEvent(
+            new PointerEvent(type, { clientX: cx, clientY: y, pointerId: 1, bubbles: true }),
+          );
+        ev("pointerdown", x);
+        let i = 0;
+        const tick = () => {
+          i++;
+          if (i <= 8) {
+            ev("pointermove", x + (d * i) / 8);
+            requestAnimationFrame(tick);
+          } else {
+            ev("pointerup", x + d);
+            done();
+          }
+        };
+        requestAnimationFrame(tick);
+      }),
+    [from[0], from[1], dx] as [number, number, number],
+  );
+
+/** Mean spin speed (°/s) over about `ms`, timed by the page's own clock (not the test's). */
+async function spinSpeed(page: Page, ms: number): Promise<number> {
+  const read = () =>
+    page.evaluate(() => ({
+      lon: (window as unknown as { __bench: { layout(): L } }).__bench.layout().center[0],
+      t: performance.now(),
+    }));
+  const a = await read();
+  await page.waitForTimeout(ms);
+  const b = await read();
+  return Math.abs(b.lon - a.lon) / ((b.t - a.t) / 1000);
+}
+
 const lonDrift = async (page: Page, ms: number) => {
   const a = (await layout(page)).center[0];
   await page.waitForTimeout(ms);
@@ -64,7 +109,8 @@ const lonDrift = async (page: Page, ms: number) => {
 };
 
 test("a quick swipe flings the globe on, then friction stops it", async ({ page }) => {
-  await drag(page, -150, 0);
+  const L = await layout(page);
+  await pacedSwipe(page, [L.globe.cx, L.globe.cy], -150);
   expect(await lonDrift(page, 300), "kept spinning after release").toBeGreaterThan(2);
   await expect.poll(async () => (await layout(page)).moving, { timeout: 4000 }).toBe(false);
 });
@@ -89,9 +135,8 @@ test("a burst of near-simultaneous moves never reads as a wild spin", async ({ p
   );
   const a = (await layout(page)).center[0];
   expect(Math.abs(a - L.center[0]), "the burst registered as a drag").toBeGreaterThan(20);
-  await page.waitForTimeout(100);
-  const b = (await layout(page)).center[0];
-  expect(Math.abs(b - a) / 0.1, "spin speed after release, °/s").toBeLessThanOrEqual(730);
+  // Friction only slows it, so the mean over any interval is at most the release speed.
+  expect(await spinSpeed(page, 100), "spin speed after release, °/s").toBeLessThanOrEqual(721);
   await expect.poll(async () => (await layout(page)).moving, { timeout: 6000 }).toBe(false);
   expect(Math.abs((await layout(page)).center[0] - a), "total coast").toBeLessThan(250);
 });
@@ -115,10 +160,8 @@ test("a gentle nudge delivered as a burst stays a gentle drift, not a capped ful
   );
   const a = (await layout(page)).center[0];
   expect(Math.abs(a - L.center[0]), "the nudge registered").toBeGreaterThan(1);
-  await page.waitForTimeout(100);
-  const b = (await layout(page)).center[0];
   // 15 px is ~5° on this globe; spread over one frame that is ~300°/s, far under the 720 cap.
-  expect(Math.abs(b - a) / 0.1, "drift speed, °/s").toBeLessThan(450);
+  expect(await spinSpeed(page, 100), "drift speed, °/s").toBeLessThan(450);
 });
 
 test("a swipe that pauses before letting go does not fling", async ({ page }) => {
