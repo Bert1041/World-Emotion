@@ -1,6 +1,6 @@
 /**
- * Minimal OKLab colour maths (README §8.2.4: colours interpolate in a perceptual space so a
- * cross-fade never passes through muddy greys). Phase 4 moves this into packages/motion with tests.
+ * OKLab colour maths (README §8.2.4): colours interpolate in a perceptual space, so a cross-fade
+ * never passes through muddy greys. Moved from the Phase 3 spike (apps/web/src/engine/color.ts).
  */
 export type Oklab = readonly [number, number, number];
 
@@ -43,5 +43,3 @@ export const mixOklab = (a: Oklab, b: Oklab, t: number): Oklab => [
   a[1] + (b[1] - a[1]) * t,
   a[2] + (b[2] - a[2]) * t,
 ];
-
-export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);

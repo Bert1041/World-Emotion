@@ -40,7 +40,7 @@
   },
   "overrides": [
     {
-      "includes": ["packages/core/**"],
+      "includes": ["packages/core/**", "packages/motion/**"],
       "linter": {
         "rules": {
           "style": {
@@ -57,7 +57,7 @@
                       "!./*",
                       "!../*"
                     ],
-                    "message": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71."
+                    "message": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71."
                   }
                 ]
               }
@@ -66,18 +66,22 @@
               "level": "error",
               "options": {
                 "deniedGlobals": {
-                  "fetch": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "Date": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "crypto": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "setTimeout": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "setInterval": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "localStorage": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "sessionStorage": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "indexedDB": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "performance": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "process": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "XMLHttpRequest": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71.",
-                  "WebSocket": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71."
+                  "fetch": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "Date": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "crypto": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "setTimeout": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "setInterval": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "localStorage": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "sessionStorage": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "indexedDB": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "performance": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "process": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "XMLHttpRequest": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "WebSocket": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "window": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "document": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "requestAnimationFrame": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71.",
+                  "navigator": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71."
                 }
               }
             }
@@ -90,11 +94,22 @@
                   {
                     "object": "Math",
                     "property": "random",
-                    "message": "packages/core is pure: no I/O, no clock, no randomness. Pass time in as `now`. See docs/design/phase-1-core.md \u00a71."
+                    "message": "Pure package (packages/core, packages/motion): no I/O, no clock, no randomness, no DOM. Pass time in. See docs/design/phase-1-core.md \u00a71 and phase-4-motion.md \u00a71."
                   }
                 ]
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/motion/src/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": "off",
+            "noRestrictedImports": "off"
           }
         }
       }

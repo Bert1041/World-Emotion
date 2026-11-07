@@ -1,6 +1,6 @@
+import { easeInOutCubic } from "@world-emotion/motion";
 import type { Continent } from "@world-emotion/shared";
 import { geoDistance, geoInterpolate } from "d3-geo";
-import { easeInOutCubic } from "./color";
 
 export interface View {
   /** [lon, lat] at the centre of the projection, degrees. */

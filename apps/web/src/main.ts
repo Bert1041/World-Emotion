@@ -1,4 +1,5 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
+import { hexToOklab, mixOklab, oklabToCss } from "@world-emotion/motion";
 import {
   type Continent,
   MOOD_COUNT,
@@ -10,7 +11,6 @@ import {
 import { geoCentroid, geoContains, geoDistance, geoOrthographic } from "d3-geo";
 import { SnapshotSim } from "./demo/snapshot-sim";
 import { Camera, CONTINENT_NAMES, CONTINENT_VIEWS, type View } from "./engine/camera";
-import { hexToOklab, mixOklab, oklabToCss } from "./engine/color";
 import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";

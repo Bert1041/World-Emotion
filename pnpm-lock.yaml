@@ -32,6 +32,9 @@ importers:
       '@world-emotion/geo-data':
         specifier: workspace:*
         version: link:../../packages/geo-data
+      '@world-emotion/motion':
+        specifier: workspace:*
+        version: link:../../packages/motion
       '@world-emotion/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -94,6 +97,15 @@ importers:
       topojson-server:
         specifier: 3.0.1
         version: 3.0.1
+
+  packages/motion:
+    devDependencies:
+      '@types/d3-geo':
+        specifier: 3.1.1
+        version: 3.1.1
+      d3-geo:
+        specifier: 3.1.1
+        version: 3.1.1
 
   packages/shared:
     dependencies:

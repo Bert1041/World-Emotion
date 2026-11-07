@@ -14,6 +14,7 @@
   "dependencies": {
     "@world-emotion/core": "workspace:*",
     "@world-emotion/geo-data": "workspace:*",
+    "@world-emotion/motion": "workspace:*",
     "@world-emotion/shared": "workspace:*",
     "d3-geo": "3.1.1",
     "topojson-client": "3.1.0",
