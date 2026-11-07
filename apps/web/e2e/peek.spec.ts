@@ -40,20 +40,20 @@ async function open(page: Page, lon: number, lat: number, continent: string) {
   await settled(page);
 }
 
-/** Card spring and map re-fit both at rest. */
+/**
+ * Card spring and map re-fit both at rest, by the app's own signals (data-moving, gliding), not by
+ * "two reads look the same": under load frames starve and a moving card can read unchanged.
+ */
 async function settled(page: Page) {
-  let prev = "";
-  for (let i = 0; i < 40; i++) {
-    const now = JSON.stringify([
-      await page.locator("#panel").evaluate((el) => getComputedStyle(el).translate),
-      (await layout(page)).focusBox,
-      (await layout(page)).gliding,
-    ]);
-    if (now === prev && !(await layout(page)).gliding) return;
-    prev = now;
-    await page.waitForTimeout(150);
-  }
-  throw new Error("card or map never settled");
+  await page.waitForFunction(
+    () => {
+      const card = document.getElementById("panel");
+      const l = (window as unknown as { __bench: { layout(): L } }).__bench.layout();
+      return card?.dataset.moving === "false" && !l.gliding;
+    },
+    null,
+    { timeout: 10_000 },
+  );
 }
 
 /** What the eye sees of the card: its box clipped to the screen. */

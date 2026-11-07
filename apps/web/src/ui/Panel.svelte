@@ -29,6 +29,8 @@ let expanded = $state(false);
 let offset = $state(0);
 /** Collapsed offset: everything below the peek line (count) is out of view. */
 let collapsedBy = $state(0);
+/** True while the spring or a finger moves the card (exposed as data-moving for tests). */
+let moving = $state(false);
 
 const spring = new Spring(0, SPRING.snappy);
 const stepper = new FixedStep();
@@ -38,6 +40,7 @@ let drag: { y0: number; off0: number; last: { y: number; t: number }; v: number 
 const targetOffset = () => (wide || expanded ? 0 : collapsedBy);
 
 function settle(): void {
+  moving = false;
   offset = spring.value;
   // main.ts re-measures the free area from the card's visible part and re-fits the map.
   actions.cardMoved();
@@ -51,6 +54,7 @@ function animateTo(target: number): void {
     settle();
     return;
   }
+  moving = true;
   let prev = performance.now();
   const tick = (t: number) => {
     stepper.advance((t - prev) / 1000, (h) => spring.step(h));
@@ -106,6 +110,7 @@ function down(e: PointerEvent): void {
   if (wide || card === null) return;
   card.setPointerCapture(e.pointerId);
   cancelAnimationFrame(raf);
+  moving = true;
   drag = { y0: e.clientY, off0: offset, last: { y: e.clientY, t: e.timeStamp }, v: 0 };
 }
 function move(e: PointerEvent): void {
@@ -144,6 +149,7 @@ function up(e: PointerEvent): void {
   hidden={view.panel === null}
   aria-live="polite"
   data-peek-offset={wide ? 0 : Math.max(0, Math.round(offset))}
+  data-moving={moving}
   style:translate={offset === 0 ? null : `0 ${offset}px`}
   onpointerdown={down}
   onpointermove={move}

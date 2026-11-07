@@ -26,19 +26,21 @@ async function tapEurope(page: Page) {
 }
 
 test("region bars fill from empty, then rest at their share", async ({ page }) => {
-  // Sample the first bar's scaleX on every frame from the moment it exists.
+  // Sample the first bar's scaleX on every frame for 1.5 s from the moment it exists. Timed by
+  // the page clock from first appearance, not by a frame count: CI renders far below 60 fps.
   const samples = page.evaluate(
     () =>
       new Promise<number[]>((resolve) => {
         const out: number[] = [];
-        const t0 = performance.now();
+        let since = 0;
         const tick = () => {
           const fill = document.querySelector<HTMLElement>("#bars .fill");
           if (fill) {
+            if (since === 0) since = performance.now();
             const m = getComputedStyle(fill).transform.match(/matrix\(([^,]+)/);
             out.push(m ? Number(m[1]) : 1);
           }
-          if (performance.now() - t0 < 2500) requestAnimationFrame(tick);
+          if (since === 0 || performance.now() - since < 1500) requestAnimationFrame(tick);
           else resolve(out);
         };
         requestAnimationFrame(tick);
@@ -46,7 +48,7 @@ test("region bars fill from empty, then rest at their share", async ({ page }) =
   );
   await tapEurope(page);
   const s = await samples;
-  expect(s.length, "bar never appeared").toBeGreaterThan(20);
+  expect(s.length, "too few frames to judge (bar never appeared?)").toBeGreaterThanOrEqual(5);
   const final = s[s.length - 1] as number;
   expect(final, "bar has a share").toBeGreaterThan(0.02);
   expect(s[0] as number, "starts empty").toBeLessThan(final * 0.2);
