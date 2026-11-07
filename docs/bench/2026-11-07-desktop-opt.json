@@ -1,0 +1,1406 @@
+[
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.399999999999636,
+    "intervalP99": 17.69999999999891,
+    "scriptP50": 6.200000002980232,
+    "scriptP95": 6.9000000059604645,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 6.0999999940395355,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.700000000000045,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 16.80000000000109,
+    "intervalP99": 17.5,
+    "scriptP50": 5.299999997019768,
+    "scriptP95": 5.799999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.200000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.69999999999999,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "cull",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.399999999999636,
+    "intervalP99": 17.700000000000728,
+    "scriptP50": 5.5,
+    "scriptP95": 6.4000000059604645,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.4000000059604645,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "noborders",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.80000000000109,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 5.700000002980232,
+    "scriptP95": 6.299999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.600000008940697,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.199999999999818,
+    "intervalP99": 17.699999999999818,
+    "scriptP50": 4.9000000059604645,
+    "scriptP95": 5.700000002980232,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 4.800000011920929,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.69999999999999,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull,noborders",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.30000000000109,
+    "intervalP99": 17.699999999999818,
+    "scriptP50": 4.700000002980232,
+    "scriptP95": 5.600000008940697,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 4.600000008940697,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 522,
+    "intervalP50": 16.700000000000728,
+    "intervalP95": 33.399999999999636,
+    "intervalP99": 34.099999999999454,
+    "scriptP50": 18.099999994039536,
+    "scriptP95": 22.700000002980232,
+    "missed": 79,
+    "missedRatio": 0.1314475873544093,
+    "baseP50": 17.799999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 598,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.600000000000364,
+    "intervalP99": 17.799999999999272,
+    "scriptP50": 14.5,
+    "scriptP95": 17.100000008940697,
+    "missed": 3,
+    "missedRatio": 0.004991680532445923,
+    "baseP50": 14.299999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "cull",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 562,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 32.5,
+    "intervalP99": 34.29999999999927,
+    "scriptP50": 13.5,
+    "scriptP95": 20.700000002980232,
+    "missed": 39,
+    "missedRatio": 0.064891846921797,
+    "baseP50": 13.399999991059303,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.700000000000045,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "noborders",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 582,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.699999999999818,
+    "intervalP99": 33.399999999999636,
+    "scriptP50": 15,
+    "scriptP95": 18.599999994039536,
+    "missed": 19,
+    "missedRatio": 0.03161397670549085,
+    "baseP50": 14.700000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.5,
+    "intervalP99": 17.699999999999818,
+    "scriptP50": 10.599999994039536,
+    "scriptP95": 14.799999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 10.5,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull,noborders",
+    "repeat": 0,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.59999999999991,
+    "intervalP99": 17.700000000000728,
+    "scriptP50": 9.200000002980232,
+    "scriptP95": 12.799999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 9.100000008940697,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.700000000000045,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.5,
+    "intervalP99": 17.69999999999891,
+    "scriptP50": 5.100000008940697,
+    "scriptP95": 6.0999999940395355,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull,noborders",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 4.700000002980232,
+    "scriptP95": 5.5,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 4.5999999940395355,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 537,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 33.399999999999636,
+    "intervalP99": 34.100000000000364,
+    "scriptP50": 17.30000001192093,
+    "scriptP95": 21.900000005960464,
+    "missed": 64,
+    "missedRatio": 0.1064891846921797,
+    "baseP50": 17.19999998807907,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 600,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.599999999998545,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 14.200000002980232,
+    "scriptP95": 16.30000001192093,
+    "missed": 1,
+    "missedRatio": 0.0016638935108153079,
+    "baseP50": 14,
+    "fxP50": 0.10000000894069672,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.69999999999999,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "cull",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 560,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 32.80000000000109,
+    "intervalP99": 33.70000000000073,
+    "scriptP50": 13.400000005960464,
+    "scriptP95": 20.899999991059303,
+    "missed": 41,
+    "missedRatio": 0.06821963394342762,
+    "baseP50": 13.100000008940697,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "noborders",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 579,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.600000000000364,
+    "intervalP99": 33.5,
+    "scriptP50": 15.800000011920929,
+    "scriptP95": 18.799999997019768,
+    "missed": 22,
+    "missedRatio": 0.036605657237936774,
+    "baseP50": 15.599999994039536,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.5,
+    "intervalP99": 17.69999999999891,
+    "scriptP50": 10.700000002980232,
+    "scriptP95": 14.899999991059303,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 10.400000005960464,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull,noborders",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.5,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 8.899999991059303,
+    "scriptP95": 12.799999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 8.700000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.799999999999272,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 6.4000000059604645,
+    "scriptP95": 6.9000000059604645,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 6.299999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.800000000000182,
+    "intervalP99": 17.199999999999818,
+    "scriptP50": 5.899999991059303,
+    "scriptP95": 6.5999999940395355,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.799999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "cull",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.799999999999272,
+    "intervalP99": 17.299999999999272,
+    "scriptP50": 5.9000000059604645,
+    "scriptP95": 7,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.799999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "noborders",
+    "repeat": 1,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 16.800000000000182,
+    "intervalP99": 17.299999999999272,
+    "scriptP50": 6.200000002980232,
+    "scriptP95": 7,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 6.0999999940395355,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.69999999999999,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "cull",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 561,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 33.20000000000073,
+    "intervalP99": 34,
+    "scriptP50": 13.400000005960464,
+    "scriptP95": 20.900000005960464,
+    "missed": 40,
+    "missedRatio": 0.06655574043261231,
+    "baseP50": 13.200000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "noborders",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 582,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 17.600000000000364,
+    "intervalP99": 33.80000000000018,
+    "scriptP50": 15.100000008940697,
+    "scriptP95": 18.599999994039536,
+    "missed": 19,
+    "missedRatio": 0.03161397670549085,
+    "baseP50": 15,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.700000000000045,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.5,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 11,
+    "scriptP95": 15.100000008940697,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 10.799999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull,noborders",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 17.5,
+    "intervalP99": 17.600000000000364,
+    "scriptP50": 9.100000008940697,
+    "scriptP95": 12.799999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 8.899999991059303,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.800000000000182,
+    "intervalP99": 17.299999999999272,
+    "scriptP50": 6.600000008940697,
+    "scriptP95": 7.5,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 6.5,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.799999999999727,
+    "intervalP99": 17.40000000000009,
+    "scriptP50": 5.799999997019768,
+    "scriptP95": 6.5999999940395355,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.700000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "cull",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 16.799999999999272,
+    "intervalP99": 17.69999999999891,
+    "scriptP50": 5.799999997019768,
+    "scriptP95": 7,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.700000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.700000000000017,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "noborders",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.800000000000182,
+    "intervalP99": 18.399999999999636,
+    "scriptP50": 5.799999997019768,
+    "scriptP95": 6.299999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.700000002980232,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 16.799999999999727,
+    "intervalP99": 17.40000000000009,
+    "scriptP50": 5.200000002980232,
+    "scriptP95": 6,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 5.100000008940697,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.69999999999999,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull,noborders",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 16.799999999999272,
+    "intervalP99": 18.100000000000364,
+    "scriptP50": 4.899999991059303,
+    "scriptP95": 5.799999997019768,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 4.799999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 542,
+    "intervalP50": 16.700000000000728,
+    "intervalP95": 33.29999999999927,
+    "intervalP99": 35.100000000000364,
+    "scriptP50": 17.299999997019768,
+    "scriptP95": 21.69999998807907,
+    "missed": 59,
+    "missedRatio": 0.09816971713810316,
+    "baseP50": 17,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0",
+    "repeat": 2,
+    "device": "desktop",
+    "frames": 601,
+    "intervalP50": 16.699999999999818,
+    "intervalP95": 18.399999999999636,
+    "intervalP99": 18.600000000000364,
+    "scriptP50": 14,
+    "scriptP95": 15.900000005960464,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 13.799999997019768,
+    "fxP50": 0.09999999403953552,
+    "config": {
+      "particles": 500,
+      "dragLod": "110m",
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": {}
+    },
+    "idleIntervalP50": 16.69999999999999,
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  }
+]

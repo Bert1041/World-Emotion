@@ -2,7 +2,7 @@
 
 Companion to `README.md` (the spec). The README says **what** and **why**; this file says **in what order, how we know a phase is done, and what is still undecided**.
 
-Status: **Phase 2 complete on branch `phase-2/geo-data`, awaiting PR review.** Phases 0–1 merged. Phase 0 + 0.5 merged (PR #2).
+Status: **Phase 3 (+3b) complete on branch `phase-3/globe-spike`, awaiting PR review: Canvas 2D GO ([ADR 0005](decisions/0005-globe-go-no-go.md)).** Phases 0–2 merged.
 
 Previous status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
 
@@ -64,7 +64,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 - **D3 World weighting:** pure pool or population-weighted. _Recommend: pure pool at launch (honest, simple), and say so on the page._
 - **D4 Gap fixes G1–G9** above: accept, or amend.
 
-**Blocks Phase 3:** reference low-end Android model and its pass bar. A real physical device is required.
+**Phase 3 device:** Pixel 6 Pro, the only reference device (ADR 0004, low-end risk accepted).
 
 **Can wait:** sound (recommend: post-launch), domain/brand (needed before Phase 6 for the CDN), daily history (recommend: none at launch).
 
@@ -108,11 +108,12 @@ These come from reading the README closely. Each one would ship as a defect if b
 **Exit criteria:**
 - Measured on the **physical reference phone**: median and p95 frame time during drag with particles. Numbers go in a decision record with GO / fallback path (OffscreenCanvas → WebGL).
 - Spike code is either promoted deliberately (reviewed) or deleted. No accidental keep.
-  **Needs from you:** the device.
+  **Device:** Pixel 6 Pro via USB (ADR 0004).
 
 ### Phase 4: `packages/motion` + check-in moment
 
 **Scope:** fixed-step springs, easing, OKLab interpolation, great-circle rotation interpolation, solar position, motion tokens. Wire the check-in moment first (spec §8.2.5).
+Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed by default to region + mood, swipe up for the breakdown, so the continent gets most of the screen. The map is re-fitted to the card's current height. Card stays floating (no split screen).
 **Exit criteria:** maths unit-tested and mutation-checked; same spring result at 60 Hz and 120 Hz step rates (a test that steps both); check-in moment reviewed on the reference phone; `prefers-reduced-motion` path verified in a real browser.
 
 ### Phase 5: API + D1

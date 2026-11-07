@@ -7,3 +7,6 @@ coverage/
 .DS_Store
 *.log
 .cache/
+tools/bench/.phone-settings-backup.json
+apps/web/test-results/
+apps/web/playwright-report/
