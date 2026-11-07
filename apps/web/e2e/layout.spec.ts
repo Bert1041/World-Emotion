@@ -11,6 +11,8 @@ type Layout = {
   focusBox: Rect | null;
   gliding: boolean;
   worldMood: string;
+  easing: boolean;
+  moving: boolean;
 };
 const layout = (page: Page) =>
   page.evaluate(() => (window as unknown as { __bench: { layout(): Layout } }).__bench.layout());
@@ -55,7 +57,8 @@ async function stable(page: Page) {
       Math.abs(next.globe.cx - prev.globe.cx) +
       Math.abs(next.globe.cy - prev.globe.cy) +
       Math.abs(next.globe.r - prev.globe.r);
-    if (d < 0.5 && !next.gliding) return;
+    // The app's own signals first: with starved frames, two reads can agree mid-movement.
+    if (d < 0.5 && !next.gliding && !next.easing && !next.moving) return;
     prev = next;
   }
   throw new Error("layout never settled");

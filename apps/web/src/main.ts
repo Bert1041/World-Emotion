@@ -556,6 +556,8 @@ let idle: number[] | null = null;
 /** Per idle frame: script ms, whether the base layer was redrawn, and at which LOD (diagnostics). */
 let idleFrames: { script: number; base: boolean; lod: string; rotating: boolean }[] | null = null;
 let drewBase = false;
+/** Whether the globe is still easing to a new layout position (exposed for the layout test). */
+let layoutEasing = false;
 /** Whether the last frame drew mood-weather particles (off under reduced motion). */
 let particlesDrawn = false;
 
@@ -604,6 +606,7 @@ function frame(ts: number): void {
   }
 
   const anchorEasing = easeAnchor(dt);
+  layoutEasing = anchorEasing;
   if (anchorEasing) dirty = true;
   applyCamera();
   const moving = bench !== null || dragging || camera.moving || idleRotating;
@@ -822,6 +825,8 @@ declare global {
         zoom: number;
         moving: boolean;
         particles: boolean;
+        /** The globe is still easing toward a new layout position (fonts, card, rotation). */
+        easing: boolean;
       };
       run(): Promise<FrameSummary & { config: unknown; dpr: number; idleIntervalP50: number }>;
     };
@@ -857,6 +862,7 @@ window.__bench = {
       zoom: camera.rendered.zoom,
       moving: camera.moving || dragging,
       particles: particlesDrawn,
+      easing: layoutEasing,
       worldMood: MOODS[snapshot.world.h] ?? "",
     };
   },
