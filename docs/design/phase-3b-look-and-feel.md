@@ -37,6 +37,12 @@ The mapping is data (`apps/web/src/engine/themes.ts`) and can be retuned after r
   preview each theme. Benchmark mode is unchanged (fixed theme, no demo cycling).
 - **`prefers-reduced-motion`:** no particles, no auto-rotation, cross-fades only.
 
+## Zoomed layout (decided 2026-11-07)
+
+The region card stays a **floating, solid card** over a full-screen map, never a split screen. The
+continent is fitted into the clear area beside or above it, and tests check it is never under the
+card. Phones get a collapsible **peek card** in Phase 4 (it needs swipe and spring motion).
+
 ## Not in scope
 
 Real data, check-in, sound, final typography, share card. Motion here uses small inline helpers;

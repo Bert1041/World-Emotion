@@ -113,6 +113,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 ### Phase 4: `packages/motion` + check-in moment
 
 **Scope:** fixed-step springs, easing, OKLab interpolation, great-circle rotation interpolation, solar position, motion tokens. Wire the check-in moment first (spec §8.2.5).
+Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed by default to region + mood, swipe up for the breakdown, so the continent gets most of the screen. The map is re-fitted to the card's current height. Card stays floating (no split screen).
 **Exit criteria:** maths unit-tested and mutation-checked; same spring result at 60 Hz and 120 Hz step rates (a test that steps both); check-in moment reviewed on the reference phone; `prefers-reduced-motion` path verified in a real browser.
 
 ### Phase 5: API + D1
