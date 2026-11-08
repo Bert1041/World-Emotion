@@ -50,7 +50,7 @@ at 60 Hz and 120 Hz frame rates and expects the same trajectory within 1e-9 (PLA
    (`geoCircle`), drawn on the FX layer. It costs one path of about 100 points per frame while it
    runs, and the bench measures it.
 4. **The counts tick up**, and the country, its continent and the world update.
-5. **Haptics:** a short `navigator.vibrate` tick on Android (M4). iOS has no vibration API.
+5. **Haptics:** one 30 ms `navigator.vibrate` tick on Android as the face lands (M4); none on zoom. 12 ms was tried first and could not be felt on the Pixel 6 Pro (review 2026-11-08). iOS has no vibration API.
 
 **There is no server yet** (Phase 5). The check-in goes into the demo snapshot simulator and runs
 through the real `buildSnapshot`, so the numbers you see move for real reasons. Country for now:

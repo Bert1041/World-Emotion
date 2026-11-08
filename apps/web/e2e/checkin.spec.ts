@@ -49,6 +49,19 @@ async function countAtLanding(page: Page): Promise<() => Promise<number>> {
   return () => page.evaluate(() => (window as unknown as { __landed: Promise<number> }).__landed);
 }
 
+/** Record navigator.vibrate calls (Chrome on a desktop has the API but no motor to observe). */
+async function recordVibrations(page: Page): Promise<() => Promise<unknown[]>> {
+  await page.addInitScript(() => {
+    const calls: unknown[] = [];
+    (window as unknown as { __vibrations: unknown[] }).__vibrations = calls;
+    navigator.vibrate = ((pattern: unknown) => {
+      calls.push(pattern);
+      return true;
+    }) as Navigator["vibrate"];
+  });
+  return () => page.evaluate(() => (window as unknown as { __vibrations: unknown[] }).__vibrations);
+}
+
 const errors: string[] = [];
 test.afterEach(() => expect(errors, "page errors").toEqual([]));
 async function load(page: Page, query = "?auto=0") {
@@ -76,12 +89,16 @@ test.describe("Nigeria (en-NG)", () => {
     page,
   }, info) => {
     only(info.project.name, ["phone-390", "laptop-1440"]);
+    const vibrations = await recordVibrations(page);
     await load(page);
     const before = await count(page);
     const atLanding = await countAtLanding(page);
     await page.locator('#checkin .face[data-mood="happy"]').click();
     await expect(page.locator(".flight"), "the face is in flight").toBeVisible();
+    expect(await vibrations(), "no buzz until it lands").toEqual([]);
     expect(await atLanding(), "ticks up by one as it lands").toBe(before + 1);
+    // One tick as it lands. 30 ms: the Pixel 6 Pro could not be felt at 12 ms (2026-11-08 review).
+    expect(await vibrations(), "one buzz on landing").toEqual([30]);
     await expect(page.locator("#checkin .chip")).toContainText("You feel happy");
     await expect.poll(async () => (await layout(page)).ripple, { timeout: 4000 }).toBe(true);
     await expect(page.locator(".flight"), "landed").toHaveCount(0);
@@ -168,6 +185,7 @@ test.describe("reduced motion", () => {
 
   test("no flight and no ripple; the count still updates", async ({ page }, info) => {
     only(info.project.name, ["phone-390"]);
+    const vibrations = await recordVibrations(page);
     await load(page);
     const before = await count(page);
     await page.locator('#checkin .face[data-mood="happy"]').click();
@@ -175,6 +193,7 @@ test.describe("reduced motion", () => {
     expect(await count(page)).toBe(before + 1);
     await expect(page.locator(".flight")).toHaveCount(0);
     expect((await layout(page)).ripple).toBe(false);
+    expect(await vibrations(), "no buzz under reduced motion (decision M4)").toEqual([]);
   });
 });
 

@@ -896,7 +896,8 @@ function landed(id: number): void {
   view.worldCount = Math.max(view.worldCount + (l.first ? 1 : 0), snapshot.world.n);
   if (reducedMotion) return;
   ripples.add(l.center, MOOD_COLORS[l.mood] ?? "#fff");
-  navigator.vibrate?.(12); // Android; iOS has no vibration API (README §8.6)
+  // Android; iOS has no vibration API (README §8.6). 30 ms: 12 ms could not be felt on a Pixel 6 Pro.
+  navigator.vibrate?.(30);
 }
 
 /** Re-measure; if the card's visible height changed, re-fit the continent beside it. */
