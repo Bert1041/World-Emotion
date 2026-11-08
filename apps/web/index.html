@@ -90,16 +90,20 @@
       #checkin .stack > .off { opacity: 0; visibility: hidden; }
       #checkin .chip { font-size: 1rem; align-self: center; }
       #checkin .link { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
-      #checkin .from { display: flex; align-items: center; justify-content: center; gap: 0.3rem; margin-top: 0.35rem; font-size: 0.8rem; color: var(--muted); }
+      #checkin .from { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.65rem; font-size: 0.82rem; color: var(--muted); }
+      /* Your location as a badge: a pill with room around the pin and name. */
+      #checkin .from .place { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
       #checkin .from .where { color: var(--text); }
       #checkin .pin path { fill: var(--accent); }
       #checkin .pin circle { fill: #0a0c10; }
       #checkin .pick { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; }
       #checkin .pick .prompt { margin: 0; }
       #checkin .tap-hint { color: var(--text); }
-      #checkin .search { display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.78rem; color: var(--muted); }
-      #checkin .search input { width: 9rem; padding: 0.3rem 0.55rem; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px;
-        background: rgba(255, 255, 255, 0.06); color: var(--text); font: inherit; }
+      #checkin .search { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.3rem 0.5rem; font-size: 0.82rem; color: var(--muted); }
+      /* 16 px minimum: iOS zooms the whole page into any smaller input when it is focused. */
+      #checkin .search input { width: min(15rem, 100%); padding: 0.5rem 0.9rem; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07); color: var(--text); font: max(16px, 1rem) system-ui, sans-serif; }
       #checkin .search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
       #checkin .results { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; min-height: 1.7rem; }
       #checkin .result { padding: 0.25rem 0.6rem; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; background: none;
@@ -114,7 +118,7 @@
         #checkin .faces-layer { display: flex; align-items: center; gap: 0.8rem; }
         #checkin .faces-layer .prompt { margin: 0; width: 6.2rem; text-align: left; line-height: 1.25; }
         #checkin .faces { flex: 1; }
-        #checkin .from { flex-direction: column; gap: 0.1rem; margin: 0; padding-left: 1rem; border-left: 1px solid rgba(255, 255, 255, 0.12); align-self: stretch; }
+        #checkin .from { flex-direction: column; gap: 0.35rem; margin: 0; padding: 0.3rem 0 0.3rem 1rem; border-left: 1px solid rgba(255, 255, 255, 0.12); align-self: stretch; }
         #checkin .from .dot { display: none; }
       }
       /* A phone on its side has no height to spare: a panel on the right, sized to its content.
