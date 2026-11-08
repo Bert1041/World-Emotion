@@ -18,8 +18,10 @@ export interface Obstacles {
   readonly viewport: { readonly w: number; readonly h: number };
   /** Text at the top (world headline), or the back button when zoomed. */
   readonly top?: Rect | null;
-  /** Anything along the bottom (prototype mood bar). */
+  /** Anything along the bottom (check-in bar, prototype mood bar). */
   readonly bottom?: Rect | null;
+  /** Anything docked to the right edge (the check-in bar on short landscape screens). */
+  readonly right?: Rect | null;
   /** The region card: at the side on wide screens, at the bottom on narrow ones. */
   readonly card?: Rect | null;
   readonly cardSide?: "left" | "bottom";
@@ -29,10 +31,11 @@ export interface Obstacles {
 export function freeArea(o: Obstacles): Rect {
   let x0 = GAP;
   let y0 = GAP;
-  const x1 = o.viewport.w - GAP;
+  let x1 = o.viewport.w - GAP;
   let y1 = o.viewport.h - GAP;
   if (o.top) y0 = Math.max(y0, o.top.y + o.top.h + GAP);
   if (o.bottom) y1 = Math.min(y1, o.bottom.y - GAP);
+  if (o.right) x1 = Math.min(x1, o.right.x - GAP);
   if (o.card && o.cardSide === "left") x0 = Math.max(x0, o.card.x + o.card.w + GAP);
   if (o.card && o.cardSide === "bottom") y1 = Math.min(y1, o.card.y - GAP);
   return { x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0) };

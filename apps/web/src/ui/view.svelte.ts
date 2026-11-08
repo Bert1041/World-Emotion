@@ -21,6 +21,14 @@ export interface PanelView {
   readonly bars: readonly Bar[];
 }
 
+export interface Flight {
+  readonly id: number;
+  readonly mood: MoodId;
+  /** CSS px: the face button it leaves from, and where your country will be when it lands. */
+  readonly from: { readonly x: number; readonly y: number };
+  readonly to: { readonly x: number; readonly y: number };
+}
+
 export const view = $state({
   worldMood: "",
   /** Bumped to replay the headline word's entrance (a change of mood, or coming back out). */
@@ -30,12 +38,33 @@ export const view = $state({
   panel: null as PanelView | null,
   devVisible: false,
   autoCycle: true,
+  /** Active check-ins in the world snapshot; ticks up when yours lands. */
+  worldCount: 0,
+  checkin: {
+    /** World view only: the bottom bar, like the card in a region. */
+    visible: false,
+    country: null as string | null,
+    countries: [] as { readonly code: string; readonly name: string }[],
+    /** Your active mood this session, or null before you check in. */
+    mine: null as MoodId | null,
+    /** Pick mode: the globe is the country picker ("tap where you are"). */
+    picking: false,
+  },
+  flight: null as Flight | null,
 });
 
 export interface UiActions {
   back(): void;
   previewMood(m: MoodId): void;
   toggleAuto(): void;
+  /** You picked a mood; `from` is the centre of the face you tapped (CSS px). */
+  checkIn(mood: MoodId, from: { x: number; y: number }): void;
+  /** Chosen from the search (the globe tap path goes through the engine's hit test). */
+  setCountry(code: string): void;
+  startPick(): void;
+  cancelPick(): void;
+  /** The flying face reached your country (flight `id`). */
+  landed(id: number): void;
   /** The region card finished moving (peek ↔ open): re-measure and re-fit the map. */
   cardMoved(): void;
 }

@@ -6,7 +6,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }, info) => {
   test.skip(!["phone-390", "laptop-1440"].includes(info.project.name), "behaviour, not layout");
-  await page.goto("/?auto=0");
+  await page.goto("/?auto=0&dev=1"); // the theme switcher is behind ?dev=1
   await page.evaluate(
     () => (window as unknown as { __bench: { ready: Promise<void> } }).__bench.ready,
   );

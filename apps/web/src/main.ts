@@ -1,5 +1,5 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
-import { hexToOklab, mixOklab, oklabToCss } from "@world-emotion/motion";
+import { FixedStep, hexToOklab, mixOklab, oklabToCss, SPRING, Spring } from "@world-emotion/motion";
 import {
   type Continent,
   MOOD_COUNT,
@@ -8,7 +8,7 @@ import {
   type Snapshot,
   type SnapshotRegion,
 } from "@world-emotion/shared";
-import { geoCentroid, geoContains, geoDistance, geoOrthographic } from "d3-geo";
+import { geoCentroid, geoCircle, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { SnapshotSim } from "./demo/snapshot-sim";
 import {
@@ -18,11 +18,14 @@ import {
   STRETCH_COMMIT,
   type View,
 } from "./engine/camera";
+import { guessCountry } from "./engine/country-guess";
 import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng, type SpawnPoint } from "./engine/particles";
+import { pinPoint } from "./engine/pin";
+import { Ripples } from "./engine/ripple";
 import { FrameRecorder, type FrameSummary } from "./engine/stats";
 import { ThemeMixer } from "./engine/themes";
 import App from "./ui/App.svelte";
@@ -50,6 +53,8 @@ const config = {
    * verifyRender): on unless switched off. */
   opt: new Set((params.get("opt") ?? "precision0,cull").split(",").filter(Boolean)),
   debug: params.get("debug") === "1",
+  /** Prototype theme switcher (bottom bar); off by default now the check-in owns the bottom. */
+  dev: params.get("dev") === "1",
 };
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -77,6 +82,13 @@ mount(App, {
         autoCycle = false;
         view.autoCycle = false;
       },
+      checkIn: (mood: MoodId, from: { x: number; y: number }) => checkIn(mood, from),
+      setCountry: (code: string) => setCountry(code),
+      startPick: () => startPick(),
+      cancelPick: () => {
+        view.checkin.picking = false;
+      },
+      landed: (id: number) => landed(id),
       cardMoved: () => {
         if (layoutReady) refitToCard();
       },
@@ -94,6 +106,7 @@ const ui = {
   back: $<HTMLButtonElement>("back"),
   panel: $("panel"),
   dev: $("dev"),
+  checkin: $("checkin"),
   overlays: { scanlines: $("scanlines"), frost: $("frost"), heat: $("heat") },
 };
 const countryName = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
@@ -113,9 +126,15 @@ const header = document.querySelector("header") as HTMLElement;
 const anchor = { x: 0, y: 0 };
 let anchorGoal = { x: 0, y: 0 };
 let regionFree: Rect | null = null;
-let lastDev: Rect | null = null;
+/** Topmost bottom bar (check-in, dev) last seen in world view; kept while zoomed so the world
+ * fit does not change when the bars hide. */
+let lastBottom: Rect | null = null;
+/** The check-in panel docked to the right (phone on its side), kept while zoomed likewise. */
+let lastRight: Rect | null = null;
 let lastCardH = 0;
 
+/** A phone on its side docks the check-in panel to the right. Must match index.html. */
+const DOCK_RIGHT = matchMedia("(min-aspect-ratio: 6/5) and (max-height: 520px)");
 /** Landscape-shaped screens get a side card; portrait ones a bottom sheet. Must match index.html. */
 const SIDE_CARD = matchMedia("(min-aspect-ratio: 6/5)");
 
@@ -130,8 +149,17 @@ const boxOf = (el: HTMLElement): Rect => ({
 /** Measured on resize and when the card changes, never per frame (no forced layout per frame). */
 function measureLayout(): void {
   const viewport = { w: window.innerWidth, h: window.innerHeight };
-  if (!ui.dev.hidden) lastDev = boxOf(ui.dev);
-  const world = fitGlobe(freeArea({ viewport, top: boxOf(header), bottom: lastDev }));
+  const docked = DOCK_RIGHT.matches;
+  const bars = [docked ? null : ui.checkin, ui.dev]
+    .filter((el): el is HTMLElement => el !== null && !el.hidden)
+    .map(boxOf);
+  if (bars.length > 0) lastBottom = bars.reduce((a, b) => (a.y < b.y ? a : b));
+  else if (focus === null) lastBottom = null; // world view with nothing at the bottom (docked)
+  if (docked && !ui.checkin.hidden) lastRight = boxOf(ui.checkin);
+  else if (!docked) lastRight = null;
+  const world = fitGlobe(
+    freeArea({ viewport, top: boxOf(header), bottom: lastBottom, right: lastRight }),
+  );
   baseRadius = world.r * dpr;
   if (focus === null || ui.panel.hidden) {
     regionFree = null;
@@ -289,6 +317,8 @@ function onSnapshot(next: Snapshot): void {
     view.worldSwap++; // replay the word's entrance
   }
   view.worldMood = MOODS[next.world.h] ?? "";
+  // Held still while your face is in flight: the landing ticks it (see landed()).
+  if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
   recomputeWeather();
   renderPanel();
@@ -311,7 +341,8 @@ const moodOf = (m: MoodId | null) =>
 
 function renderPanel(): void {
   view.zoomed = focus !== null;
-  view.devVisible = !config.bench && focus === null; // prototype bar never covers the panel
+  view.devVisible = config.dev && !config.bench && focus === null; // never covers the panel
+  view.checkin.visible = !config.bench && focus === null;
   document.body.classList.toggle("zoomed", focus !== null);
   if (focus === null) view.panel = null;
   else if (selected !== null) {
@@ -397,14 +428,19 @@ const pointers = new Map<number, { x: number; y: number }>();
 let pinch: { startDist: number } | null = null;
 
 /** Country and continent under a screen point (CSS px), or null for ocean/space. */
-function hitAt(x: number, y: number): { code: string; continent: Continent } | null {
+function hitAt(
+  x: number,
+  y: number,
+): { code: string; continent: Continent; lonLat: [number, number] } | null {
   const lonLat = projection.invert?.([x * dpr, y * dpr]);
   const [tx, ty] = projection.translate();
   if (!lonLat || Math.hypot(x * dpr - tx, y * dpr - ty) > projection.scale()) return null;
   const hit = lods["50m"].countries.find((f) => geoContains(f, lonLat));
   const code = hit ? String(hit.id) : null;
   const continent = code ? COUNTRY_TO_CONTINENT.get(code) : undefined;
-  return code !== null && continent !== undefined ? { code, continent } : null;
+  return code !== null && continent !== undefined
+    ? { code, continent, lonLat: [lonLat[0], lonLat[1]] }
+    : null;
 }
 
 /**
@@ -484,6 +520,11 @@ const endDrag = (e: PointerEvent) => {
   dragging = false;
   if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 6) {
     const hit = hitAt(e.clientX, e.clientY);
+    if (view.checkin.picking) {
+      // The globe is the country picker: a tap on land places your pin; ocean does nothing.
+      if (hit !== null) placePin(hit.code, hit.lonLat);
+      return;
+    }
     if (hit === null) {
       if (focus !== null) leave();
     } else if (focus !== hit.continent) enter(hit.continent);
@@ -543,7 +584,9 @@ fxCanvas.addEventListener(
 let autoCycle = !config.bench && params.get("auto") !== "0";
 let cycleAt = performance.now();
 view.autoCycle = autoCycle;
-view.devVisible = !config.bench;
+view.devVisible = config.dev && !config.bench;
+view.checkin.visible = !config.bench;
+document.body.classList.toggle("dev", view.devVisible);
 
 // ---- Frame loop -------------------------------------------------------------------------------
 let prevTs = 0;
@@ -589,6 +632,7 @@ function frame(ts: number): void {
   } else if (
     !dragging &&
     focus === null &&
+    !view.checkin.picking && // hold still while you aim at your country
     !reducedMotion &&
     performance.now() - lastInput > 4000
   ) {
@@ -670,6 +714,20 @@ function frame(ts: number): void {
     const [rl, rp] = projection.rotate();
     particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr);
   }
+  ripples.update(dt);
+  if (ripples.active) {
+    // Rings are small circles on the sphere, so they bend over the horizon (clipped at 90°).
+    for (const ring of ripples.rings()) {
+      fxCtx.beginPath();
+      fxPath(ringShape.center([ring.center[0], ring.center[1]]).radius(ring.radius)());
+      fxCtx.globalAlpha = ring.alpha;
+      fxCtx.strokeStyle = ring.color;
+      fxCtx.lineWidth = (3 - ring.index * 0.8) * dpr;
+      fxCtx.stroke();
+    }
+    fxCtx.globalAlpha = 1;
+  }
+  drawPin(dt);
 
   const tEnd = performance.now();
   lastFrameMs = tEnd - t0;
@@ -694,6 +752,153 @@ function frame(ts: number): void {
   requestAnimationFrame(frame);
 }
 
+// ---- Check-in moment (README §8.2.5) ----------------------------------------------------------
+const ripples = new Ripples();
+const ringShape = geoCircle().precision(4);
+const fxPath = geoPath(projection, fxCtx);
+let flightId = 0;
+/** Where your face lands and the ripple starts: your country's centre. */
+let landing: { center: [number, number]; mood: MoodId; first: boolean } | null = null;
+
+/** Your pin: the exact spot you tapped, or your country's pin point when guessed or searched. */
+let myPin: { code: string; lonLat: [number, number] } | null = null;
+/** Pin points per country (inside the country, on its largest landmass), set at start(). */
+let pinPoints = new Map<string, [number, number]>();
+/** The pin drop: a bouncy spring on its height above the ground (CSS px), on the fixed step. */
+const pinDrop = new Spring(0, SPRING.bouncy);
+const pinStep = new FixedStep();
+
+const PIN_KEY = "we.pin";
+const countryNames = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
+view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()]
+  .map((code) => ({ code, name: countryNames.of(code) ?? code }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+/** Restore the saved pin or guess the country (M2); called once pin points are known. */
+function initPin(): void {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PIN_KEY) ?? "null") as unknown;
+    const p = saved as { code?: unknown; lon?: unknown; lat?: unknown } | null;
+    if (
+      p &&
+      typeof p.code === "string" &&
+      COUNTRY_TO_CONTINENT.has(p.code) &&
+      typeof p.lon === "number" &&
+      typeof p.lat === "number" &&
+      Math.abs(p.lat) <= 90
+    ) {
+      myPin = { code: p.code, lonLat: [p.lon, p.lat] };
+    }
+  } catch {
+    // storage blocked or corrupt: fall back to the guess
+  }
+  if (myPin === null) {
+    const code = guessCountry(navigator.languages, COUNTRY_TO_CONTINENT);
+    const at = code === null ? undefined : pinPoints.get(code);
+    if (code !== null && at !== undefined) myPin = { code, lonLat: at };
+  }
+  view.checkin.country = myPin?.code ?? null;
+}
+
+/** Put your pin down (a tap on the globe, or a search result) and drop it in with a bounce. */
+function placePin(code: string, lonLat: [number, number]): void {
+  if (!COUNTRY_TO_CONTINENT.has(code)) return;
+  myPin = { code, lonLat };
+  view.checkin.country = code;
+  view.checkin.picking = false;
+  try {
+    localStorage.setItem(PIN_KEY, JSON.stringify({ code, lon: lonLat[0], lat: lonLat[1] }));
+  } catch {
+    // a per-device convenience only
+  }
+  pinDrop.value = reducedMotion ? 0 : 46;
+  pinDrop.velocity = 0;
+  pinDrop.target = 0;
+  dirty = true;
+}
+
+function setCountry(code: string): void {
+  const at = pinPoints.get(code);
+  if (at === undefined) return;
+  placePin(code, at);
+  camera.glideTo({ center: at, zoom: 1, offset: [0, 0] }); // show where it went
+}
+
+function startPick(): void {
+  view.checkin.picking = true;
+  lastInput = performance.now();
+  // "The globe spins to you": bring your current pin (if any) to the front to start from.
+  if (myPin !== null) camera.glideTo({ center: myPin.lonLat, zoom: 1, offset: [0, 0] });
+  dirty = true;
+}
+
+/** "You are here": a pin on the FX layer, hidden when it is round the back of the globe. */
+function drawPin(dt: number): void {
+  if (myPin === null) return;
+  pinStep.advance(dt, (h) => pinDrop.step(h));
+  if (Math.abs(pinDrop.value) < 0.05 && Math.abs(pinDrop.velocity) < 0.05) pinDrop.snap();
+  if (geoDistance(myPin.lonLat, camera.rendered.center) > Math.PI / 2 - 0.05) return;
+  const p = projection(myPin.lonLat);
+  if (!p) return;
+  const [x, y0] = p;
+  const y = y0 - pinDrop.value * dpr;
+  const k = dpr;
+  fxCtx.fillStyle = "rgba(0, 0, 0, 0.35)"; // shadow on the ground, under the pin
+  fxCtx.beginPath();
+  fxCtx.ellipse(x, y0, 4 * k, 1.6 * k, 0, 0, Math.PI * 2);
+  fxCtx.fill();
+  fxCtx.fillStyle = mixer.current.css.rim; // the theme accent, without a per-frame style read
+  fxCtx.strokeStyle = "#0a0c10";
+  fxCtx.lineWidth = 1.2 * k;
+  fxCtx.beginPath();
+  fxCtx.moveTo(x, y);
+  fxCtx.bezierCurveTo(x - 7 * k, y - 9 * k, x - 7 * k, y - 18 * k, x, y - 18 * k);
+  fxCtx.bezierCurveTo(x + 7 * k, y - 18 * k, x + 7 * k, y - 9 * k, x, y);
+  fxCtx.fill();
+  fxCtx.stroke();
+  fxCtx.fillStyle = "#0a0c10";
+  fxCtx.beginPath();
+  fxCtx.arc(x, y - 12.5 * k, 2.2 * k, 0, Math.PI * 2);
+  fxCtx.fill();
+}
+
+function checkIn(mood: MoodId, from: { x: number; y: number }): void {
+  if (myPin === null) return;
+  const { code, lonLat } = myPin;
+  const first = view.checkin.mine === null;
+  sim.checkIn(code, mood); // counted from the next aggregation run, like the real pipeline
+  view.checkin.mine = mood;
+  lastInput = performance.now();
+  // Turn your pin to the front; the face lands where it will be (the globe's centre).
+  camera.glideTo({ center: lonLat, zoom: 1, offset: [0, 0] });
+  dirty = true;
+  landing = { center: lonLat, mood, first };
+  if (reducedMotion) {
+    landed(-1); // no pop, flight or ripple: the chip cross-fades in and the count updates
+    return;
+  }
+  flightId++;
+  view.flight = {
+    id: flightId,
+    mood,
+    from,
+    to: { x: anchorGoal.x / dpr, y: anchorGoal.y / dpr },
+  };
+}
+
+function landed(id: number): void {
+  if (view.flight !== null && view.flight.id !== id) return; // a newer flight replaced it
+  view.flight = null;
+  const l = landing;
+  landing = null;
+  if (l === null) return;
+  // A first check-in adds one; a change of mood replaces your vote. Never below the snapshot.
+  view.worldCount = Math.max(view.worldCount + (l.first ? 1 : 0), snapshot.world.n);
+  if (reducedMotion) return;
+  ripples.add(l.center, MOOD_COLORS[l.mood] ?? "#fff");
+  navigator.vibrate?.(12); // Android; iOS has no vibration API (README §8.6)
+}
+
 /** Re-measure; if the card's visible height changed, re-fit the continent beside it. */
 function refitToCard(): void {
   const before = lastCardH;
@@ -711,6 +916,8 @@ async function start(): Promise<void> {
     loadLod("50m"),
   ]);
   lods = { move: m, "110m": a, "50m": b };
+  pinPoints = new Map(b.countries.map((f) => [String(f.id), pinPoint(f)]));
+  initPin();
   centroids = b.countries.map((f) => {
     const [lon, lat] = geoCentroid(f);
     return { code: String(f.id), lon, lat };
@@ -731,7 +938,7 @@ async function start(): Promise<void> {
   // Any change in the size of text/UI (content, fonts, rotation) re-measures the free area.
   // Fires only on actual size changes, never per frame.
   const ro = new ResizeObserver(refitToCard);
-  for (const el of [header, ui.panel, ui.back, ui.dev]) ro.observe(el);
+  for (const el of [header, ui.panel, ui.back, ui.dev, ui.checkin]) ro.observe(el);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) prevTs = 0; // don't integrate the time spent hidden
   });
@@ -816,6 +1023,8 @@ declare global {
       screenPoint(lon: number, lat: number): [number, number] | null;
       /** Point the camera at a lon/lat (scripted tours). */
       face(lon: number, lat: number): void;
+      /** Run one demo aggregation now (tests: force a snapshot at a chosen moment). */
+      aggregate(): void;
       /** Real on-screen layout in CSS px, for the browser layout test. */
       layout(): {
         globe: { cx: number; cy: number; r: number; halo: number };
@@ -830,6 +1039,10 @@ declare global {
         particles: boolean;
         /** The globe is still easing toward a new layout position (fonts, card, rotation). */
         easing: boolean;
+        /** A check-in ripple is on the globe. */
+        ripple: boolean;
+        /** Your pin [lon, lat], or null. */
+        pin: [number, number] | null;
       };
       run(): Promise<FrameSummary & { config: unknown; dpr: number; idleIntervalP50: number }>;
     };
@@ -866,8 +1079,13 @@ window.__bench = {
       moving: camera.moving || dragging,
       particles: particlesDrawn,
       easing: layoutEasing,
+      ripple: ripples.active,
+      pin: myPin ? [myPin.lonLat[0], myPin.lonLat[1]] : null,
       worldMood: MOODS[snapshot.world.h] ?? "",
     };
+  },
+  aggregate() {
+    onSnapshot(sim.step());
   },
   face(lon, lat) {
     camera.stop();

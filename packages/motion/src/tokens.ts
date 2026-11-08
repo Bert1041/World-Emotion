@@ -15,6 +15,10 @@ export const DURATION = {
   glide: 1.2,
   /** World-mood theme cross-fade (§8.5). */
   theme: 2.5,
+  /** One check-in ripple ring crossing the globe (§8.2.5). */
+  ripple: 2.4,
+  /** The check-in face's flight onto your country (§8.2.5), after its pop. */
+  flight: 1,
 } as const;
 
 /** Spring presets. ω in rad/s; ζ = 1 is critically damped. */

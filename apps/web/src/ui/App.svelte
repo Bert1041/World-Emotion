@@ -1,6 +1,9 @@
 <script lang="ts">
 import { MOODS, type MoodId } from "@world-emotion/shared";
 import { MOOD_COLORS } from "../engine/palette";
+import CheckIn from "./CheckIn.svelte";
+import Counter from "./Counter.svelte";
+import Flight from "./Flight.svelte";
 import Panel from "./Panel.svelte";
 import { type UiActions, view } from "./view.svelte";
 
@@ -17,11 +20,18 @@ let { actions }: { actions: UiActions } = $props();
     {/key}
   </h1>
   <div id="theme-name">{view.themeName}</div>
+  <div id="world-count"><Counter value={view.worldCount} /> feeling something right now</div>
 </header>
 
 <button id="back" type="button" hidden={!view.zoomed} onclick={() => actions.back()}>← World</button>
 
 <Panel {actions} />
+
+<CheckIn {actions} />
+
+{#key view.flight?.id}
+  {#if view.flight}<Flight flight={view.flight} {actions} />{/if}
+{/key}
 
 <nav id="dev" aria-label="Preview a world mood (prototype only)" hidden={!view.devVisible}>
   {#each MOODS as name, m (name)}

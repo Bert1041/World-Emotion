@@ -56,6 +56,15 @@ at 60 Hz and 120 Hz frame rates and expects the same trajectory within 1e-9 (PLA
 through the real `buildSnapshot`, so the numbers you see move for real reasons. Country for now:
 see M2.
 
+**Country picker (decided 2026-11-08, replaces a native dropdown the user found off-theme):** the
+bar shows a pin chip ("📍 Nigeria · move"). "move" turns the globe into the picker: tap where you are
+and a pin drops on that exact spot; ocean taps do nothing; dragging still rotates. A search in the
+same bar covers keyboards and countries too small to tap. Measured on the 50m map: Vatican and
+Tuvalu are zero-area slivers (quantisation), so search is the only way to reach them; README §8.6's
+magnified tap radius (Phase 7) is the planned fix for small countries on the globe itself. A guessed
+or searched country's pin goes inside the country on its largest landmass (`engine/pin.ts`; 39 of
+237 whole-shape centroids fall outside their country, France's in the Atlantic).
+
 **Reduced motion:** no pop, drop or ripple. The mood is acknowledged with a cross-fade, and the
 counts update without ticking.
 
