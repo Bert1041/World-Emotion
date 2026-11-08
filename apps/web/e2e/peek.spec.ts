@@ -77,17 +77,20 @@ async function expectClear(page: Page) {
 const barsOpacity = (page: Page) =>
   page.locator("#bars").evaluate((el) => Number(getComputedStyle(el).opacity));
 
-/** A vertical swipe on the card, paced by the page's frames (see gestures.spec.ts). */
-const swipeCard = (page: Page, dy: number) =>
+/**
+ * A vertical swipe, paced by the page's frames (see gestures.spec.ts). Starts on the card body by
+ * default, or on `from` (the handle: the strip a thumb grabs first, found dead on the Pixel).
+ */
+const swipeCard = (page: Page, dy: number, from = "#panel") =>
   page.evaluate(
-    (d) =>
+    ([d, sel]) =>
       new Promise<void>((done) => {
-        const card = document.getElementById("panel") as HTMLElement;
-        const r = card.getBoundingClientRect();
+        const el = document.querySelector(sel) as HTMLElement;
+        const r = el.getBoundingClientRect();
         const x = r.x + r.width / 2;
-        const y = r.y + 40;
+        const y = sel === "#panel" ? r.y + 40 : r.y + r.height / 2;
         const ev = (type: string, cy: number) =>
-          card.dispatchEvent(
+          el.dispatchEvent(
             new PointerEvent(type, { clientX: x, clientY: cy, pointerId: 1, bubbles: true }),
           );
         ev("pointerdown", y);
@@ -104,7 +107,7 @@ const swipeCard = (page: Page, dy: number) =>
         };
         requestAnimationFrame(tick);
       }),
-    dy,
+    [dy, from] as const,
   );
 
 test.describe("portrait (bottom sheet)", () => {
@@ -155,6 +158,30 @@ test.describe("portrait (bottom sheet)", () => {
     await settled(page);
     await expect(handle).toHaveAttribute("aria-expanded", "false");
     await expectClear(page);
+  });
+
+  test("the handle drags like the card; a tap and the keyboard still toggle", async ({
+    page,
+  }, info) => {
+    test.skip(!["phone-360", "phone-390", "tablet-portrait"].includes(info.project.name));
+    await open(page, 10, 50, "EU");
+    const handle = page.locator("#panel-handle");
+    await swipeCard(page, -200, "#panel-handle");
+    await settled(page);
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
+    await swipeCard(page, 200, "#panel-handle");
+    await settled(page);
+    await expect(handle).toHaveAttribute("aria-expanded", "false");
+    await handle.click(); // one tap toggles exactly once
+    await settled(page);
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
+    await handle.focus();
+    await page.keyboard.press("Enter");
+    await settled(page);
+    await expect(handle).toHaveAttribute("aria-expanded", "false");
+    await page.keyboard.press("Space");
+    await settled(page);
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
   });
 
   test("a different region opens collapsed again", async ({ page }, info) => {

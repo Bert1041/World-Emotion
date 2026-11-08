@@ -35,7 +35,14 @@ let moving = $state(false);
 const spring = new Spring(0, SPRING.snappy);
 const stepper = new FixedStep();
 let raf = 0;
-let drag: { y0: number; off0: number; last: { y: number; t: number }; v: number } | null = null;
+let drag: {
+  y0: number;
+  off0: number;
+  last: { y: number; t: number };
+  v: number;
+  /** Started on the handle: a tap there toggles; a drag moves the card like anywhere else. */
+  onHandle: boolean;
+} | null = null;
 
 const targetOffset = () => (wide || expanded ? 0 : collapsedBy);
 
@@ -111,7 +118,8 @@ function down(e: PointerEvent): void {
   card.setPointerCapture(e.pointerId);
   cancelAnimationFrame(raf);
   moving = true;
-  drag = { y0: e.clientY, off0: offset, last: { y: e.clientY, t: e.timeStamp }, v: 0 };
+  const onHandle = e.target instanceof Element && e.target.closest("#panel-handle") !== null;
+  drag = { y0: e.clientY, off0: offset, last: { y: e.clientY, t: e.timeStamp }, v: 0, onHandle };
 }
 function move(e: PointerEvent): void {
   if (drag === null) return;
@@ -128,11 +136,13 @@ function up(e: PointerEvent): void {
   if (drag === null) return;
   const moved = Math.abs(e.clientY - drag.y0);
   const v = e.timeStamp - drag.last.t < 100 ? drag.v : 0;
+  const onHandle = drag.onHandle;
   drag = null;
   spring.value = offset;
   spring.velocity = 0;
   if (moved < 6) {
-    animateTo(targetOffset()); // a tap on the card body changes nothing
+    if (onHandle) toggle();
+    else animateTo(targetOffset()); // a tap on the card body changes nothing
     return;
   }
   // A flick decides by direction; a slow drag by which state is nearer.
@@ -164,8 +174,11 @@ function up(e: PointerEvent): void {
         aria-expanded={expanded}
         aria-controls="bars"
         aria-label={expanded ? "Hide the breakdown" : "Show the breakdown"}
-        onclick={toggle}
-        onpointerdown={(e) => e.stopPropagation()}
+        onclick={(e) => {
+          // Pointer taps toggle in up() (the card holds the pointer, so a tap is part of the drag);
+          // keyboard and assistive tech click with detail 0.
+          if (e.detail === 0) toggle();
+        }}
       ></button>
     {/if}
     <div class="kicker">Right now</div>
