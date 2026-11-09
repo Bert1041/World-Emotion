@@ -28,6 +28,8 @@ jobs:
       - run: pnpm check
       # Generated geo files must match a fresh build from the pinned, checksum-verified sources.
       - run: pnpm --filter @world-emotion/geo-data check:data
+      # Initial JS < 150 KB gzipped (README §8.7); lazy map data excluded.
+      - run: pnpm --filter @world-emotion/web budget
 
   e2e:
     # Browser layout tests (apps/web/e2e): "no text on the Earth" at 11 viewports, in the Google

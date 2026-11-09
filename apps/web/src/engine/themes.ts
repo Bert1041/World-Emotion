@@ -1,5 +1,11 @@
+import {
+  easeInOutCubic,
+  hexToOklab,
+  mixOklab,
+  type Oklab,
+  oklabToCss,
+} from "@world-emotion/motion";
 import type { MoodId } from "@world-emotion/shared";
-import { easeInOutCubic, hexToOklab, mixOklab, type Oklab, oklabToCss } from "./color";
 
 /** One Earth per world mood (docs/design/phase-3b-look-and-feel.md). Pure data: retune freely. */
 interface ThemeDef {

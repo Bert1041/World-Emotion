@@ -7,23 +7,30 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
-    "typecheck": "tsc -p tsconfig.json",
-    "test:e2e": "playwright test"
+    "typecheck": "node node_modules/@typescript/native/bin/tsc -p tsconfig.json && svelte-check --tsconfig ./tsconfig.json --tsgo --fail-on-warnings",
+    "test:e2e": "playwright test",
+    "budget": "vite build && node scripts/budget.ts"
   },
   "dependencies": {
     "@world-emotion/core": "workspace:*",
     "@world-emotion/geo-data": "workspace:*",
+    "@world-emotion/motion": "workspace:*",
     "@world-emotion/shared": "workspace:*",
     "d3-geo": "3.1.1",
+    "svelte": "5.57.2",
     "topojson-client": "3.1.0",
     "topojson-simplify": "3.0.3"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/d3-geo": "3.1.1",
     "@types/geojson": "7946.0.16",
     "@types/topojson-client": "3.1.5",
     "@types/topojson-simplify": "3.0.3",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "svelte-check": "4.7.7",
+    "typescript": "6.0.3",
     "vite": "8.3.5"
   }
 }

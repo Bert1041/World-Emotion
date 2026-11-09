@@ -57,6 +57,10 @@
           transform: translateY(-50%); animation: slide var(--base) cubic-bezier(.2, .8, .2, 1); }
         @keyframes slide { from { opacity: 0; transform: translate(-1.5rem, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
       }
+      /* Peek card grab handle (portrait only; Panel.svelte renders it only for the bottom sheet). */
+      #panel-handle { display: block; width: 100%; height: 1.4rem; margin: -0.5rem 0 0.1rem; padding: 0; border: 0; background: none; cursor: pointer; }
+      #panel-handle::before { content: ""; display: block; width: 2.6rem; height: 0.3rem; margin: 0 auto; border-radius: 0.15rem; background: rgba(255, 255, 255, 0.35); }
+      #panel-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       #panel h2 { margin: 0.15rem 0 0; font-size: 1.3rem; }
       #panel-mood { font-size: clamp(1.3rem, 5vw, 1.7rem); font-weight: 650; margin: 0 0 0.15rem; }
       #panel-sub { color: var(--muted); font-size: 0.87rem; margin: 0 0 0.65rem; }
@@ -66,6 +70,70 @@
       .track { height: 0.5rem; border-radius: 0.25rem; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
       .fill { display: block; height: 100%; transform-origin: left; transform: scaleX(0); transition: transform var(--slow) cubic-bezier(.2, .8, .2, 1); }
       .pct { text-align: right; font-variant-numeric: tabular-nums; }
+
+      #world-count { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+      .count { font-variant-numeric: tabular-nums; color: var(--text); }
+
+      /* Check-in bar (world view): solid like the card, so its text never sits on the map. */
+      #checkin { position: fixed; left: var(--gap); right: var(--gap); bottom: max(var(--gap), env(safe-area-inset-bottom)); max-width: 30rem; margin: 0 auto;
+        padding: 0.6rem 0.7rem 0.55rem; border-radius: 1rem; background: rgba(10, 12, 16, 0.94); border: 1px solid rgba(255, 255, 255, 0.12); text-align: center; }
+      #checkin .prompt { font-size: 0.87rem; color: var(--muted); margin-bottom: 0.35rem; }
+      #checkin .faces { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.2rem; }
+      #checkin .face { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.3rem 0 0.25rem; border: 0; border-radius: 0.6rem;
+        background: none; color: var(--text); font: 0.72rem/1.1 system-ui, sans-serif; cursor: pointer; transition: transform var(--fast), background var(--fast); }
+      #checkin .face:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); }
+      #checkin .face:active:not(:disabled) { transform: scale(0.92); }
+      #checkin .face:disabled { opacity: 0.35; cursor: not-allowed; }
+      #checkin .face:focus-visible, #checkin .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      #checkin .stack { display: grid; }
+      #checkin .stack > * { grid-area: 1 / 1; transition: opacity var(--base); }
+      #checkin .stack > .off { opacity: 0; visibility: hidden; }
+      #checkin .chip { font-size: 1rem; align-self: center; }
+      #checkin .link { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+      #checkin .from { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.65rem; font-size: 0.82rem; color: var(--muted); }
+      /* Your location as a badge: a pill with room around the pin and name. */
+      #checkin .from .place { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+      #checkin .from .where { color: var(--text); }
+      #checkin .pin path { fill: var(--accent); }
+      #checkin .pin circle { fill: #0a0c10; }
+      #checkin .pick { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; }
+      #checkin .pick .prompt { margin: 0; }
+      #checkin .tap-hint { color: var(--text); }
+      #checkin .search { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.3rem 0.5rem; font-size: 0.82rem; color: var(--muted); }
+      /* 16 px minimum: iOS zooms the whole page into any smaller input when it is focused. */
+      #checkin .search input { width: min(15rem, 100%); padding: 0.5rem 0.9rem; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07); color: var(--text); font: max(16px, 1rem) system-ui, sans-serif; }
+      #checkin .search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      #checkin .results { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; min-height: 1.7rem; }
+      #checkin .result { padding: 0.25rem 0.6rem; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; background: none;
+        color: var(--text); font: 0.78rem system-ui, sans-serif; cursor: pointer; }
+      #checkin .result:hover { background: rgba(255, 255, 255, 0.08); }
+      #checkin .result:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      #checkin .none { font-size: 0.78rem; color: var(--muted); align-self: center; }
+      /* Wide enough (and not a phone on its side): one slim row. Prompt and faces on the left, your
+         country in its own section on the right, so the bar takes little of the globe's height. */
+      @media (min-width: 720px) and (min-height: 521px) {
+        #checkin:not([hidden]) { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 1rem; max-width: 46rem; padding: 0.5rem 0.9rem; }
+        #checkin .faces-layer { display: flex; align-items: center; gap: 0.8rem; }
+        #checkin .faces-layer .prompt { margin: 0; width: 6.2rem; text-align: left; line-height: 1.25; }
+        #checkin .faces { flex: 1; }
+        #checkin .from { flex-direction: column; gap: 0.35rem; margin: 0; padding: 0.3rem 0 0.3rem 1rem; border-left: 1px solid rgba(255, 255, 255, 0.12); align-self: stretch; }
+        #checkin .from .dot { display: none; }
+      }
+      /* A phone on its side has no height to spare: a panel on the right, sized to its content.
+         Same query as DOCK_RIGHT in main.ts. */
+      @media (min-aspect-ratio: 6/5) and (max-height: 520px) {
+        /* :not([hidden]): an id selector setting display would otherwise beat [hidden]. */
+        #checkin:not([hidden]) { left: auto; right: max(var(--gap), env(safe-area-inset-right)); top: 0; bottom: 0; margin: auto 0; height: fit-content;
+          max-height: calc(100vh - 2 * var(--gap)); width: 12.5rem; max-width: none; display: flex; flex-direction: column; justify-content: center; }
+        #checkin .faces { grid-template-columns: repeat(3, 1fr); row-gap: 0.4rem; }
+        /* Centre the headline over the globe's column, not the whole screen. */
+        header { right: calc(12.5rem + 2 * var(--gap)); }
+      }
+      /* ?dev=1: the prototype bar sits under the check-in bar, which moves up to make room. */
+      body.dev #checkin { bottom: calc(max(var(--gap), env(safe-area-inset-bottom)) + 2.6rem); }
+      .flight { position: fixed; left: 0; top: 0; margin: -22px 0 0 -22px; pointer-events: none; z-index: 10; will-change: translate, scale; }
 
       #dev { position: fixed; left: 0.75rem; bottom: 0.75rem; gap: 0.4rem; grid-auto-flow: column; opacity: 0.85; }
       #dev:not([hidden]) { display: grid; }
@@ -77,6 +145,9 @@
       @media (prefers-reduced-motion: reduce) {
         #world-mood.swap, #panel { animation: none; }
         .fill { transition: none; }
+        /* Cross-fades only: the headline fades away when zoomed, it does not slide. */
+        header { transition: opacity var(--base); }
+        body.zoomed header { transform: none; }
       }
     </style>
   </head>
@@ -85,20 +156,8 @@
     <div id="scanlines" class="overlay"></div>
     <div id="frost" class="overlay"></div>
     <div id="heat" class="overlay"></div>
-    <header>
-      <div class="kicker">Right now</div>
-      <h1>The world feels <span id="world-mood" aria-live="polite"></span></h1>
-      <div id="theme-name"></div>
-    </header>
-    <button id="back" type="button" hidden>← World</button>
-    <section id="panel" hidden aria-live="polite">
-      <div class="kicker">Right now</div>
-      <h2 id="panel-title">Region</h2>
-      <div id="panel-mood"></div>
-      <div id="panel-sub"></div>
-      <ul id="bars"></ul>
-    </section>
-    <nav id="dev" aria-label="Preview a world mood (prototype only)"></nav>
+    <!-- Header, back button, region card, dev bar: src/ui/App.svelte (mounted by main.ts). -->
+    <div id="ui"></div>
     <div id="perf" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

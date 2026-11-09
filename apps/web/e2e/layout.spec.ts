@@ -4,6 +4,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { circleHitsRect, type Rect, rectsOverlap } from "../src/engine/layout";
+import { UNTIL_DONE } from "./wait";
 
 type Layout = {
   globe: { cx: number; cy: number; r: number; halo: number };
@@ -11,6 +12,8 @@ type Layout = {
   focusBox: Rect | null;
   gliding: boolean;
   worldMood: string;
+  easing: boolean;
+  moving: boolean;
 };
 const layout = (page: Page) =>
   page.evaluate(() => (window as unknown as { __bench: { layout(): Layout } }).__bench.layout());
@@ -18,7 +21,7 @@ const layout = (page: Page) =>
 /** Every visible piece of UI that contains text or controls. */
 async function uiBoxes(page: Page): Promise<{ name: string; box: Rect }[]> {
   const out: { name: string; box: Rect }[] = [];
-  for (const sel of ["header", "#back", "#panel", "#dev"]) {
+  for (const sel of ["header", "#back", "#panel", "#dev", "#checkin"]) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     const b = await el.boundingBox();
@@ -35,7 +38,7 @@ async function settled(page: Page, focus: string | null) {
       return l.focus === f && !l.gliding;
     },
     focus,
-    { timeout: 8000 },
+    UNTIL_DONE,
   );
   await page.waitForTimeout(400); // CSS transitions (card slide, header fade)
   await stable(page);
@@ -48,14 +51,16 @@ async function settled(page: Page, focus: string | null) {
  */
 async function stable(page: Page) {
   let prev = await layout(page);
-  for (let i = 0; i < 40; i++) {
+  // Up to UNTIL_DONE: settling is checked, not its speed.
+  for (let i = 0; i < UNTIL_DONE.timeout / 250; i++) {
     await page.waitForTimeout(250);
     const next = await layout(page);
     const d =
       Math.abs(next.globe.cx - prev.globe.cx) +
       Math.abs(next.globe.cy - prev.globe.cy) +
       Math.abs(next.globe.r - prev.globe.r);
-    if (d < 0.5 && !next.gliding) return;
+    // The app's own signals first: with starved frames, two reads can agree mid-movement.
+    if (d < 0.5 && !next.gliding && !next.easing && !next.moving) return;
     prev = next;
   }
   throw new Error("layout never settled");

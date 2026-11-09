@@ -116,9 +116,16 @@ These come from reading the README closely. Each one would ship as a defect if b
 Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed by default to region + mood, swipe up for the breakdown, so the continent gets most of the screen. The map is re-fitted to the card's current height. Card stays floating (no split screen).
 **Exit criteria:** maths unit-tested and mutation-checked; same spring result at 60 Hz and 120 Hz step rates (a test that steps both); check-in moment reviewed on the reference phone; `prefers-reduced-motion` path verified in a real browser.
 
+### Phase 4.5: Internationalisation (added 2026-11-09)
+
+**Decided (2026-11-09):** English, French, Latin-American Spanish (es-419), Brazilian Portuguese (pt-BR) (all left-to-right; Arabic/RTL deferred). No paid or native reviewers: Claude drafts and reviews (glossary, tone notes, back-translation), all four ship visible, and users can suggest corrections. Theme names translated; switcher top-right. Language comes from the browser's languages, with the switcher remembered on the device. Its own phase, branch and PR, after Phase 4 merges. Design: docs/design/phase-4.5-i18n.md.
+**Scope:** every UI string in one typed catalogue (whole sentences, never concatenated, since word order and gender differ); plurals via `Intl.PluralRules`, numbers via `Intl.NumberFormat`; country names stay on `Intl.DisplayNames`; non-English catalogues lazy-loaded; `<html lang>` set; the check-in search matches names in the active language. Design doc first (library or none, catalogue shape, where theme names like "Waterworld" fit).
+**Exit criteria:** a test fails if any catalogue misses a key the English one has; no user-visible English left in a non-English locale (checked in a real browser); layout rule passes on all 11 viewports in the longest language; initial-JS budget still met; glossary, tone notes and back-translation table in the doc for each language.
+
 ### Phase 5: API + D1
 
 **Scope:** `migrations/0001_init.sql` (+ rollback), Hono Worker `POST /checkin`, Zod validation **plus `isKnownCountry` membership check** (docs/geo-decisions.md), log unknown `cf.country` codes (verify Kosovo), idempotency (G7), country derivation (G9), manual override + rate limit (G8), `tools/simulate`.
+**Decided 2026-11-09:** a vote counts for a country only if it matches `request.cf.country`; otherwise (or unknown) world only (README §5.6). The client defaults the picker to the connection's country and tells the user when their pick will count for the world only.
 **Exit criteria:**
 - Migration forward **and** rollback run against local D1; row counts checked before/after both.
 - Real `rows_written` per check-in, per replay (expect 0) and per purge, measured and written back into README §7.

@@ -1,5 +1,14 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
 import {
+  FixedStep,
+  hexToOklab,
+  mixOklab,
+  oklabToCss,
+  SPRING,
+  Spring,
+  subsolarPoint,
+} from "@world-emotion/motion";
+import {
   type Continent,
   MOOD_COUNT,
   MOODS,
@@ -7,17 +16,28 @@ import {
   type Snapshot,
   type SnapshotRegion,
 } from "@world-emotion/shared";
-import { geoCentroid, geoContains, geoDistance, geoOrthographic } from "d3-geo";
+import { geoCentroid, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
+import { flushSync, mount } from "svelte";
 import { SnapshotSim } from "./demo/snapshot-sim";
-import { Camera, CONTINENT_NAMES, CONTINENT_VIEWS, type View } from "./engine/camera";
-import { hexToOklab, mixOklab, oklabToCss } from "./engine/color";
-import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
+import {
+  Camera,
+  CONTINENT_NAMES,
+  CONTINENT_VIEWS,
+  STRETCH_COMMIT,
+  type View,
+} from "./engine/camera";
+import { guessCountry } from "./engine/country-guess";
+import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng, type SpawnPoint } from "./engine/particles";
+import { pinPoint } from "./engine/pin";
+import { Ripples, ringOutline } from "./engine/ripple";
 import { FrameRecorder, type FrameSummary } from "./engine/stats";
 import { ThemeMixer } from "./engine/themes";
+import App from "./ui/App.svelte";
+import { type Bar, view } from "./ui/view.svelte";
 
 // ---- Configuration (URL params; the bench runner sweeps scenarios with bench=1) -------------
 const params = new URLSearchParams(location.search);
@@ -41,6 +61,10 @@ const config = {
    * verifyRender): on unless switched off. */
   opt: new Set((params.get("opt") ?? "precision0,cull").split(",").filter(Boolean)),
   debug: params.get("debug") === "1",
+  /** Bench only: keep a check-in ripple on the globe for the whole run (tools/bench phase4). */
+  benchRipple: params.get("ripple") === "1",
+  /** Prototype theme switcher (bottom bar); off by default now the check-in owns the bottom. */
+  dev: params.get("dev") === "1",
 };
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -51,25 +75,57 @@ const fxCanvas = $<HTMLCanvasElement>("fx");
 const perf = $("perf");
 const baseCtx = baseCanvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
 const fxCtx = fxCanvas.getContext("2d") as CanvasRenderingContext2D;
+// UI (Svelte) renders `view`; the engine writes to it. Called back on clicks only, after init.
+/**
+ * Layout callbacks from the UI are ignored until start() has measured once: a component may
+ * report during mount (under reduced motion the card settles synchronously), before the
+ * engine's element references and canvases exist.
+ */
+let layoutReady = false;
+mount(App, {
+  target: $("ui"),
+  props: {
+    actions: {
+      back: () => leave(),
+      previewMood: (m: MoodId) => {
+        sim.bias = m;
+        autoCycle = false;
+        view.autoCycle = false;
+      },
+      checkIn: (mood: MoodId, from: { x: number; y: number }) => checkIn(mood, from),
+      setCountry: (code: string) => setCountry(code),
+      startPick: () => startPick(),
+      cancelPick: () => {
+        view.checkin.picking = false;
+      },
+      landed: (id: number) => landed(id),
+      cardMoved: () => {
+        if (layoutReady) refitToCard();
+      },
+      toggleAuto: () => {
+        autoCycle = !autoCycle;
+        cycleAt = performance.now();
+        view.autoCycle = autoCycle;
+      },
+    },
+  },
+});
+flushSync();
+/** Boxes the layout measures (ids kept stable for index.html CSS and e2e/layout.spec.ts). */
 const ui = {
-  worldMood: $("world-mood"),
-  themeName: $("theme-name"),
   back: $<HTMLButtonElement>("back"),
   panel: $("panel"),
-  panelTitle: $("panel-title"),
-  panelMood: $("panel-mood"),
-  panelSub: $("panel-sub"),
-  bars: $("bars"),
   dev: $("dev"),
+  checkin: $("checkin"),
   overlays: { scanlines: $("scanlines"), frost: $("frost"), heat: $("heat") },
 };
 const countryName = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
 
 // ---- Globe ------------------------------------------------------------------------------------
-const projection = geoOrthographic().clipAngle(90);
+const projection = geoOrthographic().clipAngle(CLIP_ANGLE);
 if (config.opt.has("precision0")) projection.precision(0);
 const globe = new GlobeLayer(baseCtx, projection);
-const camera = new Camera({ center: [10, 20], zoom: 1 });
+const camera = new Camera({ center: [10, 20], zoom: 1 }, { reducedMotion });
 let dpr = 1;
 /** Globe radius at zoom 1 (canvas px): the largest globe whose halo fits the world free area. */
 let baseRadius = 1;
@@ -80,9 +136,15 @@ const header = document.querySelector("header") as HTMLElement;
 const anchor = { x: 0, y: 0 };
 let anchorGoal = { x: 0, y: 0 };
 let regionFree: Rect | null = null;
-let lastDev: Rect | null = null;
+/** Topmost bottom bar (check-in, dev) last seen in world view; kept while zoomed so the world
+ * fit does not change when the bars hide. */
+let lastBottom: Rect | null = null;
+/** The check-in panel docked to the right (phone on its side), kept while zoomed likewise. */
+let lastRight: Rect | null = null;
 let lastCardH = 0;
 
+/** A phone on its side docks the check-in panel to the right. Must match index.html. */
+const DOCK_RIGHT = matchMedia("(min-aspect-ratio: 6/5) and (max-height: 520px)");
 /** Landscape-shaped screens get a side card; portrait ones a bottom sheet. Must match index.html. */
 const SIDE_CARD = matchMedia("(min-aspect-ratio: 6/5)");
 
@@ -97,8 +159,17 @@ const boxOf = (el: HTMLElement): Rect => ({
 /** Measured on resize and when the card changes, never per frame (no forced layout per frame). */
 function measureLayout(): void {
   const viewport = { w: window.innerWidth, h: window.innerHeight };
-  if (!ui.dev.hidden) lastDev = boxOf(ui.dev);
-  const world = fitGlobe(freeArea({ viewport, top: boxOf(header), bottom: lastDev }));
+  const docked = DOCK_RIGHT.matches;
+  const bars = [docked ? null : ui.checkin, ui.dev]
+    .filter((el): el is HTMLElement => el !== null && !el.hidden)
+    .map(boxOf);
+  if (bars.length > 0) lastBottom = bars.reduce((a, b) => (a.y < b.y ? a : b));
+  else if (focus === null) lastBottom = null; // world view with nothing at the bottom (docked)
+  if (docked && !ui.checkin.hidden) lastRight = boxOf(ui.checkin);
+  else if (!docked) lastRight = null;
+  const world = fitGlobe(
+    freeArea({ viewport, top: boxOf(header), bottom: lastBottom, right: lastRight }),
+  );
   baseRadius = world.r * dpr;
   if (focus === null || ui.panel.hidden) {
     regionFree = null;
@@ -106,7 +177,10 @@ function measureLayout(): void {
     return;
   }
   const wide = SIDE_CARD.matches;
-  const card = boxOf(ui.panel);
+  // A peek card is pushed down by a translate (offset* ignores it): measure its visible part.
+  const box = boxOf(ui.panel);
+  const pushed = Math.min(box.h, Number(ui.panel.dataset.peekOffset) || 0);
+  const card = { x: box.x, y: box.y + pushed, w: box.w, h: box.h - pushed };
   lastCardH = card.h;
   regionFree = freeArea({
     viewport,
@@ -146,7 +220,7 @@ function framePoints(c: Continent): [number, number][] {
 function fitFrame(c: Continent): View {
   const { center } = CONTINENT_VIEWS[c];
   const probe = geoOrthographic()
-    .clipAngle(90)
+    .clipAngle(CLIP_ANGLE)
     .rotate([-center[0], -center[1]])
     .scale(baseRadius)
     .translate([0, 0]);
@@ -179,9 +253,10 @@ function resize(): void {
 }
 
 function applyCamera(): void {
-  const [lon, lat] = camera.view.center;
-  const scale = baseRadius * camera.view.zoom;
-  const [ox, oy] = camera.view.offset ?? [0, 0];
+  const v = camera.rendered; // includes a zoom gesture's rubber-band stretch
+  const [lon, lat] = v.center;
+  const scale = baseRadius * v.zoom;
+  const [ox, oy] = v.offset ?? [0, 0];
   projection
     .rotate([-lon, -lat])
     .scale(scale)
@@ -249,83 +324,67 @@ function onSnapshot(next: Snapshot): void {
   snapshot = next;
   if (next.world.h !== mixer.target) {
     mixer.setTarget(next.world.h);
-    ui.worldMood.classList.remove("swap");
-    void ui.worldMood.offsetWidth; // restart the CSS animation
-    ui.worldMood.classList.add("swap");
+    view.worldSwap++; // replay the word's entrance
   }
-  ui.worldMood.textContent = MOODS[next.world.h] ?? "";
+  view.worldMood = MOODS[next.world.h] ?? "";
+  // Held still while your face is in flight: the landing ticks it (see landed()).
+  if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
   recomputeWeather();
   renderPanel();
 }
 
 // ---- Panels -----------------------------------------------------------------------------------
-function renderBars(r: SnapshotRegion): void {
-  ui.bars.replaceChildren(
-    ...MOODS.map((name, m) => {
-      const li = document.createElement("li");
-      const pct = Math.round((r.dist[m] ?? 0) * 100);
-      li.innerHTML = `<span class="label">${name}</span><span class="track"><span class="fill"></span></span><span class="pct">${pct}%</span>`;
-      const fill = li.querySelector(".fill") as HTMLElement;
-      fill.style.background = MOOD_COLORS[m] ?? "#fff";
-      // Compositor-only animation (README §8.1 layer 4): scaleX, never width.
-      requestAnimationFrame(() => {
-        fill.style.transform = `scaleX(${(r.dist[m] ?? 0).toFixed(3)})`;
-      });
-      if (m === r.h) li.classList.add("lead");
-      return li;
-    }),
-  );
+function barsOf(r: SnapshotRegion): Bar[] {
+  return MOODS.map((name, m) => ({
+    name,
+    share: r.dist[m] ?? 0,
+    pct: Math.round((r.dist[m] ?? 0) * 100),
+    color: MOOD_COLORS[m] ?? "#fff",
+    lead: m === r.h,
+  }));
 }
 
-/** "feels <mood>", with the mood word in its own colour (it is always named, never colour alone). */
-function setPanelMood(m: MoodId | null): void {
-  if (m === null) {
-    ui.panelMood.textContent = "";
-    return;
-  }
-  const word = document.createElement("span");
-  word.textContent = MOODS[m] ?? "";
-  word.style.color = MOOD_COLORS[m] ?? "";
-  ui.panelMood.replaceChildren("feels ", word);
-}
+/** "feels <mood>": the mood is always named, never colour alone. */
+const moodOf = (m: MoodId | null) =>
+  m === null ? null : { id: m, name: MOODS[m] ?? "", color: MOOD_COLORS[m] ?? "" };
 
 function renderPanel(): void {
-  ui.back.hidden = focus === null;
-  ui.dev.hidden = config.bench || focus !== null; // prototype bar never covers the panel
+  view.zoomed = focus !== null;
+  view.devVisible = config.dev && !config.bench && focus === null; // never covers the panel
+  view.checkin.visible = !config.bench && focus === null;
   document.body.classList.toggle("zoomed", focus !== null);
-  if (focus === null) {
-    ui.panel.hidden = true;
-    return;
-  }
-  ui.panel.hidden = false;
-  if (selected !== null) {
+  if (focus === null) view.panel = null;
+  else if (selected !== null) {
     const r = regionOf(selected);
-    ui.panelTitle.textContent = countryName.of(selected) ?? selected;
-    setPanelMood(r && !r.quiet ? r.region.h : null);
-    ui.panelSub.textContent = !r
-      ? "No check-ins yet"
-      : r.quiet
-        ? `Quiet here: showing ${CONTINENT_NAMES[focus]}`
-        : `${r.region.n} check-ins`;
-    if (r) renderBars(r.region);
-    else ui.bars.replaceChildren();
-    return;
+    view.panel = {
+      title: countryName.of(selected) ?? selected,
+      mood: moodOf(r && !r.quiet ? r.region.h : null),
+      sub: !r
+        ? "No check-ins yet"
+        : r.quiet
+          ? `Quiet here: showing ${CONTINENT_NAMES[focus]}`
+          : `${r.region.n} check-ins`,
+      bars: r ? barsOf(r.region) : [],
+    };
+  } else {
+    const r = snapshot.continents[focus];
+    view.panel = {
+      title: CONTINENT_NAMES[focus],
+      mood: moodOf(r ? r.h : null),
+      sub: r ? `${r.n} check-ins` : "Quiet here",
+      bars: r ? barsOf(r) : [],
+    };
   }
-  const r = snapshot.continents[focus];
-  ui.panelTitle.textContent = CONTINENT_NAMES[focus];
-  setPanelMood(r ? r.h : null);
-  ui.panelSub.textContent = r ? `${r.n} check-ins` : "Quiet here";
-  if (r) renderBars(r);
-  else ui.bars.replaceChildren();
+  // Render now so a measurement that follows reads the new DOM. Defensive: today's callers also
+  // get corrected by the ResizeObserver (a mutation removing this passed the layout tests).
+  flushSync();
 }
 
 /** Bring the world headline back with the CURRENT world mood, animated. */
 function replayWorldHeadline(): void {
-  ui.worldMood.textContent = MOODS[snapshot.world.h] ?? "";
-  ui.worldMood.classList.remove("swap");
-  void ui.worldMood.offsetWidth; // restart the CSS animation
-  ui.worldMood.classList.add("swap");
+  view.worldMood = MOODS[snapshot.world.h] ?? "";
+  view.worldSwap++;
 }
 
 /** True between a tap and the start of its glide (one frame), so callers never see "arrived". */
@@ -356,96 +415,188 @@ function leave(): void {
   measureLayout();
   replayWorldHeadline();
 }
-ui.back.addEventListener("click", leave);
 
-// ---- Input: drag with crude inertia (Phase 4 replaces this), tap to drill down ---------------
+// ---- Input: drag + fling, tap to drill down, pinch/wheel stretch between world and continent ---
 let lods: Record<LodName, Lod>;
 let particles: ParticleField;
 let dirty = true;
 let dragging = false;
 let lastInput = performance.now();
-let velocity: [number, number] = [0, 0];
+/**
+ * Recent drag moves, for the release velocity: averaged over a window, not the last pair of
+ * events. One pair is noisy (timestamp jitter), and where moves arrive in a burst (Chrome aligns
+ * them to frames, but not every browser or input path does) one tiny gap would read a normal
+ * swipe as thousands of degrees per second. Capped as a last guard.
+ */
+const moves: { t: number; dLon: number; dLat: number }[] = [];
+const VELOCITY_WINDOW_MS = 100;
+const MAX_FLING_DEG_S = 720;
 let last: { x: number; y: number; t: number } | null = null;
 let downAt: { x: number; y: number } | null = null;
+/** Active pointers (CSS px), for two-finger pinch. */
+const pointers = new Map<number, { x: number; y: number }>();
+let pinch: { startDist: number } | null = null;
+
+/** Country and continent under a screen point (CSS px), or null for ocean/space. */
+function hitAt(
+  x: number,
+  y: number,
+): { code: string; continent: Continent; lonLat: [number, number] } | null {
+  const lonLat = projection.invert?.([x * dpr, y * dpr]);
+  const [tx, ty] = projection.translate();
+  if (!lonLat || Math.hypot(x * dpr - tx, y * dpr - ty) > projection.scale()) return null;
+  const hit = lods["50m"].countries.find((f) => geoContains(f, lonLat));
+  const code = hit ? String(hit.id) : null;
+  const continent = code ? COUNTRY_TO_CONTINENT.get(code) : undefined;
+  return code !== null && continent !== undefined
+    ? { code, continent, lonLat: [lonLat[0], lonLat[1]] }
+    : null;
+}
+
+/**
+ * A zoom gesture let go (README §8.2.2). Free zoom would put the globe under the headline (the
+ * "no text on the Earth" rule), so zoom moves between the two fitted levels: pulled far enough in
+ * over a continent it drills in, far enough out it returns to the world; otherwise it springs back.
+ */
+function releaseStretch(at: { x: number; y: number }): void {
+  const s = camera.releaseStretch();
+  dirty = true;
+  if (s > STRETCH_COMMIT && focus === null) {
+    const hit = hitAt(at.x, at.y);
+    if (hit) enter(hit.continent);
+  } else if (s < -STRETCH_COMMIT && focus !== null) leave();
+}
+
+const pinchDist = () => {
+  const [a, b] = [...pointers.values()];
+  return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+};
+const pinchMid = () => {
+  const [a, b] = [...pointers.values()];
+  return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : { x: 0, y: 0 };
+};
 
 fxCanvas.addEventListener("pointerdown", (e) => {
   fxCanvas.setPointerCapture(e.pointerId);
-  dragging = true;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   camera.stop();
+  lastInput = performance.now();
+  if (pointers.size === 2) {
+    // Second finger: the drag becomes a pinch; it is never a tap.
+    dragging = false;
+    downAt = null;
+    pinch = { startDist: Math.max(1, pinchDist()) };
+    return;
+  }
+  dragging = true;
   last = { x: e.clientX, y: e.clientY, t: e.timeStamp };
   downAt = { x: e.clientX, y: e.clientY };
-  velocity = [0, 0];
-  lastInput = performance.now();
+  moves.length = 0;
 });
 fxCanvas.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  lastInput = performance.now();
+  if (pinch !== null) {
+    camera.holdStretch(Math.log(pinchDist() / pinch.startDist));
+    dirty = true;
+    return;
+  }
   if (!dragging || last === null) return;
   const k = 180 / Math.PI / (projection.scale() / dpr); // degrees per CSS px at the centre
   const dLon = -(e.clientX - last.x) * k;
   const dLat = (e.clientY - last.y) * k;
   camera.pan(dLon, dLat);
-  const dt = Math.max(1, e.timeStamp - last.t);
-  velocity = [(dLon / dt) * 1000, (dLat / dt) * 1000];
+  moves.push({ t: e.timeStamp, dLon, dLat });
+  while (moves.length > 0 && e.timeStamp - (moves[0] as { t: number }).t > VELOCITY_WINDOW_MS)
+    moves.shift();
   last = { x: e.clientX, y: e.clientY, t: e.timeStamp };
-  lastInput = performance.now();
   dirty = true;
 });
 const endDrag = (e: PointerEvent) => {
+  const wasPinch = pinch !== null;
+  const mid = pinchMid();
+  pointers.delete(e.pointerId);
+  lastInput = performance.now();
+  dirty = true;
+  if (wasPinch) {
+    if (pointers.size < 2) {
+      pinch = null;
+      releaseStretch(mid);
+    }
+    return; // the finger left on the glass does not start a drag until it lifts
+  }
   if (!dragging) return;
   dragging = false;
-  dirty = true;
-  lastInput = performance.now();
   if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 6) {
-    velocity = [0, 0];
-    const lonLat = projection.invert?.([e.clientX * dpr, e.clientY * dpr]);
-    const onGlobe =
-      lonLat &&
-      Math.hypot(
-        e.clientX * dpr - projection.translate()[0],
-        e.clientY * dpr - projection.translate()[1],
-      ) <= projection.scale();
-    const hit = onGlobe ? lods["50m"].countries.find((f) => geoContains(f, lonLat)) : undefined;
-    const code = hit ? String(hit.id) : null;
-    const continent = code ? COUNTRY_TO_CONTINENT.get(code) : undefined;
-    if (code === null || continent === undefined) {
+    const hit = hitAt(e.clientX, e.clientY);
+    if (view.checkin.picking) {
+      // The globe is the country picker: a tap on land places your pin; ocean does nothing.
+      if (hit !== null) placePin(hit.code, hit.lonLat);
+      return;
+    }
+    if (hit === null) {
       if (focus !== null) leave();
-    } else if (focus !== continent) enter(continent);
+    } else if (focus !== hit.continent) enter(hit.continent);
     else {
-      selected = code;
-      dirty = true;
+      selected = hit.code;
       renderPanel(); // the ResizeObserver re-fits if the card's height changes
     }
+    return;
   }
+  // A pause before letting go leaves no moves in the window: velocity 0, no fling.
+  camera.fling(...releaseVelocity(e.timeStamp));
 };
+/** Mean velocity (°/s) over the moves in the window before `now`, capped. */
+function releaseVelocity(now: number): [number, number] {
+  const recent = moves.filter((m) => now - m.t <= VELOCITY_WINDOW_MS);
+  if (recent.length === 0) return [0, 0];
+  // Span from the moment before the first counted move: at least one 60 Hz frame.
+  const span = Math.max(1000 / 60, now - (recent[0] as { t: number }).t) / 1000;
+  let lon = recent.reduce((a, m) => a + m.dLon, 0) / span;
+  let lat = recent.reduce((a, m) => a + m.dLat, 0) / span;
+  const speed = Math.hypot(lon, lat);
+  if (speed > MAX_FLING_DEG_S) {
+    lon *= MAX_FLING_DEG_S / speed;
+    lat *= MAX_FLING_DEG_S / speed;
+  }
+  return [lon, lat];
+}
 fxCanvas.addEventListener("pointerup", endDrag);
 fxCanvas.addEventListener("pointercancel", endDrag);
 
-// ---- Dev switcher: preview any theme, or let the demo cycle ----------------------------------
+// Mouse wheel and trackpad pinch (ctrl+wheel) stretch the zoom the same way. One gesture lasts
+// until the wheel is quiet for WHEEL_GESTURE_MS: long enough that a slow, deliberate scroll (a
+// notch every ~200 ms) still adds up, short enough that a single notch springs back promptly.
+const WHEEL_GESTURE_MS = 250;
+let wheelRaw = 0;
+let wheelTimer: ReturnType<typeof setTimeout> | undefined;
+fxCanvas.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault(); // no page zoom on ctrl+wheel
+    camera.stop();
+    lastInput = performance.now();
+    wheelRaw -= e.deltaY * (e.ctrlKey ? 0.01 : 0.0025);
+    camera.holdStretch(wheelRaw);
+    dirty = true;
+    clearTimeout(wheelTimer);
+    const at = { x: e.clientX, y: e.clientY };
+    wheelTimer = setTimeout(() => {
+      wheelRaw = 0;
+      releaseStretch(at);
+    }, WHEEL_GESTURE_MS);
+  },
+  { passive: false },
+);
+
+// ---- Dev switcher: preview any theme, or let the demo cycle (buttons in ui/App.svelte) -------
 let autoCycle = !config.bench && params.get("auto") !== "0";
 let cycleAt = performance.now();
-ui.dev.hidden = config.bench;
-ui.dev.replaceChildren(
-  ...MOODS.map((name, m) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = name;
-    b.style.borderColor = MOOD_COLORS[m] ?? "#fff";
-    b.addEventListener("click", () => {
-      sim.bias = m as MoodId;
-      autoCycle = false;
-      autoBtn.textContent = "auto: off";
-    });
-    return b;
-  }),
-);
-const autoBtn = document.createElement("button");
-autoBtn.type = "button";
-autoBtn.textContent = "auto: on";
-autoBtn.addEventListener("click", () => {
-  autoCycle = !autoCycle;
-  cycleAt = performance.now();
-  autoBtn.textContent = `auto: ${autoCycle ? "on" : "off"}`;
-});
-ui.dev.append(autoBtn);
+view.autoCycle = autoCycle;
+view.devVisible = config.dev && !config.bench;
+view.checkin.visible = !config.bench;
+document.body.classList.toggle("dev", view.devVisible);
 
 // ---- Frame loop -------------------------------------------------------------------------------
 let prevTs = 0;
@@ -461,6 +612,18 @@ let idle: number[] | null = null;
 /** Per idle frame: script ms, whether the base layer was redrawn, and at which LOD (diagnostics). */
 let idleFrames: { script: number; base: boolean; lod: string; rotating: boolean }[] | null = null;
 let drewBase = false;
+/** Whether the globe is still easing to a new layout position (exposed for the layout test). */
+let layoutEasing = false;
+/** Whether the last frame drew mood-weather particles (off under reduced motion). */
+let particlesDrawn = false;
+
+// Day/night band (README §8.2.7, decision M3): real time, refreshed once a minute (the terminator
+// moves a quarter of a degree a minute). Bench runs use a fixed sun so frames compare across runs.
+const BENCH_SUN_TIME = Date.UTC(2026, 2, 20, 12);
+const NIGHT_REFRESH_MS = 60_000;
+const showNight = !config.opt.has("nonight");
+let sun = subsolarPoint(config.bench ? BENCH_SUN_TIME : Date.now());
+let sunAt = performance.now();
 
 function frame(ts: number): void {
   const t0 = performance.now();
@@ -477,22 +640,24 @@ function frame(ts: number): void {
     onSnapshot(sim.step());
   }
 
+  if (showNight && !config.bench && ts - sunAt > NIGHT_REFRESH_MS) {
+    sunAt = ts;
+    sun = subsolarPoint(Date.now());
+    dirty = true;
+  }
+
   if (bench) {
     // Deterministic "drag": constant spin plus a wobble, identical on every run.
     const t = (ts - bench.start) / 1000;
     camera.view = { center: [10 - 90 * t, 20 - 15 * Math.sin(t * 1.3)], zoom: 1 };
+    if (config.benchRipple && !ripples.active) ripples.add([8, 9.6], MOOD_COLORS[0] ?? "#fff");
     dirty = true;
   } else if (camera.update(dt)) {
-    dirty = true;
-  } else if (!dragging && (velocity[0] !== 0 || velocity[1] !== 0)) {
-    camera.pan(velocity[0] * dt, velocity[1] * dt);
-    const decay = Math.exp(-3 * dt);
-    velocity = [velocity[0] * decay, velocity[1] * decay];
-    if (Math.hypot(velocity[0], velocity[1]) < 1) velocity = [0, 0];
-    dirty = true;
+    dirty = true; // glide, fling or stretch (fixed step, packages/motion)
   } else if (
     !dragging &&
     focus === null &&
+    !view.checkin.picking && // hold still while you aim at your country
     !reducedMotion &&
     performance.now() - lastInput > 4000
   ) {
@@ -505,7 +670,7 @@ function frame(ts: number): void {
   if (themeChanging) {
     recomputeFills();
     const th = mixer.current;
-    ui.themeName.textContent = th.name;
+    view.themeName = th.name;
     ui.overlays.scanlines.style.opacity = th.scanlines.toFixed(3);
     ui.overlays.frost.style.opacity = th.frost.toFixed(3);
     ui.overlays.heat.style.opacity = th.heat.toFixed(3);
@@ -513,15 +678,10 @@ function frame(ts: number): void {
   }
 
   const anchorEasing = easeAnchor(dt);
+  layoutEasing = anchorEasing;
   if (anchorEasing) dirty = true;
   applyCamera();
-  const moving =
-    bench !== null ||
-    dragging ||
-    camera.gliding ||
-    idleRotating ||
-    velocity[0] !== 0 ||
-    velocity[1] !== 0;
+  const moving = bench !== null || dragging || camera.moving || idleRotating;
   // Any frame that is part of an animation uses the light map; the detailed 50m map (~80k
   // points) is drawn once, when everything has settled. Before this, the theme cross-fade and
   // layout easing redrew 50m every frame: 7–8 full redraws in a 2 s "idle" window, 531 ms
@@ -546,6 +706,7 @@ function frame(ts: number): void {
         cull: config.opt.has("cull"),
         borders: !(moving && config.opt.has("noborders")),
         viewCenter: camera.view.center,
+        ...(showNight ? { night: sun } : {}),
       },
       {
         skyInner: th.skyInner,
@@ -573,11 +734,26 @@ function frame(ts: number): void {
   fxCtx.arc(cx, cy, r * 1.16, 0, Math.PI * 2);
   fxCtx.arc(cx, cy, r * 0.97, 0, Math.PI * 2, true);
   fxCtx.fill();
+  particlesDrawn = !reducedMotion;
   if (!reducedMotion) {
     particles.update(dt);
     const [rl, rp] = projection.rotate();
     particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr);
   }
+  ripples.update(dt);
+  if (ripples.active) {
+    // Rings are small circles on the sphere, so they bend over the horizon (clipped at 90°).
+    for (const ring of ripples.rings()) {
+      fxCtx.beginPath();
+      fxPath(ringOutline(ring.center, ring.radius));
+      fxCtx.globalAlpha = ring.alpha;
+      fxCtx.strokeStyle = ring.color;
+      fxCtx.lineWidth = (3 - ring.index * 0.8) * dpr;
+      fxCtx.stroke();
+    }
+    fxCtx.globalAlpha = 1;
+  }
+  drawPin(dt);
 
   const tEnd = performance.now();
   lastFrameMs = tEnd - t0;
@@ -602,6 +778,162 @@ function frame(ts: number): void {
   requestAnimationFrame(frame);
 }
 
+// ---- Check-in moment (README §8.2.5) ----------------------------------------------------------
+const ripples = new Ripples();
+const fxPath = geoPath(projection, fxCtx);
+let flightId = 0;
+/** Where your face lands and the ripple starts: your country's centre. */
+let landing: { center: [number, number]; mood: MoodId; first: boolean } | null = null;
+
+/** Your pin: the exact spot you tapped, or your country's pin point when guessed or searched. */
+let myPin: { code: string; lonLat: [number, number] } | null = null;
+/** Pin points per country (inside the country, on its largest landmass), set at start(). */
+let pinPoints = new Map<string, [number, number]>();
+/** The pin drop: a bouncy spring on its height above the ground (CSS px), on the fixed step. */
+const pinDrop = new Spring(0, SPRING.bouncy);
+const pinStep = new FixedStep();
+
+const PIN_KEY = "we.pin";
+const countryNames = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
+view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()]
+  .map((code) => ({ code, name: countryNames.of(code) ?? code }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+/** Restore the saved pin or guess the country (M2); called once pin points are known. */
+function initPin(): void {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PIN_KEY) ?? "null") as unknown;
+    const p = saved as { code?: unknown; lon?: unknown; lat?: unknown } | null;
+    if (
+      p &&
+      typeof p.code === "string" &&
+      COUNTRY_TO_CONTINENT.has(p.code) &&
+      typeof p.lon === "number" &&
+      typeof p.lat === "number" &&
+      Math.abs(p.lat) <= 90
+    ) {
+      myPin = { code: p.code, lonLat: [p.lon, p.lat] };
+    }
+  } catch {
+    // storage blocked or corrupt: fall back to the guess
+  }
+  if (myPin === null) {
+    const code = guessCountry(navigator.languages, COUNTRY_TO_CONTINENT);
+    const at = code === null ? undefined : pinPoints.get(code);
+    if (code !== null && at !== undefined) myPin = { code, lonLat: at };
+  }
+  view.checkin.country = myPin?.code ?? null;
+}
+
+/** Put your pin down (a tap on the globe, or a search result) and drop it in with a bounce. */
+function placePin(code: string, lonLat: [number, number]): void {
+  if (!COUNTRY_TO_CONTINENT.has(code)) return;
+  myPin = { code, lonLat };
+  view.checkin.country = code;
+  view.checkin.picking = false;
+  try {
+    localStorage.setItem(PIN_KEY, JSON.stringify({ code, lon: lonLat[0], lat: lonLat[1] }));
+  } catch {
+    // a per-device convenience only
+  }
+  pinDrop.value = reducedMotion ? 0 : 46;
+  pinDrop.velocity = 0;
+  pinDrop.target = 0;
+  dirty = true;
+}
+
+function setCountry(code: string): void {
+  const at = pinPoints.get(code);
+  if (at === undefined) return;
+  placePin(code, at);
+  camera.glideTo({ center: at, zoom: 1, offset: [0, 0] }); // show where it went
+}
+
+function startPick(): void {
+  view.checkin.picking = true;
+  lastInput = performance.now();
+  // "The globe spins to you": bring your current pin (if any) to the front to start from.
+  if (myPin !== null) camera.glideTo({ center: myPin.lonLat, zoom: 1, offset: [0, 0] });
+  dirty = true;
+}
+
+/** "You are here": a pin on the FX layer, hidden when it is round the back of the globe. */
+function drawPin(dt: number): void {
+  if (myPin === null) return;
+  pinStep.advance(dt, (h) => pinDrop.step(h));
+  if (Math.abs(pinDrop.value) < 0.05 && Math.abs(pinDrop.velocity) < 0.05) pinDrop.snap();
+  if (geoDistance(myPin.lonLat, camera.rendered.center) > Math.PI / 2 - 0.05) return;
+  const p = projection(myPin.lonLat);
+  if (!p) return;
+  const [x, y0] = p;
+  const y = y0 - pinDrop.value * dpr;
+  const k = dpr;
+  fxCtx.fillStyle = "rgba(0, 0, 0, 0.35)"; // shadow on the ground, under the pin
+  fxCtx.beginPath();
+  fxCtx.ellipse(x, y0, 4 * k, 1.6 * k, 0, 0, Math.PI * 2);
+  fxCtx.fill();
+  fxCtx.fillStyle = mixer.current.css.rim; // the theme accent, without a per-frame style read
+  fxCtx.strokeStyle = "#0a0c10";
+  fxCtx.lineWidth = 1.2 * k;
+  fxCtx.beginPath();
+  fxCtx.moveTo(x, y);
+  fxCtx.bezierCurveTo(x - 7 * k, y - 9 * k, x - 7 * k, y - 18 * k, x, y - 18 * k);
+  fxCtx.bezierCurveTo(x + 7 * k, y - 18 * k, x + 7 * k, y - 9 * k, x, y);
+  fxCtx.fill();
+  fxCtx.stroke();
+  fxCtx.fillStyle = "#0a0c10";
+  fxCtx.beginPath();
+  fxCtx.arc(x, y - 12.5 * k, 2.2 * k, 0, Math.PI * 2);
+  fxCtx.fill();
+}
+
+function checkIn(mood: MoodId, from: { x: number; y: number }): void {
+  if (myPin === null) return;
+  const { code, lonLat } = myPin;
+  const first = view.checkin.mine === null;
+  sim.checkIn(code, mood); // counted from the next aggregation run, like the real pipeline
+  view.checkin.mine = mood;
+  lastInput = performance.now();
+  // Turn your pin to the front; the face lands where it will be (the globe's centre).
+  camera.glideTo({ center: lonLat, zoom: 1, offset: [0, 0] });
+  dirty = true;
+  landing = { center: lonLat, mood, first };
+  if (reducedMotion) {
+    landed(-1); // no pop, flight or ripple: the chip cross-fades in and the count updates
+    return;
+  }
+  flightId++;
+  view.flight = {
+    id: flightId,
+    mood,
+    from,
+    to: { x: anchorGoal.x / dpr, y: anchorGoal.y / dpr },
+  };
+}
+
+function landed(id: number): void {
+  if (view.flight !== null && view.flight.id !== id) return; // a newer flight replaced it
+  view.flight = null;
+  const l = landing;
+  landing = null;
+  if (l === null) return;
+  // A first check-in adds one; a change of mood replaces your vote. Never below the snapshot.
+  view.worldCount = Math.max(view.worldCount + (l.first ? 1 : 0), snapshot.world.n);
+  if (reducedMotion) return;
+  ripples.add(l.center, MOOD_COLORS[l.mood] ?? "#fff");
+  // Android; iOS has no vibration API (README §8.6). 30 ms: 12 ms could not be felt on a Pixel 6 Pro.
+  navigator.vibrate?.(30);
+}
+
+/** Re-measure; if the card's visible height changed, re-fit the continent beside it. */
+function refitToCard(): void {
+  const before = lastCardH;
+  measureLayout();
+  if (focus !== null && Math.abs(lastCardH - before) > 8 && !camera.gliding)
+    camera.glideTo(fitFrame(focus), 0.5);
+  dirty = true;
+}
+
 // ---- Startup ----------------------------------------------------------------------------------
 async function start(): Promise<void> {
   const [m, a, b] = await Promise.all([
@@ -610,6 +942,8 @@ async function start(): Promise<void> {
     loadLod("50m"),
   ]);
   lods = { move: m, "110m": a, "50m": b };
+  pinPoints = new Map(b.countries.map((f) => [String(f.id), pinPoint(f)]));
+  initPin();
   centroids = b.countries.map((f) => {
     const [lon, lat] = geoCentroid(f);
     return { code: String(f.id), lon, lat };
@@ -617,8 +951,9 @@ async function start(): Promise<void> {
   particles = new ParticleField(config.particles, [], rng(42));
   perf.hidden = !(config.debug || config.bench);
   resize();
+  layoutReady = true;
   mixer.setTarget(snapshot.world.h, true);
-  ui.themeName.textContent = mixer.current.name;
+  view.themeName = mixer.current.name;
   onSnapshot(snapshot);
   const th = mixer.current;
   ui.overlays.scanlines.style.opacity = String(th.scanlines);
@@ -628,14 +963,8 @@ async function start(): Promise<void> {
   window.addEventListener("resize", resize);
   // Any change in the size of text/UI (content, fonts, rotation) re-measures the free area.
   // Fires only on actual size changes, never per frame.
-  const ro = new ResizeObserver(() => {
-    const before = lastCardH;
-    measureLayout();
-    if (focus !== null && Math.abs(lastCardH - before) > 8 && !camera.gliding)
-      camera.glideTo(fitFrame(focus), 0.5);
-    dirty = true;
-  });
-  for (const el of [header, ui.panel, ui.back, ui.dev]) ro.observe(el);
+  const ro = new ResizeObserver(refitToCard);
+  for (const el of [header, ui.panel, ui.back, ui.dev, ui.checkin]) ro.observe(el);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) prevTs = 0; // don't integrate the time spent hidden
   });
@@ -664,7 +993,7 @@ async function verifyRender(variant: {
       willReadFrequently: true,
     }) as CanvasRenderingContext2D;
     const proj = geoOrthographic()
-      .clipAngle(90)
+      .clipAngle(CLIP_ANGLE)
       .scale(size * 0.45)
       .translate([size / 2, size / 2]);
     if (precision0) proj.precision(0);
@@ -720,6 +1049,8 @@ declare global {
       screenPoint(lon: number, lat: number): [number, number] | null;
       /** Point the camera at a lon/lat (scripted tours). */
       face(lon: number, lat: number): void;
+      /** Run one demo aggregation now (tests: force a snapshot at a chosen moment). */
+      aggregate(): void;
       /** Real on-screen layout in CSS px, for the browser layout test. */
       layout(): {
         globe: { cx: number; cy: number; r: number; halo: number };
@@ -727,6 +1058,19 @@ declare global {
         focusBox: Rect | null;
         gliding: boolean;
         worldMood: string;
+        /** Resting camera centre [lon, lat], rendered zoom, and whether anything still moves. */
+        center: [number, number];
+        zoom: number;
+        moving: boolean;
+        particles: boolean;
+        /** The globe is still easing toward a new layout position (fonts, card, rotation). */
+        easing: boolean;
+        /** A check-in ripple is on the globe. */
+        ripple: boolean;
+        /** Your pin [lon, lat], or null. */
+        pin: [number, number] | null;
+        /** Sub-solar point [lon, lat] the night band is drawn for, or null with ?opt=…,nonight. */
+        sun: [number, number] | null;
       };
       run(): Promise<FrameSummary & { config: unknown; dpr: number; idleIntervalP50: number }>;
     };
@@ -758,11 +1102,25 @@ window.__bench = {
       focus,
       focusBox,
       gliding: camera.gliding || fitPending,
+      center: [camera.view.center[0], camera.view.center[1]],
+      zoom: camera.rendered.zoom,
+      moving: camera.moving || dragging,
+      particles: particlesDrawn,
+      easing: layoutEasing,
+      ripple: ripples.active,
+      pin: myPin ? [myPin.lonLat[0], myPin.lonLat[1]] : null,
+      sun: showNight ? [sun[0], sun[1]] : null,
       worldMood: MOODS[snapshot.world.h] ?? "",
     };
   },
+  aggregate() {
+    onSnapshot(sim.step());
+  },
   face(lon, lat) {
     camera.stop();
+    // Hold idle rotation until the next real input: otherwise, under load, the globe turns
+    // between a test reading a point's position and its tap landing there.
+    lastInput = Number.POSITIVE_INFINITY;
     camera.view = { center: [lon, lat], zoom: camera.view.zoom };
     lastInput = performance.now();
     dirty = true;

@@ -1,9 +1,10 @@
 /**
  * Globe benchmark (docs/design/phase-3-globe-spike.md §2).
  *
- *   node tools/bench/run.ts [--device=android|desktop] [--matrix=gate|opt|full] [--repeats=3]
+ *   node tools/bench/run.ts [--device=android|desktop] [--matrix=gate|phase4|opt|full] [--repeats=3]
  *                           [--no-build] [--screenshot=path.png] [--shots=dir] [--verify]
  *   node tools/bench/run.ts --restore-phone     restore Android settings after a killed run
+ *   --allow-warm  skip the cool-down waits (results are slower; the file name says "-warm")
  *
  * android: serves the PRODUCTION build over `adb reverse` (nothing on the LAN), drives Chrome via
  *   the DevTools protocol, gates every run on thermal status, and restores the phone settings it
@@ -32,6 +33,8 @@ interface Scenario {
   hz: 60 | 120;
   throttle: number;
   opt?: string;
+  /** Keep a check-in ripple on the globe for the whole run (Phase 4 worst case). */
+  ripple?: boolean;
 }
 
 interface Thermal {
@@ -59,6 +62,25 @@ function matrix(kind: string): Scenario[] {
         hz: 60 as const,
         throttle,
         opt,
+      })),
+    );
+  }
+  if (kind === "phase4") {
+    // What Phase 4 adds to the gate's shipped setup, at 60 Hz 1× and 4×: the Phase 3 picture
+    // (no night band, no ripple), + the night band, + night and a ripple running all the time.
+    const shipped = "precision0,cull";
+    return [1, 4].flatMap((throttle) =>
+      [
+        { opt: `${shipped},nonight`, ripple: false },
+        { opt: shipped, ripple: false },
+        { opt: shipped, ripple: true },
+      ].map((v) => ({
+        particles: 500,
+        dragLod: "move" as const,
+        dpr: 2,
+        hz: 60 as const,
+        throttle,
+        ...v,
       })),
     );
   }
@@ -161,6 +183,10 @@ function androidDevice(): Device {
       `Chrome's DevTools socket not found (tried: ${candidates.join(", ") || "none"}). Open Chrome on the phone and keep it unlocked.`,
     );
   };
+  /** Battery temperature at the first run; later runs wait to come back near it. */
+  let sessionStartC: number | undefined;
+  const COOL_MARGIN_C = 0.7;
+  const COOL_START_C = 36;
   const thermalNow = (): Thermal => {
     const t = adb("shell", "dumpsys", "thermalservice").match(/Thermal Status: (\d+)/);
     const b = adb("shell", "dumpsys", "battery").match(/temperature: (\d+)/);
@@ -207,7 +233,31 @@ function androidDevice(): Device {
       let th = thermalNow();
       // Wait for status <= 1. Android: 1 = LIGHT (no UX impact), 2 = MODERATE (UX impacted). The
       // confounded runs were at 2. Plugged in with the screen on, this phone rarely reaches 0.
-      while (th.status > 1 && Date.now() - t0 < 10 * 60_000) {
+      // Also wait for the battery to come back within COOL_MARGIN_C of the session's first run:
+      // on 2026-11-09 it crept from 34.1 to 38 °C at status 1 and 4× runs slowed round by round
+      // (the no-night baseline went from 0% to 27% missed frames).
+      if (flag("allow-warm")) return th; // measured as-is; temperatures recorded, file marked
+      if (sessionStartC === undefined) {
+        // First run: start from a cool phone (≤ COOL_START_C, at most 10 min), so the baseline
+        // every later run returns to is not itself a hot phone.
+        while (th.batteryC > COOL_START_C && Date.now() - t0 < 10 * 60_000) {
+          await sleep(15_000);
+          th = thermalNow();
+        }
+        if (th.batteryC > COOL_START_C || th.status > 1)
+          // Numbers from a hot phone are not comparable (2026-11-09: 41 °C and rising while fast
+          // charging at 36%). Refuse rather than record them.
+          throw new Error(
+            `phone too warm to measure: battery ${th.batteryC} °C, thermal status ${th.status} ` +
+              `after 10 min (need <= ${COOL_START_C} °C, status <= 1). Let it cool, or charge it ` +
+              "first: fast charging heats it. Then run again.",
+          );
+        sessionStartC = th.batteryC;
+        console.log(`  session start: battery ${th.batteryC} °C, thermal status ${th.status}`);
+      }
+      const warm = (t: Thermal) =>
+        t.status > 1 || t.batteryC > (sessionStartC as number) + COOL_MARGIN_C;
+      while (warm(th) && Date.now() - t0 < 10 * 60_000) {
         await sleep(15_000);
         th = thermalNow();
       }
@@ -566,11 +616,11 @@ async function main() {
       const order = scenarios.map((_, i) => scenarios[(i + shift) % scenarios.length] as Scenario);
       for (const s of order) {
         const before = await device.beforeRun(s);
-        if (before.status > 1)
+        if (before.status > 1 || before.waitedS >= 600)
           console.log(
-            `  (warning: still thermal status ${before.status} after ${before.waitedS}s)`,
+            `  (warning: still warm after ${before.waitedS}s: status ${before.status}, battery ${before.batteryC} °C)`,
           );
-        const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}`;
+        const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}&ripple=${s.ripple ? 1 : 0}`;
         await withPage(b, url, async (sid) => {
           await b.send("Emulation.setCPUThrottlingRate", { rate: s.throttle }, sid);
           const v = (await evaluate(b, sid, "window.__bench.run()")) as Record<string, number>;
@@ -583,7 +633,10 @@ async function main() {
             if (screenshot && results.length === 0) writeFileSync(screenshot, png);
             if (shotsDir)
               writeFileSync(
-                join(shotsDir, `${s.throttle}x-${(s.opt || "none").replace(/,/g, "+")}.png`),
+                join(
+                  shotsDir,
+                  `${s.throttle}x-${(s.opt || "none").replace(/,/g, "+")}${s.ripple ? "+ripple" : ""}.png`,
+                ),
                 png,
               );
           }
@@ -599,7 +652,7 @@ async function main() {
           });
           const f = (x: number | undefined) => (x ?? Number.NaN).toFixed(2);
           console.log(
-            `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}] #${r}: ` +
+            `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}${s.ripple ? " +ripple" : ""}] #${r}: ` +
               `idle ${f(v.idleIntervalP50)} · interval p50 ${f(v.intervalP50)} p95 ${f(v.intervalP95)} · ` +
               `script p50 ${f(v.scriptP50)} p95 ${f(v.scriptP95)} (base ${f(v.baseP50)} fx ${f(v.fxP50)}) · ` +
               `idleDetail ${JSON.stringify((v as unknown as Record<string, unknown>).idleDetail)} · missed ${((v.missedRatio ?? 0) * 100).toFixed(2)}% · thermal ${before.status}→${after.status} (waited ${before.waitedS}s)`,
@@ -613,10 +666,12 @@ async function main() {
   }
   const out = join(
     ROOT,
-    `docs/bench/${new Date().toISOString().slice(0, 10)}-${device.name}-${arg("matrix", "gate")}.json`,
+    `docs/bench/${new Date().toISOString().slice(0, 10)}-${device.name}-${arg("matrix", "gate")}${flag("allow-warm") ? "-warm" : ""}.json`,
   );
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
+  // In the repo's own style, so committing results never fails CI's format check (it did twice).
+  execFileSync("pnpm", ["exec", "biome", "format", "--write", out], { cwd: ROOT, stdio: "ignore" });
   console.log(`results: ${out}`);
 }
 

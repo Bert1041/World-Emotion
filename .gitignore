@@ -10,3 +10,6 @@ coverage/
 tools/bench/.phone-settings-backup.json
 apps/web/test-results/
 apps/web/playwright-report/
+
+# svelte-check --tsgo generated sources
+.svelte-check/

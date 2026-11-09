@@ -14,6 +14,13 @@ describe("freeArea", () => {
     });
   });
 
+  it("stops left of a bar docked to the right edge", () => {
+    const bar = { x: 1440 - 16 - 200, y: 16, w: 200, h: 868 };
+    const f = freeArea({ viewport: vp, right: bar });
+    expect(f.x + f.w).toBe(bar.x - GAP);
+    expect([f.y, f.h]).toEqual([GAP, 900 - 2 * GAP]);
+  });
+
   it("starts below the headline", () => {
     const f = freeArea({ viewport: vp, top: header });
     expect(f.y).toBe(16 + 80 + GAP);
