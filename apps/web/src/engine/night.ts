@@ -61,8 +61,13 @@ const ALPHA_BY_COS = Uint8Array.from({ length: LUT_STEPS + 1 }, (_, k) =>
   Math.round(255 * nightDarkness(Math.acos(-k / LUT_STEPS) / DEG)),
 );
 
+/** Texel box [i0, j0, i1, j1] (inclusive) holding every shaded texel. */
+export type ShadeBox = [number, number, number, number];
+
 /**
- * Fill an RGBA grid (size × size) covering the globe's bounding square with the night shade.
+ * Fill an RGBA grid (size × size) covering the globe's bounding square with the night shade, and
+ * return the box of shaded texels (null if none) so only that part is drawn: blending the whole
+ * globe every frame doubled frame time without a GPU (50 → 100 ms at 2560 px wide; CI 2026-11-09).
  * Texels outside the disk take the value at the nearest edge point, so smoothing never pulls in a
  * wrong value at the rim (the drawn image is clipped to the disk anyway).
  */
@@ -70,8 +75,12 @@ export function shadeNight(
   out: Uint8ClampedArray,
   size: number,
   s: readonly [number, number, number],
-): void {
+): ShadeBox | null {
   const [r, g, b] = NIGHT_RGB;
+  let i0 = size;
+  let j0 = size;
+  let i1 = -1;
+  let j1 = -1;
   for (let j = 0; j < size; j++) {
     const v0 = ((j + 0.5) / size) * 2 - 1;
     for (let i = 0; i < size; i++) {
@@ -89,8 +98,16 @@ export function shadeNight(
       out[o] = r;
       out[o + 1] = g;
       out[o + 2] = b;
-      out[o + 3] =
+      const alpha =
         cos >= 0 ? 0 : (ALPHA_BY_COS[Math.min(LUT_STEPS, Math.round(-cos * LUT_STEPS))] as number);
+      out[o + 3] = alpha;
+      if (alpha > 0) {
+        if (i < i0) i0 = i;
+        if (i > i1) i1 = i;
+        if (j < j0) j0 = j;
+        if (j > j1) j1 = j;
+      }
     }
   }
+  return i1 < 0 ? null : [i0, j0, i1, j1];
 }

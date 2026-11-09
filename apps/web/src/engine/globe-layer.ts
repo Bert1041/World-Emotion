@@ -186,16 +186,36 @@ export class GlobeLayer {
       this.nightTex = { canvas, ctx, img: ctx.createImageData(NIGHT_GRID, NIGHT_GRID) };
     }
     const tex = this.nightTex;
-    shadeNight(tex.img.data, NIGHT_GRID, sunInView(sun, this.projection.rotate()));
+    const box = shadeNight(tex.img.data, NIGHT_GRID, sunInView(sun, this.projection.rotate()));
+    if (box === null) return; // all day in view
     tex.ctx.putImageData(tex.img, 0, 0);
+    // Only the shaded texels, plus one each side so smoothing at the box edge samples true zeros.
+    const i0 = Math.max(0, box[0] - 1);
+    const j0 = Math.max(0, box[1] - 1);
+    const i1 = Math.min(NIGHT_GRID - 1, box[2] + 1);
+    const j1 = Math.min(NIGHT_GRID - 1, box[3] + 1);
+    const texel = (2 * r) / NIGHT_GRID;
     const { ctx } = this;
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, 2 * Math.PI);
     ctx.clip();
+    // Bilinear ("low") is exact enough for a smooth gradient; "high" cost 2× in software raster.
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(tex.canvas, cx - r, cy - r, 2 * r, 2 * r);
+    ctx.imageSmoothingQuality = "low";
+    const w = i1 - i0 + 1;
+    const h = j1 - j0 + 1;
+    ctx.drawImage(
+      tex.canvas,
+      i0,
+      j0,
+      w,
+      h,
+      cx - r + i0 * texel,
+      cy - r + j0 * texel,
+      w * texel,
+      h * texel,
+    );
     ctx.restore();
   }
 }

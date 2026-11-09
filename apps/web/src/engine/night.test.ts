@@ -110,4 +110,31 @@ describe("the shade texture agrees with the oracle, in any view", () => {
     }
     expect(checked).toBeGreaterThan(SIZE * SIZE * 0.7);
   });
+
+  it.each(cases)(
+    "the returned box is exactly the shaded texels: rotate $rotate",
+    ({ rotate, sun }) => {
+      const out = new Uint8ClampedArray(SIZE * SIZE * 4);
+      const box = shadeNight(out, SIZE, sunInView(sun, rotate));
+      let i0 = SIZE;
+      let j0 = SIZE;
+      let i1 = -1;
+      let j1 = -1;
+      for (let j = 0; j < SIZE; j++)
+        for (let i = 0; i < SIZE; i++)
+          if ((out[(j * SIZE + i) * 4 + 3] as number) > 0) {
+            i0 = Math.min(i0, i);
+            j0 = Math.min(j0, j);
+            i1 = Math.max(i1, i);
+            j1 = Math.max(j1, j);
+          }
+      expect(box).toEqual(i1 < 0 ? null : [i0, j0, i1, j1]);
+    },
+  );
+
+  it("no shade at all when the sun faces the viewer straight on: box is null", () => {
+    // Sun at the view centre: the whole visible disk is day (the rim texels sit at 90°).
+    const out = new Uint8ClampedArray(SIZE * SIZE * 4);
+    expect(shadeNight(out, SIZE, [0, 0, 1])).toBeNull();
+  });
 });

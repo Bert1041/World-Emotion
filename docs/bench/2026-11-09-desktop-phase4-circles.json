@@ -28,11 +28,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull",
-        "nonight"
-      ],
+      "opt": ["precision0", "cull", "nonight"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -46,10 +42,7 @@
       "frames": 117,
       "scriptP50": 0.29999998211860657,
       "baseRedraws": 18,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -92,10 +85,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -109,10 +99,7 @@
       "frames": 118,
       "scriptP50": 0.5,
       "baseRedraws": 18,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -155,10 +142,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": true,
       "dev": false
@@ -172,10 +156,7 @@
       "frames": 117,
       "scriptP50": 0.4000000059604645,
       "baseRedraws": 17,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -218,11 +199,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull",
-        "nonight"
-      ],
+      "opt": ["precision0", "cull", "nonight"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -236,10 +213,7 @@
       "frames": 92,
       "scriptP50": 0.10000002384185791,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -282,10 +256,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -299,10 +270,7 @@
       "frames": 91,
       "scriptP50": 0.19999998807907104,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -345,10 +313,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": true,
       "dev": false
@@ -362,10 +327,7 @@
       "frames": 91,
       "scriptP50": 0.19999998807907104,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -408,10 +370,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": true,
       "dev": false
@@ -425,10 +384,7 @@
       "frames": 117,
       "scriptP50": 0.5,
       "baseRedraws": 17,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -471,11 +427,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull",
-        "nonight"
-      ],
+      "opt": ["precision0", "cull", "nonight"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -489,10 +441,7 @@
       "frames": 92,
       "scriptP50": 0.10000002384185791,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -535,10 +484,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -552,10 +498,7 @@
       "frames": 92,
       "scriptP50": 0.10000002384185791,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -598,10 +541,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": true,
       "dev": false
@@ -615,10 +555,7 @@
       "frames": 92,
       "scriptP50": 0.19999998807907104,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -661,11 +598,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull",
-        "nonight"
-      ],
+      "opt": ["precision0", "cull", "nonight"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -679,10 +612,7 @@
       "frames": 117,
       "scriptP50": 0.5999999940395355,
       "baseRedraws": 18,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -725,10 +655,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -742,10 +669,7 @@
       "frames": 118,
       "scriptP50": 0.5999999940395355,
       "baseRedraws": 18,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -788,10 +712,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -805,10 +726,7 @@
       "frames": 92,
       "scriptP50": 0.20000001788139343,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -851,10 +769,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": true,
       "dev": false
@@ -868,10 +783,7 @@
       "frames": 91,
       "scriptP50": 0.10000002384185791,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -914,11 +826,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull",
-        "nonight"
-      ],
+      "opt": ["precision0", "cull", "nonight"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -932,10 +840,7 @@
       "frames": 118,
       "scriptP50": 0.5999999940395355,
       "baseRedraws": 18,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -978,10 +883,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -995,10 +897,7 @@
       "frames": 117,
       "scriptP50": 0.5,
       "baseRedraws": 18,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -1041,10 +940,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull"
-      ],
+      "opt": ["precision0", "cull"],
       "debug": false,
       "benchRipple": true,
       "dev": false
@@ -1058,10 +954,7 @@
       "frames": 117,
       "scriptP50": 0.5999999940395355,
       "baseRedraws": 17,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {
@@ -1104,11 +997,7 @@
       "dprCap": 2,
       "benchSeconds": 10,
       "expectedHz": 60,
-      "opt": [
-        "precision0",
-        "cull",
-        "nonight"
-      ],
+      "opt": ["precision0", "cull", "nonight"],
       "debug": false,
       "benchRipple": false,
       "dev": false
@@ -1122,10 +1011,7 @@
       "frames": 92,
       "scriptP50": 0.10000002384185791,
       "baseRedraws": 20,
-      "lods": [
-        "move",
-        "50m"
-      ],
+      "lods": ["move", "50m"],
       "rotatingFrames": 0
     },
     "thermalBefore": {

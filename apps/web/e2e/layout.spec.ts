@@ -4,6 +4,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { circleHitsRect, type Rect, rectsOverlap } from "../src/engine/layout";
+import { UNTIL_DONE } from "./wait";
 
 type Layout = {
   globe: { cx: number; cy: number; r: number; halo: number };
@@ -37,7 +38,7 @@ async function settled(page: Page, focus: string | null) {
       return l.focus === f && !l.gliding;
     },
     focus,
-    { timeout: 8000 },
+    UNTIL_DONE,
   );
   await page.waitForTimeout(400); // CSS transitions (card slide, header fade)
   await stable(page);
@@ -50,7 +51,8 @@ async function settled(page: Page, focus: string | null) {
  */
 async function stable(page: Page) {
   let prev = await layout(page);
-  for (let i = 0; i < 40; i++) {
+  // Up to UNTIL_DONE: settling is checked, not its speed.
+  for (let i = 0; i < UNTIL_DONE.timeout / 250; i++) {
     await page.waitForTimeout(250);
     const next = await layout(page);
     const d =

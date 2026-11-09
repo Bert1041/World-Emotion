@@ -5,6 +5,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { type Rect, rectsOverlap } from "../src/engine/layout";
+import { UNTIL_DONE } from "./wait";
 
 type L = { focus: string | null; gliding: boolean; focusBox: Rect | null };
 const layout = (page: Page) =>
@@ -52,7 +53,7 @@ async function settled(page: Page) {
       return card?.dataset.moving === "false" && !l.gliding;
     },
     null,
-    { timeout: 10_000 },
+    UNTIL_DONE,
   );
 }
 

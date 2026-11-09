@@ -3,6 +3,7 @@
  * mood, the face flies to your country, a ripple spreads, the world count ticks up by one.
  */
 import { expect, type Page, test } from "@playwright/test";
+import { UNTIL_DONE } from "./wait";
 
 type L = {
   center: [number, number];
@@ -110,7 +111,7 @@ test.describe("Nigeria (en-NG)", () => {
     // The next aggregation runs include the vote: the count stays at +1, not +2 or back to +0.
     await page.waitForTimeout(4500);
     expect(await count(page)).toBe(before + 1);
-    await expect.poll(async () => (await layout(page)).ripple, { timeout: 5000 }).toBe(false);
+    await expect.poll(async () => (await layout(page)).ripple, UNTIL_DONE).toBe(false);
   });
 
   test("a snapshot arriving mid-flight (already with your vote) is not counted twice", async ({
@@ -134,7 +135,7 @@ test.describe("Nigeria (en-NG)", () => {
     await load(page);
     const before = await count(page);
     await page.locator('#checkin .face[data-mood="calm"]').click();
-    await expect(page.locator(".flight")).toHaveCount(0, { timeout: 4000 });
+    await expect(page.locator(".flight")).toHaveCount(0, UNTIL_DONE);
     await page.locator("#checkin .chip .link").click();
     const atLanding = await countAtLanding(page);
     await page.locator('#checkin .face[data-mood="sad"]').click();
@@ -150,7 +151,7 @@ test.describe("Nigeria (en-NG)", () => {
     const bar = () => page.locator("#checkin").evaluate((e) => (e as HTMLElement).offsetHeight);
     const h = await bar();
     await page.locator('#checkin .face[data-mood="excited"]').click();
-    await expect(page.locator(".flight")).toHaveCount(0, { timeout: 4000 });
+    await expect(page.locator(".flight")).toHaveCount(0, UNTIL_DONE);
     expect(await bar()).toBe(h);
   });
 
@@ -335,7 +336,7 @@ test.describe("pick your country on the globe", () => {
     expect(await h(), "pick mode with results").toBe(faces);
     await page.locator("#checkin .pick .link").click();
     await page.locator('#checkin .face[data-mood="sad"]').click();
-    await expect(page.locator(".flight")).toHaveCount(0, { timeout: 4000 });
+    await expect(page.locator(".flight")).toHaveCount(0, UNTIL_DONE);
     expect(await h(), "chip").toBe(faces);
   });
 });

@@ -641,6 +641,8 @@ async function main() {
   );
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
+  // In the repo's own style, so committing results never fails CI's format check (it did twice).
+  execFileSync("pnpm", ["exec", "biome", "format", "--write", out], { cwd: ROOT, stdio: "ignore" });
   console.log(`results: ${out}`);
 }
 

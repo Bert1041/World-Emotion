@@ -27,6 +27,8 @@ export default defineConfig({
     channel: "chrome", // the installed Google Chrome; no browser download
     baseURL: `http://127.0.0.1:${PORT}`,
     deviceScaleFactor: 2,
+    // PW_NO_GPU=1 renders like CI (no GPU: software raster), to reproduce its timing locally.
+    launchOptions: { args: process.env.PW_NO_GPU ? ["--disable-gpu"] : [] },
   },
   projects: VIEWPORTS.map((v) => ({
     name: v.name,

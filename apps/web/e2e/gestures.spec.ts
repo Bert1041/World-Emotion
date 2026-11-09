@@ -3,6 +3,7 @@
  * world and a continent. Real input events (mouse, wheel, CDP touch), not calls into the engine.
  */
 import { type CDPSession, expect, type Page, test } from "@playwright/test";
+import { UNTIL_DONE } from "./wait";
 
 type L = {
   focus: string | null;
@@ -112,7 +113,7 @@ test("a quick swipe flings the globe on, then friction stops it", async ({ page 
   const L = await layout(page);
   await pacedSwipe(page, [L.globe.cx, L.globe.cy], -150);
   expect(await lonDrift(page, 300), "kept spinning after release").toBeGreaterThan(2);
-  await expect.poll(async () => (await layout(page)).moving, { timeout: 4000 }).toBe(false);
+  await expect.poll(async () => (await layout(page)).moving, UNTIL_DONE).toBe(false);
 });
 
 test("a burst of near-simultaneous moves never reads as a wild spin", async ({ page }) => {
@@ -137,7 +138,7 @@ test("a burst of near-simultaneous moves never reads as a wild spin", async ({ p
   expect(Math.abs(a - L.center[0]), "the burst registered as a drag").toBeGreaterThan(20);
   // Friction only slows it, so the mean over any interval is at most the release speed.
   expect(await spinSpeed(page, 100), "spin speed after release, °/s").toBeLessThanOrEqual(721);
-  await expect.poll(async () => (await layout(page)).moving, { timeout: 6000 }).toBe(false);
+  await expect.poll(async () => (await layout(page)).moving, UNTIL_DONE).toBe(false);
   expect(Math.abs((await layout(page)).center[0] - a), "total coast").toBeLessThan(250);
 });
 
@@ -203,7 +204,7 @@ test("wheel: a small turn springs back; a big one over Europe drills in; out ret
   const at = await pointOf(page, 10, 50);
   await wheelNotches(page, at, -60, 1, 0); // one small notch inward
   await expect.poll(async () => (await layout(page)).zoom, { timeout: 400 }).toBeGreaterThan(1.05);
-  await expect.poll(async () => (await layout(page)).moving, { timeout: 3000 }).toBe(false);
+  await expect.poll(async () => (await layout(page)).moving, UNTIL_DONE).toBe(false);
   expect((await layout(page)).focus, "springs back, no drill-down").toBeNull();
   expect((await layout(page)).zoom).toBe(1);
 
@@ -211,7 +212,7 @@ test("wheel: a small turn springs back; a big one over Europe drills in; out ret
   await wheelNotches(page, at, -120, 3, 200);
   await expect.poll(async () => (await layout(page)).focus, { timeout: 3000 }).toBe("EU");
 
-  await expect.poll(async () => (await layout(page)).gliding, { timeout: 4000 }).toBe(false);
+  await expect.poll(async () => (await layout(page)).gliding, UNTIL_DONE).toBe(false);
   const mid = await pointOf(page, 12, 53);
   await wheelNotches(page, mid, 120, 3, 60);
   await expect.poll(async () => (await layout(page)).focus, { timeout: 3000 }).toBeNull();
@@ -238,7 +239,7 @@ test("pinch: a little springs back; a wide spread over Europe drills in", async 
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 2 });
   const at = await pointOf(page, 10, 50);
   await pinch(cdp, at, 100, 110);
-  await expect.poll(async () => (await layout(page)).moving, { timeout: 3000 }).toBe(false);
+  await expect.poll(async () => (await layout(page)).moving, UNTIL_DONE).toBe(false);
   expect((await layout(page)).focus).toBeNull();
   expect((await layout(page)).zoom).toBe(1);
 
