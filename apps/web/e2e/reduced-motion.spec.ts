@@ -80,21 +80,26 @@ test("no particles and no idle rotation", async ({ page }) => {
 test("drill-down and back are jumps, not glides; the headline fades, not slides", async ({
   page,
 }) => {
+  // face() (beforeEach) turns the globe on the next frame: wait for two before reading a point,
+  // or under load the tap lands where France was and misses (flaked 1 in 24 at 8 workers).
+  await page.evaluate(
+    () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
   const p = await page.evaluate(() =>
     (
       window as unknown as { __bench: { screenPoint(a: number, b: number): [number, number] } }
     ).__bench.screenPoint(2.5, 46.5),
   );
   await page.mouse.click(p[0], p[1]);
-  await page.waitForTimeout(100); // the one frame between the tap and the fit
+  // The fit happens on the frame after the tap; wait for it by the app's own state, not a timer.
+  await expect.poll(async () => (await layout(page)).focus).toBe("EU");
   const z = await layout(page);
-  expect(z.focus).toBe("EU");
   expect(z.gliding, "no glide").toBe(false);
   expect(z.zoom, "already at the continent's zoom").toBeGreaterThan(1.5);
   const header = await page.locator("header").evaluate((el) => getComputedStyle(el).transform);
   expect(header, "headline slid instead of fading").toBe("none");
   await page.locator("#back").click();
-  await page.waitForTimeout(50);
+  await expect.poll(async () => (await layout(page)).focus).toBeNull();
   const w = await layout(page);
   expect([w.focus, w.gliding, w.zoom]).toEqual([null, false, 1]);
 });
