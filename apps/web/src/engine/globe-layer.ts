@@ -1,7 +1,9 @@
 import { type GeoPath, type GeoProjection, geoDistance, geoPath } from "d3-geo";
-import type { Feature, Polygon } from "geojson";
+
+import type { Feature } from "geojson";
+import { addGuarded, ShapeRecorder } from "./clip-guard";
 import type { Lod } from "./geo";
-import { NIGHT_STEP_ALPHA } from "./night";
+import { NIGHT_GRID, shadeNight, sunInView } from "./night";
 import { BORDER, NEUTRAL_LAND, OCEAN, PAPER, SPHERE_EDGE } from "./palette";
 
 export interface DrawOptions {
@@ -11,12 +13,9 @@ export interface DrawOptions {
   readonly borders: boolean;
   /** [lon, lat] at the centre of the view, degrees. */
   readonly viewCenter: [number, number];
-  /** Night shading steps (engine/night.ts), drawn over land and borders; omitted = no night. */
-  readonly night?: readonly Polygon[];
+  /** Sub-solar point [lon, lat] for the night shade (engine/night.ts); omitted = no night. */
+  readonly night?: readonly [number, number];
 }
-
-/** The night shade: a deep blue-black, so night reads as shadow on every theme. */
-const NIGHT_SHADE = "rgb(2, 5, 16)";
 
 export interface GlobeStyle {
   readonly skyInner: string;
@@ -45,8 +44,19 @@ export const REFERENCE_STYLE: GlobeStyle = {
 export class GlobeLayer {
   private readonly path: GeoPath;
   private readonly projection: GeoProjection;
+  /** Horizon-crossing polygons are traced here first and checked (engine/clip-guard.ts). */
+  private readonly recorder = new ShapeRecorder();
+  private readonly guardPath: GeoPath;
+  /** Polygons skipped because d3 clipped them inside out (diagnostics; one frame each). */
+  inverted = 0;
   private groups: { color: string; features: Feature[] }[] = [];
   private groupedFor: { lod: Lod; version: number } | undefined;
+  /** Night shade texture (NIGHT_GRID²), recomputed each base redraw; created on first use. */
+  private nightTex: {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    img: ImageData;
+  } | null = null;
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
@@ -54,6 +64,29 @@ export class GlobeLayer {
   ) {
     this.projection = projection;
     this.path = geoPath(projection, ctx);
+    this.guardPath = geoPath(projection, this.recorder as unknown as CanvasRenderingContext2D);
+  }
+
+  /**
+   * Add a shape to the current path, polygon by polygon: those fully in front are drawn as they
+   * are; those crossing the horizon are traced, and dropped for this frame if d3's clipping turned
+   * them inside out (their area breaks the bound for their cap). Behind the globe: skipped when
+   * culling, else left to d3 (it clips them to nothing).
+   */
+  private addShape(lod: Lod, f: Feature, viewCenter: [number, number], cull: boolean): void {
+    const parts = lod.parts.get(f);
+    if (parts === undefined) this.path(f);
+    else
+      this.inverted += addGuarded(
+        parts,
+        viewCenter,
+        this.projection.scale(),
+        cull,
+        this.path,
+        this.guardPath,
+        this.recorder,
+        this.ctx,
+      );
   }
 
   draw(
@@ -88,7 +121,7 @@ export class GlobeLayer {
 
     if (this.groupedFor?.lod !== lod || this.groupedFor.version !== colorVersion) {
       const byColor = new Map<string, Feature[]>();
-      for (const f of lod.countries) {
+      for (const f of lod.shapes.countries) {
         const c = colorOf(String(f.id));
         const list = byColor.get(c);
         if (list) list.push(f);
@@ -105,12 +138,13 @@ export class GlobeLayer {
 
     for (const g of this.groups) {
       ctx.beginPath();
-      for (const f of g.features) if (visible(f)) path(f);
+      for (const f of g.features) if (visible(f)) this.addShape(lod, f, opts.viewCenter, opts.cull);
       ctx.fillStyle = g.color;
       ctx.fill();
     }
     ctx.beginPath();
-    for (const f of lod.neutral) if (visible(f)) path(f);
+    for (const f of lod.shapes.neutral)
+      if (visible(f)) this.addShape(lod, f, opts.viewCenter, opts.cull);
     ctx.fillStyle = style.neutral;
     ctx.fill();
 
@@ -123,22 +157,13 @@ export class GlobeLayer {
       ctx.stroke();
     }
 
-    if (opts.night) {
-      ctx.fillStyle = NIGHT_SHADE;
-      ctx.globalAlpha = NIGHT_STEP_ALPHA;
-      for (const step of opts.night) {
-        ctx.beginPath();
-        path(step);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
+    if (opts.night) this.drawNight(opts.night, cx, cy, r);
 
     if (selected !== null) {
-      const f = lod.countries.find((x) => x.id === selected);
+      const f = lod.shapes.countries.find((x) => x.id === selected);
       if (f) {
         ctx.beginPath();
-        path(f);
+        this.addShape(lod, f, opts.viewCenter, opts.cull);
         ctx.lineWidth = 2.2 * hair;
         ctx.strokeStyle = "rgba(255,255,255,0.9)";
         ctx.stroke();
@@ -150,5 +175,27 @@ export class GlobeLayer {
     ctx.lineWidth = 1.5 * hair;
     ctx.strokeStyle = style.edge;
     ctx.stroke();
+  }
+
+  /** The night shade: a small per-texel texture, scaled up smoothly and clipped to the globe. */
+  private drawNight(sun: readonly [number, number], cx: number, cy: number, r: number): void {
+    if (this.nightTex === null) {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = NIGHT_GRID;
+      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+      this.nightTex = { canvas, ctx, img: ctx.createImageData(NIGHT_GRID, NIGHT_GRID) };
+    }
+    const tex = this.nightTex;
+    shadeNight(tex.img.data, NIGHT_GRID, sunInView(sun, this.projection.rotate()));
+    tex.ctx.putImageData(tex.img, 0, 0);
+    const { ctx } = this;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(tex.canvas, cx - r, cy - r, 2 * r, 2 * r);
+    ctx.restore();
   }
 }

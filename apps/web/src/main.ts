@@ -27,10 +27,9 @@ import {
   type View,
 } from "./engine/camera";
 import { guessCountry } from "./engine/country-guess";
-import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
+import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";
-import { nightShapes } from "./engine/night";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng, type SpawnPoint } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
@@ -62,6 +61,8 @@ const config = {
    * verifyRender): on unless switched off. */
   opt: new Set((params.get("opt") ?? "precision0,cull").split(",").filter(Boolean)),
   debug: params.get("debug") === "1",
+  /** Bench only: keep a check-in ripple on the globe for the whole run (tools/bench phase4). */
+  benchRipple: params.get("ripple") === "1",
   /** Prototype theme switcher (bottom bar); off by default now the check-in owns the bottom. */
   dev: params.get("dev") === "1",
 };
@@ -121,7 +122,7 @@ const ui = {
 const countryName = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
 
 // ---- Globe ------------------------------------------------------------------------------------
-const projection = geoOrthographic().clipAngle(90);
+const projection = geoOrthographic().clipAngle(CLIP_ANGLE);
 if (config.opt.has("precision0")) projection.precision(0);
 const globe = new GlobeLayer(baseCtx, projection);
 const camera = new Camera({ center: [10, 20], zoom: 1 }, { reducedMotion });
@@ -219,7 +220,7 @@ function framePoints(c: Continent): [number, number][] {
 function fitFrame(c: Continent): View {
   const { center } = CONTINENT_VIEWS[c];
   const probe = geoOrthographic()
-    .clipAngle(90)
+    .clipAngle(CLIP_ANGLE)
     .rotate([-center[0], -center[1]])
     .scale(baseRadius)
     .translate([0, 0]);
@@ -622,7 +623,6 @@ const BENCH_SUN_TIME = Date.UTC(2026, 2, 20, 12);
 const NIGHT_REFRESH_MS = 60_000;
 const showNight = !config.opt.has("nonight");
 let sun = subsolarPoint(config.bench ? BENCH_SUN_TIME : Date.now());
-let night = nightShapes(sun);
 let sunAt = performance.now();
 
 function frame(ts: number): void {
@@ -643,7 +643,6 @@ function frame(ts: number): void {
   if (showNight && !config.bench && ts - sunAt > NIGHT_REFRESH_MS) {
     sunAt = ts;
     sun = subsolarPoint(Date.now());
-    night = nightShapes(sun);
     dirty = true;
   }
 
@@ -651,6 +650,7 @@ function frame(ts: number): void {
     // Deterministic "drag": constant spin plus a wobble, identical on every run.
     const t = (ts - bench.start) / 1000;
     camera.view = { center: [10 - 90 * t, 20 - 15 * Math.sin(t * 1.3)], zoom: 1 };
+    if (config.benchRipple && !ripples.active) ripples.add([8, 9.6], MOOD_COLORS[0] ?? "#fff");
     dirty = true;
   } else if (camera.update(dt)) {
     dirty = true; // glide, fling or stretch (fixed step, packages/motion)
@@ -706,7 +706,7 @@ function frame(ts: number): void {
         cull: config.opt.has("cull"),
         borders: !(moving && config.opt.has("noborders")),
         viewCenter: camera.view.center,
-        ...(showNight ? { night } : {}),
+        ...(showNight ? { night: sun } : {}),
       },
       {
         skyInner: th.skyInner,
@@ -994,7 +994,7 @@ async function verifyRender(variant: {
       willReadFrequently: true,
     }) as CanvasRenderingContext2D;
     const proj = geoOrthographic()
-      .clipAngle(90)
+      .clipAngle(CLIP_ANGLE)
       .scale(size * 0.45)
       .translate([size / 2, size / 2]);
     if (precision0) proj.precision(0);

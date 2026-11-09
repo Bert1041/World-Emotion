@@ -116,15 +116,37 @@ replaces the guess with the server's answer.
 drawing it costs one filled circle. The base layer redraws it about once a minute, not every frame.
 *Recommend: yes.*
 
-*As built (2026-11-09):* `engine/night.ts`. The night side is 13 stacked translucent circles around
-the anti-solar point, spanning twilight from 90° (sunset) to 72° (sun 18° below the horizon), adding
-up to 31% darkening; the day side is untouched. Four coarse 9% steps were tried first and showed as
-stripes in the screenshot review. Drawn on the base layer over land and borders, under the selected
-outline and the rim; the sun is recomputed once a minute (bench runs use a fixed time). Tested by
-unit tests (antipode, depth through twilight, drawn shapes vs. the oracle on a whole-sphere grid) and
-in Chrome with a fixed page clock (night ocean ~31% darker than day ocean in the same frame; control
-with `?opt=…,nonight`). Mutations run: latitude not flipped, shade centred on the sun, band not
-passed to the draw, sun six hours off: all caught. Not yet measured on the Pixel (speed gate re-run).
+*As built (2026-11-09):* `engine/night.ts`. Darkening deepens continuously through twilight, from
+sunset (sun 0° below the horizon) to the end of astronomical twilight (18° below), reaching 31% in
+full night; the day side is untouched. Drawn per pixel: a 96² texture of the shade (each texel's
+angle to the sun is a dot product; alpha from a lookup table) is scaled up and clipped to the globe,
+over land and borders, under the selected outline and the rim. The sun is recomputed once a minute;
+bench runs use a fixed time.
+
+Two earlier versions were measured and replaced (desktop M2, `tools/bench --matrix=phase4`,
+script ms p50/p95 at 4× CPU, docs/bench/2026-11-09-desktop-phase4-*.json): 4 stacked circles
+showed as stripes; 13 circles were smooth but cost 7.7/9.5 against 4.8/6.5 without night (clipping
+and projecting ~2,200 circle points a frame). Per-pixel with the lookup table: 5.2/6.9, with a
+ripple running 5.7/7.4; 0 missed frames. Not yet measured on the Pixel.
+
+Tests: unit (darkness through twilight, no step anywhere, texture vs. the spherical oracle in five
+views including the sun behind the globe) and Chrome with a fixed page clock (night ocean ~31%
+darker than day ocean in one frame; control with `?opt=…,nonight`). Mutations caught: latitude not
+flipped, shade on the sun's side, screen-y not flipped, twilight 10° early, camera rotation
+ignored, band not drawn, sun six hours off, wrong lookup index.
+
+**Found while testing the band: countries flashing inside out while spinning (fixed 2026-11-09).**
+Single frames filled the whole globe with one country's colour. Two causes: (1) simplification
+collapses small islands and slivers into rings of 1–2 distinct points (60+ on the moving map), and
+d3's horizon clipping read the two-point ones as inside out (Cyprus, Qatar, Palestine, ...); they are
+no longer drawn (`drawable` in engine/geo.ts; the data lists stay complete for pins and search).
+(2) Healthy polygons too: about 1 in 10,000 horizon crossings, on every map, whatever the clip angle
+or resampling. `engine/clip-guard.ts` checks each polygon that crosses the horizon against the
+largest area it could ever cover (orthographic projection is a contraction, so a polygon within ρ
+of a centre stays inside a disk of radius 2r·sin(ρ/2)) and drops it for that frame if it breaks it.
+Tests: every ring on all three maps; a seeded whole-sphere sweep where raw d3 floods and the guard
+never does; the bound is never too tight on real polygons; a Chrome test of the drag that showed it,
+which fails with the fixes removed. Cost within noise in the bench; pixel verification unchanged.
 
 **M4. Haptics on by default (Android)?** One short tick per check-in, off under reduced motion.
 *Recommend: yes.*

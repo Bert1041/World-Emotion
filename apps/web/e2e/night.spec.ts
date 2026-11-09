@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 import { subsolarPoint } from "@world-emotion/motion";
-import { NIGHT_STEP_ALPHA, NIGHT_STEPS } from "../src/engine/night";
+import { NIGHT_FULL } from "../src/engine/night";
 
 const EQUINOX_NOON = Date.UTC(2026, 2, 20, 12);
 const DAY_OCEAN: [number, number] = [-45, -40]; // South Atlantic, ~60° from the sun
@@ -79,8 +79,8 @@ test("night falls on the side away from the sun, and only there", async ({ page 
   expect(sun[1]).toBeCloseTo(expected[1], 9);
 
   const [day, night] = await luminance(page, [DAY_OCEAN, NIGHT_OCEAN]);
-  // Full night is every step stacked: about 1 - 0.91⁴ ≈ 31% darker (the shade is near-black).
-  const full = 1 - (1 - NIGHT_STEP_ALPHA) ** NIGHT_STEPS.length;
+  // Full night: NIGHT_FULL (31%) darker; the shade is near-black, so luminance scales by 1 − 0.31.
+  const full = NIGHT_FULL;
   expect(night as number, "night ocean darker by the full shade").toBeLessThan(
     (day as number) * (1 - full + 0.05),
   );

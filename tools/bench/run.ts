@@ -1,7 +1,7 @@
 /**
  * Globe benchmark (docs/design/phase-3-globe-spike.md §2).
  *
- *   node tools/bench/run.ts [--device=android|desktop] [--matrix=gate|opt|full] [--repeats=3]
+ *   node tools/bench/run.ts [--device=android|desktop] [--matrix=gate|phase4|opt|full] [--repeats=3]
  *                           [--no-build] [--screenshot=path.png] [--shots=dir] [--verify]
  *   node tools/bench/run.ts --restore-phone     restore Android settings after a killed run
  *
@@ -32,6 +32,8 @@ interface Scenario {
   hz: 60 | 120;
   throttle: number;
   opt?: string;
+  /** Keep a check-in ripple on the globe for the whole run (Phase 4 worst case). */
+  ripple?: boolean;
 }
 
 interface Thermal {
@@ -59,6 +61,25 @@ function matrix(kind: string): Scenario[] {
         hz: 60 as const,
         throttle,
         opt,
+      })),
+    );
+  }
+  if (kind === "phase4") {
+    // What Phase 4 adds to the gate's shipped setup, at 60 Hz 1× and 4×: the Phase 3 picture
+    // (no night band, no ripple), + the night band, + night and a ripple running all the time.
+    const shipped = "precision0,cull";
+    return [1, 4].flatMap((throttle) =>
+      [
+        { opt: `${shipped},nonight`, ripple: false },
+        { opt: shipped, ripple: false },
+        { opt: shipped, ripple: true },
+      ].map((v) => ({
+        particles: 500,
+        dragLod: "move" as const,
+        dpr: 2,
+        hz: 60 as const,
+        throttle,
+        ...v,
       })),
     );
   }
@@ -570,7 +591,7 @@ async function main() {
           console.log(
             `  (warning: still thermal status ${before.status} after ${before.waitedS}s)`,
           );
-        const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}`;
+        const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}&ripple=${s.ripple ? 1 : 0}`;
         await withPage(b, url, async (sid) => {
           await b.send("Emulation.setCPUThrottlingRate", { rate: s.throttle }, sid);
           const v = (await evaluate(b, sid, "window.__bench.run()")) as Record<string, number>;
@@ -583,7 +604,10 @@ async function main() {
             if (screenshot && results.length === 0) writeFileSync(screenshot, png);
             if (shotsDir)
               writeFileSync(
-                join(shotsDir, `${s.throttle}x-${(s.opt || "none").replace(/,/g, "+")}.png`),
+                join(
+                  shotsDir,
+                  `${s.throttle}x-${(s.opt || "none").replace(/,/g, "+")}${s.ripple ? "+ripple" : ""}.png`,
+                ),
                 png,
               );
           }
@@ -599,7 +623,7 @@ async function main() {
           });
           const f = (x: number | undefined) => (x ?? Number.NaN).toFixed(2);
           console.log(
-            `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}] #${r}: ` +
+            `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}${s.ripple ? " +ripple" : ""}] #${r}: ` +
               `idle ${f(v.idleIntervalP50)} · interval p50 ${f(v.intervalP50)} p95 ${f(v.intervalP95)} · ` +
               `script p50 ${f(v.scriptP50)} p95 ${f(v.scriptP95)} (base ${f(v.baseP50)} fx ${f(v.fxP50)}) · ` +
               `idleDetail ${JSON.stringify((v as unknown as Record<string, unknown>).idleDetail)} · missed ${((v.missedRatio ?? 0) * 100).toFixed(2)}% · thermal ${before.status}→${after.status} (waited ${before.waitedS}s)`,

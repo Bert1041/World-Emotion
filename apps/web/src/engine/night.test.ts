@@ -1,13 +1,15 @@
 import { subsolarPoint } from "@world-emotion/motion";
-import { geoContains, geoDistance, geoRotation } from "d3-geo";
+import { geoDistance, geoOrthographic, geoRotation } from "d3-geo";
 import { describe, expect, it } from "vitest";
 import {
   antipode,
   NIGHT_FULL,
-  NIGHT_STEP_ALPHA,
-  NIGHT_STEPS,
-  nightDepth,
-  nightShapes,
+  NIGHT_RGB,
+  nightAt,
+  nightDarkness,
+  shadeNight,
+  sunInView,
+  TWILIGHT_DEG,
 } from "./night";
 
 const deg = (a: readonly [number, number], b: readonly [number, number]) =>
@@ -43,56 +45,69 @@ describe("antipode", () => {
   });
 });
 
-describe("night shading", () => {
-  // The March 2026 equinox at 12:00 UTC: the sun is over the Gulf of Guinea, night over the Pacific.
-  const sun = subsolarPoint(Date.UTC(2026, 2, 20, 12));
-
-  it("is centred opposite the sun", () => {
-    expect(deg(sun, [0, 0])).toBeLessThan(2);
-    expect(nightDepth(sun, sun), "under the sun").toBe(0);
-    expect(nightDepth(antipode(sun), sun), "opposite the sun").toBe(NIGHT_STEPS.length);
-  });
-
+describe("night darkness through twilight", () => {
   it.each([
-    // [degrees from the sub-solar point, steps of shading]
+    // [degrees from the sub-solar point, darkening]
+    [0, 0],
     [60, 0], // afternoon
-    [89.9, 0], // sun just above the horizon: still day
-    [90.5, 1], // just after sunset: the faintest step only
-    [99, 6], // mid twilight: about half (radii 90 … 82.5 cover a point 81° from the anti-sun)
-    [108.5, NIGHT_STEPS.length], // twilight over
-    [150, NIGHT_STEPS.length], // full night
-  ])("%s° from the sun → depth %s", (d, depth) => {
-    // A point exactly d degrees east of the sun (rotate the sun to [0, 0], step d along its equator).
-    const p = geoRotation([-sun[0], -sun[1]]).invert([d, 0]) as [number, number];
-    expect(Math.abs(deg(p, sun) - d)).toBeLessThan(1e-6);
-    expect(nightDepth(p, sun)).toBe(depth);
+    [90, 0], // sun on the horizon: not yet dark
+    [90 + TWILIGHT_DEG / 2, 1 - Math.sqrt(1 - NIGHT_FULL)], // mid twilight: half the light loss
+    [90 + TWILIGHT_DEG, NIGHT_FULL], // astronomical twilight over
+    [150, NIGHT_FULL],
+    [180, NIGHT_FULL],
+  ])("%s° from the sun → %s", (d, dark) => {
+    expect(nightDarkness(d)).toBeCloseTo(dark, 9);
   });
 
-  it("steps span twilight (90° → 72°), evenly, and stack to the full shade", () => {
-    expect(NIGHT_STEPS[0]).toBe(90);
-    expect(NIGHT_STEPS.at(-1)).toBeCloseTo(72, 9);
-    const gaps = NIGHT_STEPS.slice(1).map((r, i) => (NIGHT_STEPS[i] as number) - r);
-    for (const g of gaps) expect(g).toBeCloseTo(1.5, 9);
-    expect(1 - (1 - NIGHT_STEP_ALPHA) ** NIGHT_STEPS.length).toBeCloseTo(NIGHT_FULL, 9);
-    // Each step is a small change (under 5 of 255 levels on the brightest land), 1.5° apart, so
-    // the stack reads as a gradient; four 9% steps were ~14 levels each and showed as stripes.
-    expect(NIGHT_STEP_ALPHA * 255 * 0.6).toBeLessThan(5);
+  it("deepens without a step anywhere (no visible edge)", () => {
+    let prev = 0;
+    for (let d = 0; d <= 180; d += 0.05) {
+      const x = nightDarkness(d);
+      expect(x).toBeGreaterThanOrEqual(prev);
+      expect(x - prev, `${d}°`).toBeLessThan(0.002); // well under one 8-bit level per 0.05°
+      prev = x;
+    }
   });
 
-  it("the drawn shapes agree with the oracle (inside means darker), all four, both sides", () => {
-    const shapes = nightShapes(sun);
-    expect(shapes).toHaveLength(NIGHT_STEPS.length);
-    // A grid over the whole sphere, away from each step's edge (the drawn edge is a polygon).
-    for (let lon = -175; lon <= 175; lon += 10) {
-      for (let lat = -85; lat <= 85; lat += 10) {
-        const p: [number, number] = [lon, lat];
-        const d = deg(p, antipode(sun));
-        shapes.forEach((shape, i) => {
-          const r = NIGHT_STEPS[i] as number;
-          if (Math.abs(d - r) < 0.5) return;
-          expect(geoContains(shape, p), `${p} step ${r}°`).toBe(d < r);
-        });
+  it("is centred opposite the sun (March 2026 equinox, 12:00 UTC)", () => {
+    const sun = subsolarPoint(Date.UTC(2026, 2, 20, 12));
+    expect(deg(sun, [0, 0])).toBeLessThan(2);
+    expect(nightAt(sun, sun)).toBe(0);
+    expect(nightAt(antipode(sun), sun)).toBeCloseTo(NIGHT_FULL, 9);
+    // A point exactly 100° east of the sun: 10° into twilight.
+    const p = geoRotation([-sun[0], -sun[1]]).invert([100, 0]) as [number, number];
+    expect(nightAt(p, sun)).toBeCloseTo(nightDarkness(100), 9);
+  });
+});
+
+describe("the shade texture agrees with the oracle, in any view", () => {
+  const SIZE = 48;
+  // Several views and suns, including the sun behind the globe and on the limb.
+  const cases: { rotate: [number, number, number]; sun: [number, number] }[] = [
+    { rotate: [0, 0, 0], sun: [0, 0] },
+    { rotate: [90, 0, 0], sun: [0, 0] },
+    { rotate: [-30, -40, 0], sun: [120, 23.4] },
+    { rotate: [150, 60, 0], sun: [-75, -23.4] },
+    { rotate: [10, -20, 0], sun: [-170, 5] },
+  ];
+  it.each(cases)("rotate $rotate, sun $sun", ({ rotate, sun }) => {
+    const out = new Uint8ClampedArray(SIZE * SIZE * 4);
+    shadeNight(out, SIZE, sunInView(sun, rotate));
+    const proj = geoOrthographic().rotate(rotate).scale(1).translate([0, 0]).clipAngle(90);
+    let checked = 0;
+    for (let j = 0; j < SIZE; j++) {
+      for (let i = 0; i < SIZE; i++) {
+        const u = ((i + 0.5) / SIZE) * 2 - 1;
+        const v = ((j + 0.5) / SIZE) * 2 - 1;
+        if (u * u + v * v > 0.98) continue; // the rim is clamped on purpose
+        const lonLat = proj.invert?.([u, v]) as [number, number];
+        const o = (j * SIZE + i) * 4;
+        expect([out[o], out[o + 1], out[o + 2]]).toEqual([...NIGHT_RGB]);
+        const want = Math.round(255 * nightAt(lonLat, sun));
+        expect(Math.abs((out[o + 3] as number) - want), `texel ${i},${j}`).toBeLessThanOrEqual(1);
+        checked++;
       }
     }
+    expect(checked).toBeGreaterThan(SIZE * SIZE * 0.7);
   });
 });
