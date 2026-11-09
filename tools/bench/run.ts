@@ -4,6 +4,7 @@
  *   node tools/bench/run.ts [--device=android|desktop] [--matrix=gate|phase4|opt|full] [--repeats=3]
  *                           [--no-build] [--screenshot=path.png] [--shots=dir] [--verify]
  *   node tools/bench/run.ts --restore-phone     restore Android settings after a killed run
+ *   --allow-warm  skip the cool-down waits (results are slower; the file name says "-warm")
  *
  * android: serves the PRODUCTION build over `adb reverse` (nothing on the LAN), drives Chrome via
  *   the DevTools protocol, gates every run on thermal status, and restores the phone settings it
@@ -235,6 +236,7 @@ function androidDevice(): Device {
       // Also wait for the battery to come back within COOL_MARGIN_C of the session's first run:
       // on 2026-11-09 it crept from 34.1 to 38 °C at status 1 and 4× runs slowed round by round
       // (the no-night baseline went from 0% to 27% missed frames).
+      if (flag("allow-warm")) return th; // measured as-is; temperatures recorded, file marked
       if (sessionStartC === undefined) {
         // First run: start from a cool phone (≤ COOL_START_C, at most 10 min), so the baseline
         // every later run returns to is not itself a hot phone.
@@ -664,7 +666,7 @@ async function main() {
   }
   const out = join(
     ROOT,
-    `docs/bench/${new Date().toISOString().slice(0, 10)}-${device.name}-${arg("matrix", "gate")}.json`,
+    `docs/bench/${new Date().toISOString().slice(0, 10)}-${device.name}-${arg("matrix", "gate")}${flag("allow-warm") ? "-warm" : ""}.json`,
   );
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);

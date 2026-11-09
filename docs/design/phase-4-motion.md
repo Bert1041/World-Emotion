@@ -127,7 +127,23 @@ Two earlier versions were measured and replaced (desktop M2, `tools/bench --matr
 script ms p50/p95 at 4× CPU, docs/bench/2026-11-09-desktop-phase4-*.json): 4 stacked circles
 showed as stripes; 13 circles were smooth but cost 7.7/9.5 against 4.8/6.5 without night (clipping
 and projecting ~2,200 circle points a frame). Per-pixel with the lookup table: 5.2/6.9, with a
-ripple running 5.7/7.4; 0 missed frames. Not yet measured on the Pixel.
+ripple running 5.7/7.4; 0 missed frames.
+
+**Pixel 6 Pro, 2026-11-09** (docs/bench/2026-11-09-android-phase4-warm.json; script ms p50 / p95,
+median of 3; ripple running the whole run, i.e. the worst case; ripple drawn as lines). Measured
+warm at the owner's request (battery 38.4–38.8 °C, thermal status 1, charging), so slower than a
+cool phone: the no-night row is 6.9 ms here against 6.1 ms in ADR 0005.
+
+| 60 Hz | No night | Night | Night + ripple |
+|---|---|---|---|
+| 1× | 6.9 / 9.6, 0% missed | 7.5 / 9.8, 0% | 7.2 / 10.1, 0% |
+| 4× | 19.7 / 30.9, 30% | 21.7 / 31.6, 35% | 24.9 / 36.5, 43% |
+
+1× meets the ADR 0005 bar (≤ 8 ms script, < 1% dropped) in every column, warm. 4× does not judge
+this change: warm, the no-night baseline itself drops 30% (0.17% cool in ADR 0005). Within each
+round the order holds (round 1: 12.4 → 14.0 → 17.3 ms; 1.5 → 7.1 → 19.2% missed): the night band
+costs about 10% at 4×, the ripple more (FX layer 1.9–2.6 ms), for the ~3 s it is on screen. An
+earlier run that warmed from 34 to 38 °C mid-run is kept as *-thermally-confounded.json.
 
 Tests: unit (darkness through twilight, no step anywhere, texture vs. the spherical oracle in five
 views including the sun behind the globe) and Chrome with a fixed page clock (night ocean ~31%
