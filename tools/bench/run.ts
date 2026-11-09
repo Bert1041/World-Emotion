@@ -242,6 +242,14 @@ function androidDevice(): Device {
           await sleep(15_000);
           th = thermalNow();
         }
+        if (th.batteryC > COOL_START_C || th.status > 1)
+          // Numbers from a hot phone are not comparable (2026-11-09: 41 °C and rising while fast
+          // charging at 36%). Refuse rather than record them.
+          throw new Error(
+            `phone too warm to measure: battery ${th.batteryC} °C, thermal status ${th.status} ` +
+              `after 10 min (need <= ${COOL_START_C} °C, status <= 1). Let it cool, or charge it ` +
+              "first: fast charging heats it. Then run again.",
+          );
         sessionStartC = th.batteryC;
         console.log(`  session start: battery ${th.batteryC} °C, thermal status ${th.status}`);
       }
