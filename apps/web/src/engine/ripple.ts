@@ -1,4 +1,6 @@
 import { DURATION, easeOut } from "@world-emotion/motion";
+import { geoCircle } from "d3-geo";
+import type { LineString } from "geojson";
 
 /**
  * Check-in ripple (README §8.2.5): rings in the mood's colour spread from your country across the
@@ -12,6 +14,19 @@ export interface Ring {
   readonly radius: number;
   readonly alpha: number;
   readonly color: string;
+}
+
+const circle = geoCircle().precision(4);
+
+/**
+ * A ring's outline as a line, not a polygon. A polygon is closed along the horizon when clipped,
+ * so a ring wider than the visible hemisphere stroked the globe's whole rim in the mood colour
+ * (seen from the ripple's centre, where the camera is at check-in, every ring past 90°). A line
+ * clips to open arcs, and costs 2–5× less to project (measured 2026-11-09).
+ */
+export function ringOutline(center: readonly [number, number], radius: number): LineString {
+  const poly = circle.center([center[0], center[1]]).radius(radius)();
+  return { type: "LineString", coordinates: poly.coordinates[0] ?? [] };
 }
 
 /** Three rings, a quarter-second apart, reaching a third of the way round the world. */

@@ -16,7 +16,7 @@ import {
   type Snapshot,
   type SnapshotRegion,
 } from "@world-emotion/shared";
-import { geoCentroid, geoCircle, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
+import { geoCentroid, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { SnapshotSim } from "./demo/snapshot-sim";
 import {
@@ -33,7 +33,7 @@ import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout"
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng, type SpawnPoint } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
-import { Ripples } from "./engine/ripple";
+import { Ripples, ringOutline } from "./engine/ripple";
 import { FrameRecorder, type FrameSummary } from "./engine/stats";
 import { ThemeMixer } from "./engine/themes";
 import App from "./ui/App.svelte";
@@ -745,7 +745,7 @@ function frame(ts: number): void {
     // Rings are small circles on the sphere, so they bend over the horizon (clipped at 90°).
     for (const ring of ripples.rings()) {
       fxCtx.beginPath();
-      fxPath(ringShape.center([ring.center[0], ring.center[1]]).radius(ring.radius)());
+      fxPath(ringOutline(ring.center, ring.radius));
       fxCtx.globalAlpha = ring.alpha;
       fxCtx.strokeStyle = ring.color;
       fxCtx.lineWidth = (3 - ring.index * 0.8) * dpr;
@@ -780,7 +780,6 @@ function frame(ts: number): void {
 
 // ---- Check-in moment (README §8.2.5) ----------------------------------------------------------
 const ripples = new Ripples();
-const ringShape = geoCircle().precision(4);
 const fxPath = geoPath(projection, fxCtx);
 let flightId = 0;
 /** Where your face lands and the ripple starts: your country's centre. */

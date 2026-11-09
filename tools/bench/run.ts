@@ -182,6 +182,10 @@ function androidDevice(): Device {
       `Chrome's DevTools socket not found (tried: ${candidates.join(", ") || "none"}). Open Chrome on the phone and keep it unlocked.`,
     );
   };
+  /** Battery temperature at the first run; later runs wait to come back near it. */
+  let sessionStartC: number | undefined;
+  const COOL_MARGIN_C = 0.7;
+  const COOL_START_C = 36;
   const thermalNow = (): Thermal => {
     const t = adb("shell", "dumpsys", "thermalservice").match(/Thermal Status: (\d+)/);
     const b = adb("shell", "dumpsys", "battery").match(/temperature: (\d+)/);
@@ -228,7 +232,22 @@ function androidDevice(): Device {
       let th = thermalNow();
       // Wait for status <= 1. Android: 1 = LIGHT (no UX impact), 2 = MODERATE (UX impacted). The
       // confounded runs were at 2. Plugged in with the screen on, this phone rarely reaches 0.
-      while (th.status > 1 && Date.now() - t0 < 10 * 60_000) {
+      // Also wait for the battery to come back within COOL_MARGIN_C of the session's first run:
+      // on 2026-11-09 it crept from 34.1 to 38 °C at status 1 and 4× runs slowed round by round
+      // (the no-night baseline went from 0% to 27% missed frames).
+      if (sessionStartC === undefined) {
+        // First run: start from a cool phone (≤ COOL_START_C, at most 10 min), so the baseline
+        // every later run returns to is not itself a hot phone.
+        while (th.batteryC > COOL_START_C && Date.now() - t0 < 10 * 60_000) {
+          await sleep(15_000);
+          th = thermalNow();
+        }
+        sessionStartC = th.batteryC;
+        console.log(`  session start: battery ${th.batteryC} °C, thermal status ${th.status}`);
+      }
+      const warm = (t: Thermal) =>
+        t.status > 1 || t.batteryC > (sessionStartC as number) + COOL_MARGIN_C;
+      while (warm(th) && Date.now() - t0 < 10 * 60_000) {
         await sleep(15_000);
         th = thermalNow();
       }
@@ -587,9 +606,9 @@ async function main() {
       const order = scenarios.map((_, i) => scenarios[(i + shift) % scenarios.length] as Scenario);
       for (const s of order) {
         const before = await device.beforeRun(s);
-        if (before.status > 1)
+        if (before.status > 1 || before.waitedS >= 600)
           console.log(
-            `  (warning: still thermal status ${before.status} after ${before.waitedS}s)`,
+            `  (warning: still warm after ${before.waitedS}s: status ${before.status}, battery ${before.batteryC} °C)`,
           );
         const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}&ripple=${s.ripple ? 1 : 0}`;
         await withPage(b, url, async (sid) => {

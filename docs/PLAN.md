@@ -125,6 +125,7 @@ Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed 
 ### Phase 5: API + D1
 
 **Scope:** `migrations/0001_init.sql` (+ rollback), Hono Worker `POST /checkin`, Zod validation **plus `isKnownCountry` membership check** (docs/geo-decisions.md), log unknown `cf.country` codes (verify Kosovo), idempotency (G7), country derivation (G9), manual override + rate limit (G8), `tools/simulate`.
+**Decided 2026-11-09:** a vote counts for a country only if it matches `request.cf.country`; otherwise (or unknown) world only (README §5.6). The client defaults the picker to the connection's country and tells the user when their pick will count for the world only.
 **Exit criteria:**
 - Migration forward **and** rollback run against local D1; row counts checked before/after both.
 - Real `rows_written` per check-in, per replay (expect 0) and per purge, measured and written back into README §7.
