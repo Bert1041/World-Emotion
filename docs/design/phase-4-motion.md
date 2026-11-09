@@ -116,5 +116,15 @@ replaces the guess with the server's answer.
 drawing it costs one filled circle. The base layer redraws it about once a minute, not every frame.
 *Recommend: yes.*
 
+*As built (2026-11-09):* `engine/night.ts`. The night side is 13 stacked translucent circles around
+the anti-solar point, spanning twilight from 90° (sunset) to 72° (sun 18° below the horizon), adding
+up to 31% darkening; the day side is untouched. Four coarse 9% steps were tried first and showed as
+stripes in the screenshot review. Drawn on the base layer over land and borders, under the selected
+outline and the rim; the sun is recomputed once a minute (bench runs use a fixed time). Tested by
+unit tests (antipode, depth through twilight, drawn shapes vs. the oracle on a whole-sphere grid) and
+in Chrome with a fixed page clock (night ocean ~31% darker than day ocean in the same frame; control
+with `?opt=…,nonight`). Mutations run: latitude not flipped, shade centred on the sun, band not
+passed to the draw, sun six hours off: all caught. Not yet measured on the Pixel (speed gate re-run).
+
 **M4. Haptics on by default (Android)?** One short tick per check-in, off under reduced motion.
 *Recommend: yes.*

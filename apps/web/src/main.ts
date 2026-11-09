@@ -1,5 +1,13 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
-import { FixedStep, hexToOklab, mixOklab, oklabToCss, SPRING, Spring } from "@world-emotion/motion";
+import {
+  FixedStep,
+  hexToOklab,
+  mixOklab,
+  oklabToCss,
+  SPRING,
+  Spring,
+  subsolarPoint,
+} from "@world-emotion/motion";
 import {
   type Continent,
   MOOD_COUNT,
@@ -22,6 +30,7 @@ import { guessCountry } from "./engine/country-guess";
 import { type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { fitGlobe, fitRegion, freeArea, HALO, type Rect } from "./engine/layout";
+import { nightShapes } from "./engine/night";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng, type SpawnPoint } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
@@ -607,6 +616,15 @@ let layoutEasing = false;
 /** Whether the last frame drew mood-weather particles (off under reduced motion). */
 let particlesDrawn = false;
 
+// Day/night band (README §8.2.7, decision M3): real time, refreshed once a minute (the terminator
+// moves a quarter of a degree a minute). Bench runs use a fixed sun so frames compare across runs.
+const BENCH_SUN_TIME = Date.UTC(2026, 2, 20, 12);
+const NIGHT_REFRESH_MS = 60_000;
+const showNight = !config.opt.has("nonight");
+let sun = subsolarPoint(config.bench ? BENCH_SUN_TIME : Date.now());
+let night = nightShapes(sun);
+let sunAt = performance.now();
+
 function frame(ts: number): void {
   const t0 = performance.now();
   idleRotating = false;
@@ -620,6 +638,13 @@ function frame(ts: number): void {
       sim.bias = ((sim.bias + 1) % MOOD_COUNT) as MoodId;
     }
     onSnapshot(sim.step());
+  }
+
+  if (showNight && !config.bench && ts - sunAt > NIGHT_REFRESH_MS) {
+    sunAt = ts;
+    sun = subsolarPoint(Date.now());
+    night = nightShapes(sun);
+    dirty = true;
   }
 
   if (bench) {
@@ -681,6 +706,7 @@ function frame(ts: number): void {
         cull: config.opt.has("cull"),
         borders: !(moving && config.opt.has("noborders")),
         viewCenter: camera.view.center,
+        ...(showNight ? { night } : {}),
       },
       {
         skyInner: th.skyInner,
@@ -1044,6 +1070,8 @@ declare global {
         ripple: boolean;
         /** Your pin [lon, lat], or null. */
         pin: [number, number] | null;
+        /** Sub-solar point [lon, lat] the night band is drawn for, or null with ?opt=…,nonight. */
+        sun: [number, number] | null;
       };
       run(): Promise<FrameSummary & { config: unknown; dpr: number; idleIntervalP50: number }>;
     };
@@ -1082,6 +1110,7 @@ window.__bench = {
       easing: layoutEasing,
       ripple: ripples.active,
       pin: myPin ? [myPin.lonLat[0], myPin.lonLat[1]] : null,
+      sun: showNight ? [sun[0], sun[1]] : null,
       worldMood: MOODS[snapshot.world.h] ?? "",
     };
   },

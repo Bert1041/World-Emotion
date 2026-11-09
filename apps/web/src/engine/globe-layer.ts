@@ -1,6 +1,7 @@
 import { type GeoPath, type GeoProjection, geoDistance, geoPath } from "d3-geo";
-import type { Feature } from "geojson";
+import type { Feature, Polygon } from "geojson";
 import type { Lod } from "./geo";
+import { NIGHT_STEP_ALPHA } from "./night";
 import { BORDER, NEUTRAL_LAND, OCEAN, PAPER, SPHERE_EDGE } from "./palette";
 
 export interface DrawOptions {
@@ -10,7 +11,12 @@ export interface DrawOptions {
   readonly borders: boolean;
   /** [lon, lat] at the centre of the view, degrees. */
   readonly viewCenter: [number, number];
+  /** Night shading steps (engine/night.ts), drawn over land and borders; omitted = no night. */
+  readonly night?: readonly Polygon[];
 }
+
+/** The night shade: a deep blue-black, so night reads as shadow on every theme. */
+const NIGHT_SHADE = "rgb(2, 5, 16)";
 
 export interface GlobeStyle {
   readonly skyInner: string;
@@ -115,6 +121,17 @@ export class GlobeLayer {
       path(lod.borders);
       ctx.strokeStyle = style.border;
       ctx.stroke();
+    }
+
+    if (opts.night) {
+      ctx.fillStyle = NIGHT_SHADE;
+      ctx.globalAlpha = NIGHT_STEP_ALPHA;
+      for (const step of opts.night) {
+        ctx.beginPath();
+        path(step);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
     }
 
     if (selected !== null) {
