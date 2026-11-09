@@ -118,9 +118,9 @@ Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed 
 
 ### Phase 4.5: Internationalisation (added 2026-11-09)
 
-**Decided (2026-11-09):** English, French, Spanish, Portuguese (all left-to-right; Arabic/RTL deferred). Claude drafts translations with tone notes; native speakers review before launch, and a language stays hidden until reviewed. Language comes from the browser's languages, with a small switcher remembered on the device. Its own phase, branch and PR, after Phase 4 merges.
+**Decided (2026-11-09):** English, French, Latin-American Spanish (es-419), Brazilian Portuguese (pt-BR) (all left-to-right; Arabic/RTL deferred). No paid or native reviewers: Claude drafts and reviews (glossary, tone notes, back-translation), all four ship visible, and users can suggest corrections. Theme names translated; switcher top-right. Language comes from the browser's languages, with the switcher remembered on the device. Its own phase, branch and PR, after Phase 4 merges. Design: docs/design/phase-4.5-i18n.md.
 **Scope:** every UI string in one typed catalogue (whole sentences, never concatenated, since word order and gender differ); plurals via `Intl.PluralRules`, numbers via `Intl.NumberFormat`; country names stay on `Intl.DisplayNames`; non-English catalogues lazy-loaded; `<html lang>` set; the check-in search matches names in the active language. Design doc first (library or none, catalogue shape, where theme names like "Waterworld" fit).
-**Exit criteria:** a test fails if any catalogue misses a key the English one has; no user-visible English left in a non-English locale (checked in a real browser); layout rule passes on all 11 viewports in the longest language; initial-JS budget still met; reviewed languages listed in the doc.
+**Exit criteria:** a test fails if any catalogue misses a key the English one has; no user-visible English left in a non-English locale (checked in a real browser); layout rule passes on all 11 viewports in the longest language; initial-JS budget still met; glossary, tone notes and back-translation table in the doc for each language.
 
 ### Phase 5: API + D1
 
