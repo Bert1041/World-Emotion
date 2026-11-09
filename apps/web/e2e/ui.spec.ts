@@ -3,6 +3,7 @@
  * portrait and one landscape screen; layout.spec.ts covers every viewport.
  */
 import { expect, type Page, test } from "@playwright/test";
+import { frames } from "./wait";
 
 test.beforeEach(async ({ page }, info) => {
   test.skip(!["phone-390", "laptop-1440"].includes(info.project.name), "behaviour, not layout");
@@ -16,7 +17,7 @@ async function tapEurope(page: Page) {
   await page.evaluate(() =>
     (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench.face(10, 45),
   );
-  await page.waitForTimeout(200);
+  await frames(page); // face() applies on the next frame
   const p = await page.evaluate(() =>
     (
       window as unknown as { __bench: { screenPoint(a: number, b: number): [number, number] } }

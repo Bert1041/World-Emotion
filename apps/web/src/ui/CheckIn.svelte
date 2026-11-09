@@ -2,6 +2,9 @@
 import { MOODS, type MoodId } from "@world-emotion/shared";
 import { tick } from "svelte";
 import { MOOD_COLORS } from "../engine/palette";
+import { i18n } from "../i18n/i18n.svelte";
+import { makeCountryName } from "../i18n/locale";
+import { around } from "../i18n/messages";
 import Face from "./Face.svelte";
 import { type UiActions, view } from "./view.svelte";
 
@@ -20,20 +23,33 @@ const mode = $derived(
   view.checkin.picking ? "pick" : view.checkin.mine === null || changingMood ? "faces" : "chip",
 );
 const countryName = $derived(
-  view.checkin.countries.find((c) => c.code === view.checkin.country)?.name ?? null,
+  view.checkin.country === null ? null : i18n.country(view.checkin.country),
 );
 
 /** Accent- and case-insensitive: "cote" finds Côte d'Ivoire. */
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const englishName = makeCountryName("en");
+/** Names in the active language, sorted in it; English kept for search (people type either). */
+const named = $derived(
+  view.checkin.countries
+    .map((code) => ({
+      code,
+      name: i18n.country(code),
+      key: fold(i18n.country(code)),
+      en: fold(englishName(code)),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, i18n.t.meta.tag)),
+);
 const matches = $derived.by(() => {
   const q = fold(query.trim());
   if (q === "") return [];
-  const starts = view.checkin.countries.filter((c) => fold(c.name).startsWith(q));
-  const within = view.checkin.countries.filter(
-    (c) => !fold(c.name).startsWith(q) && fold(c.name).includes(q),
+  const starts = named.filter((c) => c.key.startsWith(q) || c.en.startsWith(q));
+  const within = named.filter(
+    (c) => !(c.key.startsWith(q) || c.en.startsWith(q)) && (c.key.includes(q) || c.en.includes(q)),
   );
   return [...starts, ...within].slice(0, 3);
 });
+const youFeel = $derived(around(i18n.t.checkin.youFeel, "mood"));
 
 function pick(m: MoodId, el: HTMLElement): void {
   const r = el.getBoundingClientRect();
@@ -57,10 +73,10 @@ function choose(code: string): void {
 }
 </script>
 
-<section id="checkin" hidden={!view.checkin.visible} aria-label="Check in" data-country={view.checkin.country ?? ""} data-mode={mode}>
+<section id="checkin" hidden={!view.checkin.visible} aria-label={i18n.t.checkin.label} data-country={view.checkin.country ?? ""} data-mode={mode}>
   <div class="stack">
     <div class="layer faces-layer" class:off={mode !== "faces"} inert={mode !== "faces"}>
-      <div class="prompt" id="checkin-prompt">How do you feel right now?</div>
+      <div class="prompt" id="checkin-prompt">{i18n.t.checkin.ask}</div>
       <div class="faces" role="group" aria-labelledby="checkin-prompt">
         {#each MOODS as name, m (name)}
           <button
@@ -71,7 +87,7 @@ function choose(code: string): void {
             onclick={(e) => pick(m as MoodId, e.currentTarget)}
           >
             <Face mood={m} size={36} />
-            <span>{name}</span>
+            <span>{i18n.t.moods.label[m]}</span>
           </button>
         {/each}
       </div>
@@ -79,25 +95,24 @@ function choose(code: string): void {
 
     <div class="layer chip" class:off={mode !== "chip"} inert={mode !== "chip"}>
       {#if view.checkin.mine !== null}
-        You feel
-        <strong style:color={MOOD_COLORS[view.checkin.mine]}>{MOODS[view.checkin.mine]}</strong>
+        {youFeel[0]}<strong style:color={MOOD_COLORS[view.checkin.mine]}>{i18n.t.moods.feels[view.checkin.mine]}</strong>{youFeel[1]}
         ·
-        <button type="button" class="link" onclick={() => (changingMood = true)}>change</button>
+        <button type="button" class="link" onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
       {/if}
     </div>
 
     <div class="layer pick" class:off={mode !== "pick"} inert={mode !== "pick"}>
       <div class="prompt">
-        <span class="tap-hint">Tap your country on the globe</span>
-        · <button type="button" class="link" onclick={() => actions.cancelPick()}>cancel</button>
+        <span class="tap-hint">{i18n.t.checkin.tapYourCountry}</span>
+        · <button type="button" class="link" onclick={() => actions.cancelPick()}>{i18n.t.checkin.cancel}</button>
       </div>
       <label class="search">
-        <span>Too small to tap?</span>
+        <span>{i18n.t.checkin.tooSmall}</span>
         <input
           bind:this={search}
           bind:value={query}
           type="search"
-          placeholder="Type it…"
+          placeholder={i18n.t.checkin.typeIt}
           autocomplete="off"
           aria-describedby="checkin-results"
         />
@@ -106,7 +121,7 @@ function choose(code: string): void {
         {#each matches as c (c.code)}
           <button type="button" class="result" data-code={c.code} onclick={() => choose(c.code)}>{c.name}</button>
         {:else}
-          {#if query.trim() !== ""}<span class="none">No match</span>{/if}
+          {#if query.trim() !== ""}<span class="none">{i18n.t.checkin.noMatch}</span>{/if}
         {/each}
       </div>
     </div>
@@ -118,12 +133,12 @@ function choose(code: string): void {
         <path d="M6 15.5C6 15.5 1 9.6 1 6a5 5 0 0 1 10 0c0 3.6-5 9.5-5 9.5z" />
         <circle cx="6" cy="6" r="2" />
       </svg>
-      <span class="where">{countryName ?? "Where are you?"}</span>
+      <span class="where">{countryName ?? i18n.t.checkin.whereAreYou}</span>
     </span>
     {#if mode !== "pick"}
       <span class="dot" aria-hidden="true">·</span>
       <button type="button" class="link" id="checkin-move" onclick={(e) => startPick(e.detail === 0)}>
-        {countryName === null ? "show me" : "move"}
+        {countryName === null ? i18n.t.checkin.showMe : i18n.t.checkin.move}
       </button>
     {/if}
   </div>

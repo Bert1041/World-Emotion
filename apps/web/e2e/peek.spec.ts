@@ -5,7 +5,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { type Rect, rectsOverlap } from "../src/engine/layout";
-import { UNTIL_DONE } from "./wait";
+import { frames, UNTIL_DONE } from "./wait";
 
 type L = { focus: string | null; gliding: boolean; focusBox: Rect | null };
 const layout = (page: Page) =>
@@ -28,7 +28,7 @@ async function open(page: Page, lon: number, lat: number, continent: string) {
       (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench.face(a, b),
     [lon, lat] as [number, number],
   );
-  await page.waitForTimeout(200);
+  await frames(page); // face() applies on the next frame
   const p = await page.evaluate(
     ([a, b]) =>
       (

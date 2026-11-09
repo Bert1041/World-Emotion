@@ -6,3 +6,19 @@
  * fail on frame speed (CI 2026-11-09). Responsiveness checks keep their own short limits.
  */
 export const UNTIL_DONE = { timeout: 20_000 } as const;
+
+/**
+ * Wait until the page has painted `n` frames. After `__bench.face()` the new rotation is applied on
+ * the next frame; reading a screen point before that taps where the place used to be. A fixed
+ * 200 ms wait did this under load (taps landed 10° off; 2026-11-09).
+ */
+export const frames = (page: import("@playwright/test").Page, n = 2) =>
+  page.evaluate(
+    (k) =>
+      new Promise<void>((done) => {
+        const step = (left: number) =>
+          left === 0 ? done() : requestAnimationFrame(() => step(left - 1));
+        step(k);
+      }),
+    n,
+  );

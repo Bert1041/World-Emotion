@@ -3,7 +3,7 @@
  * mood, the face flies to your country, a ripple spreads, the world count ticks up by one.
  */
 import { expect, type Page, test } from "@playwright/test";
-import { UNTIL_DONE } from "./wait";
+import { frames, UNTIL_DONE } from "./wait";
 
 type L = {
   center: [number, number];
@@ -205,7 +205,7 @@ test("zoomed into a continent the check-in bar steps aside", async ({ page }, in
   await page.evaluate(() =>
     (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench.face(10, 50),
   );
-  await page.waitForTimeout(200); // let a frame apply the new rotation before reading a point
+  await frames(page); // the new rotation is applied on the next frame
   const p = await page.evaluate(() =>
     (
       window as unknown as { __bench: { screenPoint(a: number, b: number): [number, number] } }
@@ -227,7 +227,7 @@ test.describe("pick your country on the globe", () => {
         (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench.face(a, b),
       [lon, lat] as [number, number],
     );
-    await page.waitForTimeout(200);
+    await frames(page); // face() applies on the next frame
     return page.evaluate(
       ([a, b]) =>
         (
@@ -278,6 +278,8 @@ test.describe("pick your country on the globe", () => {
     only(info.project.name, ["phone-390"]);
     await load(page);
     await page.locator("#checkin-move").click();
+    // "move" spins the globe to your pin: let that glide finish before aiming elsewhere.
+    await expect.poll(async () => (await layout(page)).gliding, UNTIL_DONE).toBe(false);
     const p = await aim(page, 141.3, 43.1); // Sapporo: far from Japan's pin point (Honshu)
     await page.mouse.click(p[0], p[1]);
     const pin = (await layout(page)).pin as [number, number];

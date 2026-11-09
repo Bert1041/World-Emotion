@@ -1,4 +1,5 @@
 <script lang="ts">
+import { i18n } from "../i18n/i18n.svelte";
 import type { Bar } from "./view.svelte";
 
 let { bar }: { bar: Bar } = $props();
@@ -16,7 +17,7 @@ $effect(() => {
 </script>
 
 <li class:lead={bar.lead}>
-  <span class="label">{bar.name}</span>
+  <span class="label">{i18n.t.moods.label[bar.mood]}</span>
   <span class="track">
     <!-- Compositor-only (README §8.1 layer 4): scaleX, never width. -->
     <span
@@ -26,5 +27,5 @@ $effect(() => {
       style:transform="scaleX({grown ? bar.share.toFixed(3) : 0})"
     ></span>
   </span>
-  <span class="pct">{bar.pct}%</span>
+  <span class="pct">{i18n.fmt.pct(bar.pct)}</span>
 </li>
