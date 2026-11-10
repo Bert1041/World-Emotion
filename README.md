@@ -129,11 +129,12 @@ Raw per-minute data twitches, and a twitchy globe feels fake.
 ### 5.6 Abuse resistance
 - Device key: random ID created on first visit, kept locally. Not an identity, just a "one active vote" handle. The server stores only a **salted hash**.
 - Rate limit by a hash of the IP using a **daily-rotating salt** (throttle without storing IPs).
-- Changing country manually is allowed but rate-limited (country-hopping is the obvious troll move; shrinkage limits the damage).
+- Changing country manually is allowed. A separate country-change limit was dropped (2026-11-10): under the rule below, a pick that does not match the connection counts for the world only, so country-hopping gains nothing. One flood limit remains.
 - **A vote counts for a country only where it is cast from** (decided 2026-11-09). The API compares the chosen country with `request.cf.country`, at request time, without storing the IP: if they match, the vote counts for the country, its continent and the world; if not (someone in Canada picking the United States, a traveller), or if the connection country is unknown, it counts for the **world only**. This stops people outside a country from setting its mood; GPS was rejected (a permission prompt for a mood app). The app says so when the two differ, rather than silently discounting.
 - Country detection is "good enough", not truth: VPNs will fool it. Accepted for a parody app.
 - `request.cf.country` can return non-countries (`XX` unknown, `T1` Tor). These are treated as unknown: the user is asked to pick a country, otherwise the vote counts toward the world only.
-- A manually chosen country is validated against the generated ISO list from `packages/geo-data`. Where rate-limit counters live (Workers Rate Limiting binding vs. a D1 table, which costs writes) is decided in the API phase; verify free-plan availability first.
+- A manually chosen country is validated against the generated ISO list from `packages/geo-data`. Rate-limit counters use the **Workers Rate Limiting binding** (no D1 writes; approximate, per location), keyed by daily-salted IP hash and by device hash. Free-plan availability is unverified until there is an account; the fallback is a D1 counter table (docs/design/phase-5-api.md §4).
+- A picked country that does not count (mismatch or unknown connection) is **not stored**: the row keeps `country = NULL`. The check-in reply tells the app the connection country, so it can say the vote counted for the world only.
 - Turnstile challenge only when a suspicious spike is detected.
 
 ---
@@ -144,7 +145,7 @@ Raw per-minute data twitches, and a twitchy globe feels fake.
 -- migrations/0001_init.sql
 CREATE TABLE votes (
   voter_hash  TEXT PRIMARY KEY,      -- salted hash of device key; one row per device
-  country     TEXT NOT NULL,         -- ISO 3166-1 alpha-2, from the request
+  country     TEXT,                  -- ISO 3166-1 alpha-2; NULL = counts for the world only (§5.6)
   mood        INTEGER NOT NULL,      -- enum 0..N
   created_at  INTEGER NOT NULL,      -- unix seconds, server time
   last_checkin_id TEXT NOT NULL      -- idempotency key of the last accepted check-in
