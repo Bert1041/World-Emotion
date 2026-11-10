@@ -20,8 +20,21 @@ export const checkinRequestSchema = z.strictObject({
   country: countryCodeSchema.optional(),
   /** Idempotency key. A replay with the same id is a no-op on the server (README G7). */
   checkinId: z.uuid(),
+  /**
+   * Random per-device id, made on first visit and kept locally (README §5.6): "one active vote"
+   * per device. The server stores only an HMAC of it, never the key itself.
+   */
+  deviceKey: z.uuid(),
 });
 export type CheckinRequest = z.infer<typeof checkinRequestSchema>;
+
+/** API → client. `conn` is the connection's country, so the app can say where the vote counted. */
+export const checkinResponseSchema = z.strictObject({
+  counted: z.enum(["country", "world"]),
+  conn: countryCodeSchema.nullable(),
+  replay: z.boolean(),
+});
+export type CheckinResponse = z.infer<typeof checkinResponseSchema>;
 
 // ---------------------------------------------------------------------------------------------
 // Public snapshot v1 (aggregator → R2 → every client).

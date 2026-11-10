@@ -7,7 +7,7 @@ locally (wrangler dev, local D1). No Cloudflare account or deploy is needed unti
 
 | Piece | Where | Notes |
 |---|---|---|
-| Migration + rollback | `migrations/0001_init.sql`, `migrations/0001_init.down.sql` | D1 has no "down" migrations, so the rollback is a plain SQL file run with `wrangler d1 execute --local` by a script that counts rows before and after |
+| Migration + rollback | `migrations/0001_init.sql`, `migrations/rollback/0001_init.sql` | D1 has no "down" migrations, so the rollback is a plain SQL file, run with `wrangler d1 execute --local` by `apps/api/scripts/migrations.ts`, which counts rows before and after. It lives in a subfolder because wrangler would apply any top-level `.sql` file as a forward migration |
 | Worker | `apps/api` (Hono, wrangler 4.x) | One write endpoint, `POST /checkin`, plus `OPTIONS` for CORS. No read endpoints: reads stay on the CDN file (README §3) |
 | Purge query | `apps/api/src/purge.ts` | Called by the Phase 6 cron. Built and measured here, so README §7's budget uses real numbers |
 | Simulator | `tools/simulate` | Spikes, waves, trolls, replays, sent over HTTP to `wrangler dev` |
@@ -61,7 +61,7 @@ CREATE TABLE votes (
   created_at      INTEGER NOT NULL,
   last_checkin_id TEXT NOT NULL
 ) WITHOUT ROWID;
-CREATE INDEX idx_votes_window ON votes (created_at, country, mood);
+CREATE INDEX idx_votes_window ON votes (country, mood, created_at);  -- order: see as-built below
 ```
 
 **One statement per check-in**, idempotent (G7):
@@ -142,3 +142,35 @@ needed, and a single limit covers floods (decision A1).
 - **A3:** don't store a picked country that didn't count (store `NULL`). *Recommend: yes.*
 - **A4:** rate-limit store: binding, with a D1 table as fallback if the free plan lacks it.
   *Recommend: binding.*
+
+## 8. As built (2026-11-10)
+
+**Measured `rows_written` and `rows_read`** (local D1, wrangler 4.153; pinned in `apps/api/test/measure.test.ts`):
+
+| Operation | `WITHOUT ROWID` (shipped) | Plain rowid table |
+|---|---|---|
+| First check-in | **2** | 3 |
+| Changed mood, or a new check-in with the same values | 2 | 2 |
+| Replay (same `checkinId`) | **0** | 0 |
+| Purge, per expired vote | 1 written; reads every stored vote | n/a |
+| Aggregation `GROUP BY country, mood` | reads 1 per stored vote | n/a |
+
+**Index order changed: `(country, mood, created_at)`, not README's `(created_at, country, mood)`.**
+With the time column first, SQLite range-scans the index but then sorts for the `GROUP BY` in a temp
+B-tree, and D1 bills that sort: 2 rows read per vote (measured 80 for 40, 800 for 400). With the
+grouping columns first, the index is already in group order: 1 row read per *stored* vote (window
+plus not-yet-purged). The write cost is the same either way. The catch is that the purge can no
+longer range-scan on time and reads the whole index, so **Phase 6 should purge hourly, not on every
+5-minute run**. README §7 has the budget arithmetic: about 337 × V rows read per day, so the read
+cap is reached at about 15k votes in the window (8.7k with the old order).
+
+**Caveat:** these counts come from local D1 (Miniflare's SQLite). The production counts are re-measured
+in Phase 6, once there is a Cloudflare account. The docs suggest an index adds a write on
+`DELETE`; locally it doesn't (1 per purged vote).
+
+**Rate limits in tests and the simulator:** the local binding counted exactly (3/device, 10/IP per
+minute). Production counts approximately, per location; this has not been verified.
+
+**Test environment:** the Workers test pool reads the developer's `.dev.vars`, which sets
+`SIMULATE=1`. The first run caught this. `vitest.config.ts` now sets every binding explicitly, and a
+test asserts it.

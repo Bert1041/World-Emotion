@@ -135,6 +135,7 @@ Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed 
 ### Phase 6: Aggregator + snapshot + client polling
 
 **Scope:** cron Worker, Stage 1 aggregation, R2 write, state file (G4), purge, client polling with jitter + tweening, version rejection.
+**From Phase 5 (measured):** purge hourly, not every run (the measured index order makes the purge scan everything); the app starts sending `deviceKey` and shows the `counted`/`conn` answer ("counts for the world only"); re-measure `rows_written`/`rows_read` on the real D1; confirm the Rate Limiting binding exists on the free plan (fallback: D1 counter table).
 **Exit criteria:** end-to-end locally: simulator → D1 → aggregator → R2 → app shows tween. Rows read per run measured against the G2 budget. Client keeps the last good snapshot on a bad version/500 (verified in a browser).
 **Needs from you:** domain decision.
 

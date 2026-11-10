@@ -1,0 +1,10 @@
+{
+  "name": "@world-emotion/simulate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "simulate": "node run.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

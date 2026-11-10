@@ -9,27 +9,37 @@ import {
 } from "./schemas";
 
 const UUID = "3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b";
+const DEV = "8d1e4c2a-7b3f-4a9e-9c5d-2e4f6a8b0c1d";
 
 describe("checkinRequestSchema", () => {
   it("accepts a minimal valid check-in", () => {
-    expect(checkinRequestSchema.safeParse({ mood: 0, checkinId: UUID }).success).toBe(true);
+    expect(
+      checkinRequestSchema.safeParse({ mood: 0, checkinId: UUID, deviceKey: DEV }).success,
+    ).toBe(true);
   });
 
   it("accepts a manual country override", () => {
-    const r = checkinRequestSchema.safeParse({ mood: 5, country: "CA", checkinId: UUID });
+    const r = checkinRequestSchema.safeParse({
+      mood: 5,
+      country: "CA",
+      checkinId: UUID,
+      deviceKey: DEV,
+    });
     expect(r.success).toBe(true);
   });
 
   it.each([
-    ["mood out of range", { mood: 6, checkinId: UUID }],
-    ["negative mood", { mood: -1, checkinId: UUID }],
-    ["fractional mood", { mood: 1.5, checkinId: UUID }],
-    ["mood as string", { mood: "1", checkinId: UUID }],
-    ["missing checkinId", { mood: 1 }],
-    ["non-uuid checkinId", { mood: 1, checkinId: "abc" }],
-    ["lower-case country", { mood: 1, country: "ca", checkinId: UUID }],
-    ["3-letter country", { mood: 1, country: "CAN", checkinId: UUID }],
-    ["unknown key (no free text, ever)", { mood: 1, checkinId: UUID, note: "hi" }],
+    ["mood out of range", { mood: 6, checkinId: UUID, deviceKey: DEV }],
+    ["negative mood", { mood: -1, checkinId: UUID, deviceKey: DEV }],
+    ["fractional mood", { mood: 1.5, checkinId: UUID, deviceKey: DEV }],
+    ["mood as string", { mood: "1", checkinId: UUID, deviceKey: DEV }],
+    ["missing checkinId", { mood: 1, deviceKey: DEV }],
+    ["missing deviceKey", { mood: 1, checkinId: UUID }],
+    ["non-uuid deviceKey", { mood: 1, checkinId: UUID, deviceKey: "x" }],
+    ["non-uuid checkinId", { mood: 1, checkinId: "abc", deviceKey: DEV }],
+    ["lower-case country", { mood: 1, country: "ca", checkinId: UUID, deviceKey: DEV }],
+    ["3-letter country", { mood: 1, country: "CAN", checkinId: UUID, deviceKey: DEV }],
+    ["unknown key (no free text, ever)", { mood: 1, checkinId: UUID, deviceKey: DEV, note: "hi" }],
   ])("rejects %s", (_, input) => {
     expect(checkinRequestSchema.safeParse(input).success).toBe(false);
   });

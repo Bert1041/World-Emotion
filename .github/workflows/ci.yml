@@ -14,7 +14,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       # Actions pinned to commit SHAs (tags are mutable). Bump deliberately; keep the
       # same 14-day minimum age used for npm packages (docs/decisions/0002).
@@ -30,6 +30,10 @@ jobs:
       - run: pnpm --filter @world-emotion/geo-data check:data
       # Initial JS < 150 KB gzipped (README §8.7); lazy map data excluded.
       - run: pnpm --filter @world-emotion/web budget
+      # D1 migration forward + rollback with row counts, on a throwaway local database.
+      - run: pnpm --filter @world-emotion/api check:migrations
+      # Spikes, replays, waves, trolls, purge against a real `wrangler dev` + local D1.
+      - run: pnpm --filter @world-emotion/simulate simulate
 
   e2e:
     # Browser layout tests (apps/web/e2e): "no text on the Earth" at 11 viewports, in the Google
