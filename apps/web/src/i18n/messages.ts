@@ -39,6 +39,11 @@ export interface Messages {
   /** The globe canvas, for screen readers. */
   readonly globeLabel: string;
 
+  /** Start-up (bridge E4): the headline while the map loads, and if it does not. */
+  readonly loading: string;
+  readonly failed: string;
+  readonly retry: string;
+
   readonly rightNow: string;
   /** "{mood}" is the animated, coloured mood noun. */
   readonly worldFeels: string;

@@ -43,6 +43,11 @@ export interface Flight {
 }
 
 export const view = $state({
+  /**
+   * Start-up: the map is loading, loaded, or failed to load (bridge E4). The header says which;
+   * nothing else on screen pretends to have data before "ready".
+   */
+  status: "loading" as "loading" | "ready" | "failed",
   /** Headline mood, or null while the world is quiet (below the privacy floor, ADR 0003). */
   worldMood: null as MoodId | null,
   /** The world has too few check-ins for a headline: "The world is quiet", count "so far". */

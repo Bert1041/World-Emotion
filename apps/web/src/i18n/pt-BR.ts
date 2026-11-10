@@ -17,6 +17,10 @@ export const ptBR: Messages = {
   globeLabel:
     "Globo mostrando como o mundo se sente. Toque em um país para explorar o continente dele.",
 
+  loading: "Carregando o globo…",
+  failed: "O mapa não carregou.",
+  retry: "Tentar de novo",
+
   rightNow: "Agora mesmo",
   worldFeels: "O mundo sente {mood}",
   feelingNow: (n) =>

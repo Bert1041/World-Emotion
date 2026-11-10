@@ -5,6 +5,10 @@ export const en: Messages = {
   pageTitle: "World Emotion",
   globeLabel: "Globe showing how the world feels. Tap a country to explore its continent.",
 
+  loading: "Loading the globe…",
+  failed: "The map didn’t load.",
+  retry: "Try again",
+
   rightNow: "Right now",
   worldFeels: "The world feels {mood}",
   // "1 feeling something right now" reads fine in English; other languages differ.

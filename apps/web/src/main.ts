@@ -481,6 +481,7 @@ async function start(): Promise<void> {
   mixer.setTarget(headline.theme, true);
   onSnapshot(snapshot);
   applyTheme();
+  view.status = "ready"; // the header stops saying "loading" only once the first data is in
   window.addEventListener("resize", resize);
   // Any change in the size of text/UI (content, fonts, rotation) re-measures the free area.
   // Fires only on actual size changes, never per frame.
@@ -504,9 +505,22 @@ async function start(): Promise<void> {
   }
 }
 
+/**
+ * Start, and say so if it fails (bridge E4): a map chunk that never arrives (slow data, a bad
+ * deploy, a blocker) used to leave a black screen and six disabled faces with no message.
+ */
+async function boot(): Promise<void> {
+  try {
+    await start();
+  } catch (e) {
+    console.error("World Emotion could not start", e);
+    view.status = "failed";
+  }
+}
+
 // ---- Test hooks (always on: e2e and tools/bench read them; src/bench/hooks.ts) -----------------
 installTestHooks({
-  ready: start(),
+  ready: boot(),
   projection,
   camera,
   ripples: moment.ripples,

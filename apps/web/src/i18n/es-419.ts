@@ -16,6 +16,10 @@ export const es419: Messages = {
   globeLabel:
     "Globo que muestra cómo se siente el mundo. Toca un país para explorar su continente.",
 
+  loading: "Cargando el globo…",
+  failed: "El mapa no se cargó.",
+  retry: "Reintentar",
+
   rightNow: "Ahora mismo",
   worldFeels: "El mundo siente {mood}",
   // CLDR Spanish: "one" for 1 only; large round numbers can be "many", so test for "one".

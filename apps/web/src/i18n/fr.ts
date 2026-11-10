@@ -15,6 +15,10 @@ export const fr: Messages = {
   pageTitle: "World Emotion",
   globeLabel: "Globe montrant ce que ressent le monde. Touche un pays pour explorer son continent.",
 
+  loading: "Chargement du globe…",
+  failed: "La carte n’a pas pu se charger.",
+  retry: "Réessayer",
+
   rightNow: "En ce moment",
   worldFeels: "Le monde ressent {mood}",
   // CLDR French: 0 and 1 are "one" ("0 personne ressent"), which is correct French. No "en ce

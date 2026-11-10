@@ -38,6 +38,14 @@
       body.zoomed header { transform: translateY(-140%); opacity: 0; }
       .kicker { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       h1 { margin: 0.25rem 0 0.15rem; font-size: clamp(1.45rem, 6vw, 2.2rem); font-weight: 650; }
+      /* Start-up (bridge E4): a dim disc where the globe will be; a retry control if the map failed. */
+      #loading-disc { position: fixed; left: 50%; top: 50%; width: min(70vw, 50vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
+        background: radial-gradient(circle at 50% 45%, rgba(127, 214, 224, 0.16), rgba(10, 30, 50, 0.6) 70%, transparent 71%);
+        animation: breathe 2.4s ease-in-out infinite; pointer-events: none; }
+      @keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+      #failed { position: fixed; left: 0; right: 0; top: 50%; display: flex; justify-content: center; }
+      #retry { padding: 0.6rem 1.1rem; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.3); background: var(--glass); color: var(--text); font: inherit; cursor: pointer; }
+      #retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       #world-mood { color: var(--accent); display: inline-block; transition: color var(--slow); }
       #world-mood.swap { animation: swap var(--slow) cubic-bezier(.2, .8, .2, 1); }
       @keyframes swap { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
@@ -156,7 +164,7 @@
       [hidden] { display: none; }
 
       @media (prefers-reduced-motion: reduce) {
-        #world-mood.swap, #panel { animation: none; }
+        #world-mood.swap, #panel, #loading-disc { animation: none; }
         .fill { transition: none; }
         /* Cross-fades only: the headline fades away when zoomed, it does not slide. */
         header { transition: opacity var(--base); }
