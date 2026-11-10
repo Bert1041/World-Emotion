@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entryScripts, initialChunks, staticImports } from "./budget";
+import { entryScripts, initialChunks, lazyLeaks, staticImports } from "./budget";
 
 describe("initial-JS budget walk", () => {
   const html = `<link rel="icon" href="x.svg" />
@@ -37,5 +37,18 @@ describe("initial-JS budget walk", () => {
       "assets/shared-C.js",
       "assets/vendor-B.js",
     ]);
+  });
+});
+
+describe("lazy-only chunks", () => {
+  it("flags a harness or map chunk that reached the initial download, by basename", () => {
+    expect(lazyLeaks(["assets/index-A.js", "assets/harness-B.js"])).toEqual([
+      "assets/harness-B.js",
+    ]);
+    expect(lazyLeaks(["assets/world-50m.topo-C.js", "assets/x.js"])).toEqual([
+      "assets/world-50m.topo-C.js",
+    ]);
+    expect(lazyLeaks(["assets/index-A.js", "assets/harnessed-D.js"]), "prefix only").toEqual([]);
+    expect(lazyLeaks([])).toEqual([]);
   });
 });

@@ -16,6 +16,10 @@ export const es419: Messages = {
   globeLabel:
     "Globo que muestra cómo se siente el mundo. Toca un país para explorar su continente.",
 
+  loading: "Cargando el globo…",
+  failed: "El mapa no se cargó.",
+  retry: "Reintentar",
+
   rightNow: "Ahora mismo",
   worldFeels: "El mundo siente {mood}",
   // CLDR Spanish: "one" for 1 only; large round numbers can be "many", so test for "one".
@@ -23,6 +27,9 @@ export const es419: Messages = {
     f.plural(n) === "one"
       ? "{count} persona siente algo ahora mismo"
       : "{count} personas sienten algo ahora mismo",
+  worldQuiet: "El mundo está en silencio",
+  quietCount: (n, f) =>
+    f.plural(n) === "one" ? "{count} respuesta hasta ahora" : "{count} respuestas hasta ahora",
   back: "← Mundo",
 
   moods: {
@@ -33,9 +40,9 @@ export const es419: Messages = {
     "Tierra frondosa",
     "Mundo sumergido",
     "Tierra iluminada",
-    "Tierra simulada",
+    "Tierra con estática",
     "Tierra glacial",
-    "Tierra en ruinas",
+    "Tierra de brasas",
   ],
   continents: {
     AF: "África",
@@ -70,7 +77,10 @@ export const es419: Messages = {
     typeIt: "Escríbelo…",
     noMatch: "Sin resultados",
     cancel: "cancelar",
+    smallCountry: "Los países pequeños muestran su continente hasta que {n} personas respondan.",
   },
+
+  hints: { tapCountry: "Toca un país" },
 
   language: { menu: "Idioma", suggest: "Sugerir una mejor traducción" },
 };

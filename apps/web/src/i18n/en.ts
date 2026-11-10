@@ -5,10 +5,17 @@ export const en: Messages = {
   pageTitle: "World Emotion",
   globeLabel: "Globe showing how the world feels. Tap a country to explore its continent.",
 
+  loading: "Loading the globe…",
+  failed: "The map didn’t load.",
+  retry: "Try again",
+
   rightNow: "Right now",
   worldFeels: "The world feels {mood}",
   // "1 feeling something right now" reads fine in English; other languages differ.
   feelingNow: () => "{count} feeling something right now",
+  worldQuiet: "The world is quiet",
+  quietCount: (n, f) =>
+    f.plural(n) === "one" ? "{count} check-in so far" : "{count} check-ins so far",
   back: "← World",
 
   moods: {
@@ -19,9 +26,9 @@ export const en: Messages = {
     "Overgrown Earth",
     "Waterworld",
     "City-lights Earth",
-    "Simulation Earth",
+    "Static Earth",
     "Ice-age Earth",
-    "Ruined Earth",
+    "Ember Earth",
   ],
   continents: {
     AF: "Africa",
@@ -57,7 +64,10 @@ export const en: Messages = {
     typeIt: "Type it…",
     noMatch: "No match",
     cancel: "cancel",
+    smallCountry: "Small countries show their continent until {n} people check in.",
   },
+
+  hints: { tapCountry: "Tap a country" },
 
   language: { menu: "Language", suggest: "Suggest a better translation" },
 };

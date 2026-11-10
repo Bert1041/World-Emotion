@@ -42,6 +42,20 @@ export function initialChunks(html: string, read: (path: string) => string): str
   return [...seen].sort();
 }
 
+/**
+ * Chunks that must never be in the initial download: loaded with `import()` only. Names are the
+ * source file's basename, which Vite keeps as the chunk's prefix (`harness-<hash>.js`).
+ */
+export const LAZY_ONLY: readonly string[] = ["harness", "world-110m.topo", "world-50m.topo"];
+
+/** The initial chunks that should have been lazy (empty when the split is intact). */
+export function lazyLeaks(initial: readonly string[], lazyOnly = LAZY_ONLY): string[] {
+  return initial.filter((c) => {
+    const base = c.slice(c.lastIndexOf("/") + 1);
+    return lazyOnly.some((name) => base === `${name}.js` || base.startsWith(`${name}-`));
+  });
+}
+
 const stripRoot = (p: string) => p.replace(/^\.?\//, "");
 
 function resolve(dir: string, spec: string): string {

@@ -39,11 +39,20 @@ export interface Messages {
   /** The globe canvas, for screen readers. */
   readonly globeLabel: string;
 
+  /** Start-up (bridge E4): the headline while the map loads, and if it does not. */
+  readonly loading: string;
+  readonly failed: string;
+  readonly retry: string;
+
   readonly rightNow: string;
   /** "{mood}" is the animated, coloured mood noun. */
   readonly worldFeels: string;
   /** "{count}" is the ticking number; pick the template by plural category of `n`. */
   readonly feelingNow: (n: number, f: Fmt) => string;
+  /** The headline while the world has fewer check-ins than the privacy floor (ADR 0003). */
+  readonly worldQuiet: string;
+  /** The count line under it: "{count} check-ins so far". */
+  readonly quietCount: (n: number, f: Fmt) => string;
   readonly back: string;
 
   readonly moods: { readonly label: PerMood; readonly feels: PerMood };
@@ -77,6 +86,13 @@ export interface Messages {
     readonly typeIt: string;
     readonly noMatch: string;
     readonly cancel: string;
+    /** Your country is below the privacy floor; "{n}" is the floor. */
+    readonly smallCountry: string;
+  };
+
+  /** One-time hints (bridge U6). */
+  readonly hints: {
+    readonly tapCountry: string;
   };
 
   readonly language: {

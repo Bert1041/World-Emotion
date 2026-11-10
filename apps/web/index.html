@@ -38,10 +38,17 @@
       body.zoomed header { transform: translateY(-140%); opacity: 0; }
       .kicker { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       h1 { margin: 0.25rem 0 0.15rem; font-size: clamp(1.45rem, 6vw, 2.2rem); font-weight: 650; }
+      /* Start-up (bridge E4): a dim disc where the globe will be; a retry control if the map failed. */
+      #loading-disc { position: fixed; left: 50%; top: 50%; width: min(70vw, 50vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
+        background: radial-gradient(circle at 50% 45%, rgba(127, 214, 224, 0.16), rgba(10, 30, 50, 0.6) 70%, transparent 71%);
+        animation: breathe 2.4s ease-in-out infinite; pointer-events: none; }
+      @keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+      #failed { position: fixed; left: 0; right: 0; top: 50%; display: flex; justify-content: center; }
+      #retry { padding: 0.6rem 1.1rem; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.3); background: var(--glass); color: var(--text); font: inherit; cursor: pointer; }
+      #retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       #world-mood { color: var(--accent); display: inline-block; transition: color var(--slow); }
       #world-mood.swap { animation: swap var(--slow) cubic-bezier(.2, .8, .2, 1); }
       @keyframes swap { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
-      #theme-name { font-size: 0.87rem; color: var(--muted); }
 
       #back { position: fixed; top: max(var(--gap), env(safe-area-inset-top)); left: var(--gap); padding: 0.5rem 0.8rem; border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.25); background: var(--glass); color: var(--text); font: inherit; cursor: pointer; }
@@ -94,7 +101,7 @@
       #checkin .prompt { font-size: 0.87rem; color: var(--muted); margin-bottom: 0.35rem; }
       #checkin .faces { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.2rem; }
       #checkin .face { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.3rem 0 0.25rem; border: 0; border-radius: 0.6rem;
-        background: none; color: var(--text); font: 0.72rem/1.1 system-ui, sans-serif; cursor: pointer; transition: transform var(--fast), background var(--fast); }
+        background: none; color: var(--text); font: 0.78rem/1.1 system-ui, sans-serif; cursor: pointer; transition: transform var(--fast), background var(--fast); }
       #checkin .face:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); }
       #checkin .face:active:not(:disabled) { transform: scale(0.92); }
       #checkin .face:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -103,7 +110,13 @@
       #checkin .stack > * { grid-area: 1 / 1; transition: opacity var(--base); }
       #checkin .stack > .off { opacity: 0; visibility: hidden; }
       #checkin .chip { font-size: 1rem; align-self: center; }
-      #checkin .link { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+      /* Text links keep their look; the hit area is at least 24 px tall (WCAG 2.5.8, bridge U3). */
+      #checkin .link { border: 0; padding: 0.3rem 0.25rem; margin: -0.3rem -0.25rem; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+      /* Your country is below the privacy floor (bridge SC): say so before the check-in, not after. */
+      #checkin .small-country { margin-top: 0.45rem; font-size: 0.78rem; color: var(--muted); }
+      /* One-time hint under the back button (bridge U6). */
+      #hint { position: fixed; top: calc(max(var(--gap), env(safe-area-inset-top)) + 3rem); left: var(--gap); padding: 0.4rem 0.7rem; border-radius: 999px;
+        background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.85rem; pointer-events: none; animation: rise var(--base) cubic-bezier(.2, .8, .2, 1); }
       #checkin .from { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.65rem; font-size: 0.82rem; color: var(--muted); }
       /* Your location as a badge: a pill with room around the pin and name. */
       #checkin .from .place { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
@@ -157,7 +170,7 @@
       [hidden] { display: none; }
 
       @media (prefers-reduced-motion: reduce) {
-        #world-mood.swap, #panel { animation: none; }
+        #world-mood.swap, #panel, #loading-disc, #hint { animation: none; }
         .fill { transition: none; }
         /* Cross-fades only: the headline fades away when zoomed, it does not slide. */
         header { transition: opacity var(--base); }

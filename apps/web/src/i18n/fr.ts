@@ -15,6 +15,10 @@ export const fr: Messages = {
   pageTitle: "World Emotion",
   globeLabel: "Globe montrant ce que ressent le monde. Touche un pays pour explorer son continent.",
 
+  loading: "Chargement du globe…",
+  failed: "La carte n’a pas pu se charger.",
+  retry: "Réessayer",
+
   rightNow: "En ce moment",
   worldFeels: "Le monde ressent {mood}",
   // CLDR French: 0 and 1 are "one" ("0 personne ressent"), which is correct French. No "en ce
@@ -23,6 +27,12 @@ export const fr: Messages = {
     f.plural(n) === "one"
       ? "{count} personne ressent quelque chose"
       : "{count} personnes ressentent quelque chose",
+  // Not « calme » : c'est aussi l'humeur « calm ». Silencieux = personne n'a encore parlé.
+  worldQuiet: "Le monde est encore silencieux",
+  quietCount: (n, f) =>
+    f.plural(n) === "one"
+      ? "{count} humeur partagée pour l’instant"
+      : "{count} humeurs partagées pour l’instant",
   back: "← Monde",
 
   moods: {
@@ -40,9 +50,9 @@ export const fr: Messages = {
     "Terre verdoyante",
     "Monde englouti",
     "Terre illuminée",
-    "Terre simulée",
+    "Terre parasitée",
     "Terre glaciaire",
-    "Terre en ruines",
+    "Terre de braises",
   ],
   continents: {
     AF: "Afrique",
@@ -78,7 +88,11 @@ export const fr: Messages = {
     typeIt: "Tape son nom…",
     noMatch: "Aucun résultat",
     cancel: "annuler",
+    smallCountry:
+      "Les petits pays affichent leur continent tant que moins de {n} personnes ont partagé leur humeur.",
   },
+
+  hints: { tapCountry: "Touche un pays" },
 
   language: { menu: "Langue", suggest: "Proposer une meilleure traduction" },
 };

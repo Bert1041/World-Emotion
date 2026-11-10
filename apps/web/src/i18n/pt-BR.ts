@@ -17,10 +17,16 @@ export const ptBR: Messages = {
   globeLabel:
     "Globo mostrando como o mundo se sente. Toque em um país para explorar o continente dele.",
 
+  loading: "Carregando o globo…",
+  failed: "O mapa não carregou.",
+  retry: "Tentar de novo",
+
   rightNow: "Agora mesmo",
   worldFeels: "O mundo sente {mood}",
   feelingNow: (n) =>
     n === 1 ? "{count} pessoa sentindo algo agora" : "{count} pessoas sentindo algo agora",
+  worldQuiet: "O mundo está em silêncio",
+  quietCount: (n) => (n === 1 ? "{count} resposta até agora" : "{count} respostas até agora"),
   back: "← Mundo",
 
   moods: {
@@ -31,9 +37,9 @@ export const ptBR: Messages = {
     "Terra verdejante",
     "Mundo submerso",
     "Terra iluminada",
-    "Terra simulada",
+    "Terra de chuvisco",
     "Terra glacial",
-    "Terra em ruínas",
+    "Terra de brasas",
   ],
   continents: {
     AF: "África",
@@ -68,7 +74,10 @@ export const ptBR: Messages = {
     typeIt: "Digite o nome…",
     noMatch: "Nada encontrado",
     cancel: "cancelar",
+    smallCountry: "Países pequenos mostram seu continente até que {n} pessoas respondam.",
   },
+
+  hints: { tapCountry: "Toque em um país" },
 
   language: { menu: "Idioma", suggest: "Sugerir uma tradução melhor" },
 };

@@ -43,12 +43,22 @@ export interface Flight {
 }
 
 export const view = $state({
+  /**
+   * Start-up: the map is loading, loaded, or failed to load (bridge E4). The header says which;
+   * nothing else on screen pretends to have data before "ready".
+   */
+  status: "loading" as "loading" | "ready" | "failed",
+  /** Headline mood, or null while the world is quiet (below the privacy floor, ADR 0003). */
   worldMood: null as MoodId | null,
+  /** The world has too few check-ins for a headline: "The world is quiet", count "so far". */
+  worldQuiet: false,
   /** Bumped to replay the headline word's entrance (a change of mood, or coming back out). */
   worldSwap: 0,
   themeId: null as MoodId | null,
   zoomed: false,
   panel: null as PanelView | null,
+  /** A one-time hint on screen (bridge U6), or null. */
+  hint: null as "tapCountry" | null,
   devVisible: false,
   autoCycle: true,
   /** Active check-ins in the world snapshot; ticks up when yours lands. */
@@ -59,6 +69,8 @@ export const view = $state({
     country: null as string | null,
     /** Every pickable country code; names come from the active language (i18n.country). */
     countries: [] as readonly string[],
+    /** Countries in the snapshot (at or above the privacy floor); others show their continent. */
+    published: [] as readonly string[],
     /** Your active mood this session, or null before you check in. */
     mine: null as MoodId | null,
     /** Pick mode: the globe is the country picker ("tap where you are"). */

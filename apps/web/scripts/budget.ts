@@ -5,12 +5,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { INITIAL_JS_BUDGET, initialChunks } from "../src/build/budget.ts";
+import { INITIAL_JS_BUDGET, initialChunks, lazyLeaks } from "../src/build/budget.ts";
 
 const dist = process.argv[2] ?? "dist";
 const read = (p: string) => readFileSync(join(dist, p), "utf8");
 const chunks = initialChunks(read("index.html"), read);
 if (chunks.length === 0) throw new Error(`no entry script found in ${dist}/index.html`);
+const leaks = lazyLeaks(chunks);
+if (leaks.length > 0) {
+  console.error(`lazy-only chunks in the initial download: ${leaks.join(", ")}`);
+  process.exit(1);
+}
 
 let total = 0;
 for (const c of chunks) {
