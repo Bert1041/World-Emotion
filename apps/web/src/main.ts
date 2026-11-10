@@ -1,6 +1,12 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
 import { hexToOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
-import { type Continent, MOODS, type MoodId, type Snapshot } from "@world-emotion/shared";
+import {
+  type Continent,
+  DEFAULT_CONFIG,
+  MOODS,
+  type MoodId,
+  type Snapshot,
+} from "@world-emotion/shared";
 import { geoCentroid, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
@@ -18,7 +24,13 @@ import { attachInput } from "./engine/input";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
-import { countryFills, hitCountry, panelModel, weatherSpawns } from "./engine/regions";
+import {
+  countryFills,
+  hitCountry,
+  panelModel,
+  weatherSpawns,
+  worldHeadline,
+} from "./engine/regions";
 import { ThemeMixer } from "./engine/themes";
 import { i18n } from "./i18n/i18n.svelte";
 import App from "./ui/App.svelte";
@@ -41,7 +53,10 @@ const source: SnapshotSource = new DemoSource({
   autoCycle: config.autoCycle,
   paused: config.bench,
   now: performance.now(),
+  ...(config.votes === undefined ? {} : { votes: config.votes }),
 });
+/** Below this many check-ins the world is quiet: no headline mood (ADR 0003, README §5.4). */
+const QUIET_WORLD_BELOW = DEFAULT_CONFIG.publishMinN;
 
 // ---- DOM --------------------------------------------------------------------------------------
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -136,7 +151,8 @@ function applyCamera(): void {
 
 // ---- Data → colours and weather ---------------------------------------------------------------
 let snapshot: Snapshot = source.snapshot;
-const mixer = new ThemeMixer(snapshot.world.h, 2.5);
+let headline = worldHeadline(snapshot, QUIET_WORLD_BELOW);
+const mixer = new ThemeMixer(headline.theme, 2.5);
 const moodLab = MOOD_COLORS.map(hexToOklab);
 let fills = new Map<string, string>();
 let colorVersion = 0;
@@ -158,11 +174,13 @@ function recomputeWeather(): void {
 
 function onSnapshot(next: Snapshot): void {
   snapshot = next;
-  if (next.world.h !== mixer.target) {
-    mixer.setTarget(next.world.h);
+  headline = worldHeadline(next, QUIET_WORLD_BELOW);
+  if (headline.theme !== mixer.target) {
+    mixer.setTarget(headline.theme);
     view.worldSwap++; // replay the word's entrance
   }
-  view.worldMood = next.world.h;
+  view.worldQuiet = headline.quiet;
+  view.worldMood = headline.mood;
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
@@ -208,7 +226,8 @@ function leave(): void {
   renderPanel();
   fit.measure(focus, dpr);
   // Bring the world headline back with the CURRENT world mood, animated.
-  view.worldMood = snapshot.world.h;
+  view.worldQuiet = headline.quiet;
+  view.worldMood = headline.mood;
   view.worldSwap++;
 }
 
@@ -402,10 +421,12 @@ function frame(ts: number): void {
   fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
   const [cx, cy] = projection.translate();
   const r = projection.scale();
-  // Breathing atmosphere (idle life), on the FX layer so the base layer can stay static.
+  // Breathing atmosphere (idle life), on the FX layer so the base layer can stay static. A quiet
+  // world glows at half strength (decision B4): the signal that nobody is here yet.
   const breath = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(ts / 1400);
+  const glow = (headline.quiet ? 0.5 : 1) * (0.28 + 0.12 * breath);
   const halo = fxCtx.createRadialGradient(cx, cy, r * 0.97, cx, cy, r * 1.16);
-  halo.addColorStop(0, oklabToCss(mixer.current.lab.rim, 0.28 + 0.12 * breath));
+  halo.addColorStop(0, oklabToCss(mixer.current.lab.rim, glow));
   halo.addColorStop(1, oklabToCss(mixer.current.lab.rim, 0));
   fxCtx.fillStyle = halo;
   fxCtx.beginPath();
@@ -457,7 +478,7 @@ async function start(): Promise<void> {
   perf.hidden = !(config.debug || config.bench);
   resize();
   layoutReady = true;
-  mixer.setTarget(snapshot.world.h, true);
+  mixer.setTarget(headline.theme, true);
   onSnapshot(snapshot);
   applyTheme();
   window.addEventListener("resize", resize);

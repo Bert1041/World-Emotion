@@ -21,6 +21,8 @@ export interface Config {
   readonly dev: boolean;
   /** Demo data: the world's mood rotates on its own unless ?auto=0 (never in a bench run). */
   readonly autoCycle: boolean;
+  /** Demo data: ?votes=N gives a world of exactly N check-ins (tests: the quiet state). */
+  readonly votes: number | undefined;
 }
 
 export function readConfig(params: URLSearchParams): Config {
@@ -44,5 +46,9 @@ export function readConfig(params: URLSearchParams): Config {
     benchRipple: params.get("ripple") === "1",
     dev: params.get("dev") === "1",
     autoCycle: !bench && params.get("auto") !== "0",
+    votes:
+      params.has("votes") && Number.isInteger(num("votes", -1)) && num("votes", -1) >= 0
+        ? num("votes", 0)
+        : undefined,
   };
 }

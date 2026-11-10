@@ -44,6 +44,10 @@ export interface Messages {
   readonly worldFeels: string;
   /** "{count}" is the ticking number; pick the template by plural category of `n`. */
   readonly feelingNow: (n: number, f: Fmt) => string;
+  /** The headline while the world has fewer check-ins than the privacy floor (ADR 0003). */
+  readonly worldQuiet: string;
+  /** The count line under it: "{count} check-ins so far". */
+  readonly quietCount: (n: number, f: Fmt) => string;
   readonly back: string;
 
   readonly moods: { readonly label: PerMood; readonly feels: PerMood };

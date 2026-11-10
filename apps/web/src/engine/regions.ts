@@ -19,6 +19,26 @@ import type { SpawnPoint } from "./particles";
 type Lab = Parameters<typeof mixOklab>[0];
 export type CountryToContinent = ReadonlyMap<string, Continent>;
 
+/** The Earth shown while the world is quiet (decision B4): Waterworld, with the halo dimmed. */
+export const QUIET_THEME: MoodId = MOODS.indexOf("calm") as MoodId;
+
+/**
+ * The world headline (ADR 0003, README §5.4): below the privacy floor the world is *quiet*, with no
+ * mood word, because `h` for an empty world is a tie-break, not a feeling. The theme follows the
+ * headline when there is one and rests on the quiet Earth otherwise.
+ */
+export function worldHeadline(
+  snapshot: Pick<Snapshot, "world">,
+  floor: number,
+): { readonly quiet: boolean; readonly mood: MoodId | null; readonly theme: MoodId } {
+  const quiet = snapshot.world.n < floor;
+  return {
+    quiet,
+    mood: quiet ? null : snapshot.world.h,
+    theme: quiet ? QUIET_THEME : snapshot.world.h,
+  };
+}
+
 /** How clearly a region leads with its headline: 0 (dead heat) … 1 (clear). */
 export function clarity(r: SnapshotRegion): number {
   const sorted = [...r.dist].sort((a, b) => b - a);

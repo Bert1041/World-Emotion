@@ -14,21 +14,32 @@ let { actions }: { actions: UiActions } = $props();
 // Sentences are split where the animated word or the ticking number goes: word order is the
 // translation's, not the template's.
 const feels = $derived(around(i18n.t.worldFeels, "mood"));
-const feeling = $derived(around(i18n.t.feelingNow(view.worldCount, i18n.fmt), "count"));
+const feeling = $derived(
+  around(
+    view.worldQuiet
+      ? i18n.t.quietCount(view.worldCount, i18n.fmt)
+      : i18n.t.feelingNow(view.worldCount, i18n.fmt),
+    "count",
+  ),
+);
 </script>
 
 <header>
   <div class="kicker">{i18n.t.rightNow}</div>
-  <!-- The live region is the sentence, so "The world feels calm" is announced whole. -->
-  <h1 aria-live="polite">
-    {feels[0]}
-    {#key view.worldSwap}
-      <span id="world-mood" class:swap={view.worldSwap > 0} data-mood={view.worldMood === null ? "" : MOODS[view.worldMood]}
-        >{view.worldMood === null ? "" : i18n.t.moods.feels[view.worldMood]}</span
-      >
-    {/key}{feels[1]}
+  <!-- The live region is the sentence, so "The world feels calm" is announced whole. Below the
+       privacy floor there is no mood word: the world is quiet (ADR 0003), never a fake mood. -->
+  <h1 aria-live="polite" data-quiet={view.worldQuiet}>
+    {#if view.worldQuiet || view.worldMood === null}
+      {i18n.t.worldQuiet}
+    {:else}
+      {feels[0]}
+      {#key view.worldSwap}
+        <span id="world-mood" class:swap={view.worldSwap > 0} data-mood={MOODS[view.worldMood]}
+          >{i18n.t.moods.feels[view.worldMood]}</span
+        >
+      {/key}{feels[1]}
+    {/if}
   </h1>
-  <div id="theme-name">{view.themeId === null ? "" : i18n.t.themes[view.themeId]}</div>
   <div id="world-count">{feeling[0]}<Counter value={view.worldCount} />{feeling[1]}</div>
 </header>
 

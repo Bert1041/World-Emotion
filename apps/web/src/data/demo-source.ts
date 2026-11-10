@@ -12,6 +12,8 @@ export interface DemoOptions {
   readonly paused?: boolean;
   /** Clock origin for the cycle timer (ms, same clock as `tick`). */
   readonly now?: number;
+  /** Exactly this many check-ins in the world instead of the full demo (tests: a quiet world). */
+  readonly votes?: number;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface DemoOptions {
  * live in the frame loop, so the loop only asks "anything new?".
  */
 export class DemoSource implements SnapshotSource {
-  private readonly sim = new SnapshotSim(1);
+  private readonly sim: SnapshotSim;
   private readonly stepMs: number;
   private readonly cycleMs: number;
   private readonly paused: boolean;
@@ -30,6 +32,7 @@ export class DemoSource implements SnapshotSource {
   readonly demo: DemoControls;
 
   constructor(opts: DemoOptions = {}) {
+    this.sim = new SnapshotSim(1, opts.votes === undefined ? {} : { votes: opts.votes });
     this.stepMs = opts.stepMs ?? 2000;
     this.cycleMs = opts.cycleMs ?? 20_000;
     this.paused = opts.paused ?? false;

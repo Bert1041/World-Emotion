@@ -23,6 +23,9 @@ export const es419: Messages = {
     f.plural(n) === "one"
       ? "{count} persona siente algo ahora mismo"
       : "{count} personas sienten algo ahora mismo",
+  worldQuiet: "El mundo está en silencio",
+  quietCount: (n, f) =>
+    f.plural(n) === "one" ? "{count} respuesta hasta ahora" : "{count} respuestas hasta ahora",
   back: "← Mundo",
 
   moods: {
@@ -33,9 +36,9 @@ export const es419: Messages = {
     "Tierra frondosa",
     "Mundo sumergido",
     "Tierra iluminada",
-    "Tierra simulada",
+    "Tierra con estática",
     "Tierra glacial",
-    "Tierra en ruinas",
+    "Tierra de brasas",
   ],
   continents: {
     AF: "África",

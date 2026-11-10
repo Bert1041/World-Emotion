@@ -22,10 +22,22 @@ export class SnapshotSim {
   /** This device's active check-in (README §5.2: one per device; a new one replaces it). */
   private mine: { country: string; mood: MoodId } | null = null;
 
-  constructor(bias: MoodId) {
+  /**
+   * `votes`: instead of a full world, exactly this many check-ins, one per country, all for the
+   * bias mood (tests: a quiet world below the privacy floor, or just over it). `undefined` is the
+   * full demo world.
+   */
+  constructor(bias: MoodId, opts: { readonly votes?: number } = {}) {
     this.bias = bias;
     const r = rng(7);
+    let left = opts.votes;
     for (const code of COUNTRY_TO_CONTINENT.keys()) {
+      if (left !== undefined) {
+        // One vote per country for the bias mood: step() weights it 5/10, rounded up to 1.
+        this.home.set(code, { mood: bias, n: left > 0 ? 1 : 0 });
+        left = Math.max(0, left - 1);
+        continue;
+      }
       // Skewed sizes: many small countries (some below the privacy floor), a few big ones.
       this.home.set(code, { mood: Math.floor(r() * MOOD_COUNT), n: Math.floor(r() ** 3 * 400) });
     }

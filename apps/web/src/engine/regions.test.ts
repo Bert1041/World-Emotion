@@ -3,7 +3,16 @@ import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
 import type { SnapshotRegion } from "@world-emotion/shared";
 import { geoOrthographic } from "d3-geo";
 import { describe, expect, it } from "vitest";
-import { barsOf, clarity, hitCountry, panelModel, regionOf, weatherSpawns } from "./regions";
+import {
+  barsOf,
+  clarity,
+  hitCountry,
+  panelModel,
+  QUIET_THEME,
+  regionOf,
+  weatherSpawns,
+  worldHeadline,
+} from "./regions";
 
 /** Real pipeline output: FR well above the privacy floor, LU below it (suppressed). */
 const { snapshot } = buildSnapshot({
@@ -153,5 +162,21 @@ describe("hitCountry", () => {
   it("accounts for device pixel ratio", () => {
     const hi = geoOrthographic().scale(200).translate([200, 200]);
     expect(hitCountry(100, 100, { projection: hi, dpr: 2, countries, map })?.code).toBe("SQ");
+  });
+});
+
+describe("worldHeadline", () => {
+  const world = (n: number, h = 3 as const) => ({ world: { n, h, dist: [] } }) as never;
+  it("is quiet below the floor: no mood word, the quiet Earth", () => {
+    for (const n of [0, 1, 4]) {
+      expect(worldHeadline(world(n), 5)).toEqual({ quiet: true, mood: null, theme: QUIET_THEME });
+    }
+  });
+  it("shows the headline mood and its Earth at the floor and above", () => {
+    expect(worldHeadline(world(5), 5)).toEqual({ quiet: false, mood: 3, theme: 3 });
+    expect(worldHeadline(world(28_000), 5)).toEqual({ quiet: false, mood: 3, theme: 3 });
+  });
+  it("the quiet Earth is Waterworld (calm), which is not the tie-break mood (happy)", () => {
+    expect(QUIET_THEME).toBe(1);
   });
 });

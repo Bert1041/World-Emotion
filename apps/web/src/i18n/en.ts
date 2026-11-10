@@ -9,6 +9,9 @@ export const en: Messages = {
   worldFeels: "The world feels {mood}",
   // "1 feeling something right now" reads fine in English; other languages differ.
   feelingNow: () => "{count} feeling something right now",
+  worldQuiet: "The world is quiet",
+  quietCount: (n, f) =>
+    f.plural(n) === "one" ? "{count} check-in so far" : "{count} check-ins so far",
   back: "← World",
 
   moods: {
@@ -19,9 +22,9 @@ export const en: Messages = {
     "Overgrown Earth",
     "Waterworld",
     "City-lights Earth",
-    "Simulation Earth",
+    "Static Earth",
     "Ice-age Earth",
-    "Ruined Earth",
+    "Ember Earth",
   ],
   continents: {
     AF: "Africa",

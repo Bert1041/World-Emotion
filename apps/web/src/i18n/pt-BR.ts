@@ -21,6 +21,8 @@ export const ptBR: Messages = {
   worldFeels: "O mundo sente {mood}",
   feelingNow: (n) =>
     n === 1 ? "{count} pessoa sentindo algo agora" : "{count} pessoas sentindo algo agora",
+  worldQuiet: "O mundo está em silêncio",
+  quietCount: (n) => (n === 1 ? "{count} resposta até agora" : "{count} respostas até agora"),
   back: "← Mundo",
 
   moods: {
@@ -31,9 +33,9 @@ export const ptBR: Messages = {
     "Terra verdejante",
     "Mundo submerso",
     "Terra iluminada",
-    "Terra simulada",
+    "Terra de chuvisco",
     "Terra glacial",
-    "Terra em ruínas",
+    "Terra de brasas",
   ],
   continents: {
     AF: "África",

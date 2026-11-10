@@ -11,7 +11,7 @@ suggest corrections. Theme names are translated (I1); the switcher sits top-righ
 | Where | Text | Notes |
 |---|---|---|
 | Header (App.svelte) | "Right now", "The world feels {mood}", "{n} feeling something right now", "← World" | Sentence with a mood word and a number |
-| Theme names (engine/themes.ts) | Overgrown Earth, Waterworld, City-lights Earth, Simulation Earth, Ice-age Earth, Ruined Earth | Flavour names, shown under the headline |
+| Theme names (engine/themes.ts) | Overgrown Earth, Waterworld, City-lights Earth, Static Earth, Ice-age Earth, Ember Earth | Flavour names; no longer shown under the headline (2026-11-10, B5), kept for hints and the share card. Static/Ember replaced Simulation/Ruined (B6): fr parasitée/de braises, es con estática/de brasas, pt de chuvisco (TV static)/de brasas |
 | Moods (packages/shared MOODS) | happy, calm, excited, stressed, sad, angry | Today the data ids double as labels |
 | Continents (engine/camera.ts) | Africa, Antarctica, Asia, Europe, North America, Oceania, South America | |
 | Region card (main.ts, Panel.svelte) | "Right now", "{place} feels {mood}", "{n} check-ins", "No check-ins yet", "Quiet here", "Quiet here: showing {continent}", Show/Hide the breakdown | Built with template strings today |

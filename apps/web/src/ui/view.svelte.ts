@@ -43,7 +43,10 @@ export interface Flight {
 }
 
 export const view = $state({
+  /** Headline mood, or null while the world is quiet (below the privacy floor, ADR 0003). */
   worldMood: null as MoodId | null,
+  /** The world has too few check-ins for a headline: "The world is quiet", count "so far". */
+  worldQuiet: false,
   /** Bumped to replay the headline word's entrance (a change of mood, or coming back out). */
   worldSwap: 0,
   themeId: null as MoodId | null,

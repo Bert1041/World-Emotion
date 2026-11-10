@@ -41,7 +41,6 @@
       #world-mood { color: var(--accent); display: inline-block; transition: color var(--slow); }
       #world-mood.swap { animation: swap var(--slow) cubic-bezier(.2, .8, .2, 1); }
       @keyframes swap { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
-      #theme-name { font-size: 0.87rem; color: var(--muted); }
 
       #back { position: fixed; top: max(var(--gap), env(safe-area-inset-top)); left: var(--gap); padding: 0.5rem 0.8rem; border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.25); background: var(--glass); color: var(--text); font: inherit; cursor: pointer; }

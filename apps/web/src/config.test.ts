@@ -37,6 +37,15 @@ describe("readConfig", () => {
     expect([...cfg("opt=").opt]).toEqual([]);
   });
 
+  it("?votes=N is a whole number of check-ins, or nothing", () => {
+    expect(cfg("").votes).toBeUndefined();
+    expect(cfg("votes=0").votes).toBe(0);
+    expect(cfg("votes=4").votes).toBe(4);
+    expect(cfg("votes=-1").votes).toBeUndefined();
+    expect(cfg("votes=2.5").votes).toBeUndefined();
+    expect(cfg("votes=lots").votes).toBeUndefined();
+  });
+
   it("?auto=0 and bench runs both stop the demo from cycling", () => {
     expect(cfg("auto=0").autoCycle).toBe(false);
     expect(cfg("bench=1").autoCycle).toBe(false);

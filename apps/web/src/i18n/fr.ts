@@ -23,6 +23,12 @@ export const fr: Messages = {
     f.plural(n) === "one"
       ? "{count} personne ressent quelque chose"
       : "{count} personnes ressentent quelque chose",
+  // Not « calme » : c'est aussi l'humeur « calm ». Silencieux = personne n'a encore parlé.
+  worldQuiet: "Le monde est encore silencieux",
+  quietCount: (n, f) =>
+    f.plural(n) === "one"
+      ? "{count} humeur partagée pour l’instant"
+      : "{count} humeurs partagées pour l’instant",
   back: "← Monde",
 
   moods: {
@@ -40,9 +46,9 @@ export const fr: Messages = {
     "Terre verdoyante",
     "Monde englouti",
     "Terre illuminée",
-    "Terre simulée",
+    "Terre parasitée",
     "Terre glaciaire",
-    "Terre en ruines",
+    "Terre de braises",
   ],
   continents: {
     AF: "Afrique",

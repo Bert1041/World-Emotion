@@ -16,7 +16,7 @@ mood.** The theme is driven by the snapshot's world headline `h`, which already 
 | excited | City lights (ecumenopolis) | sparkle bursts |
 | stressed | Simulation glitch | jittery static |
 | sad | Ice age | falling rain/snow |
-| angry | Ruined | rising embers |
+| angry | Ember (was Ruined; renamed 2026-11-10, B6) | rising embers |
 
 The mapping is data (`apps/web/src/engine/themes.ts`) and can be retuned after review.
 
