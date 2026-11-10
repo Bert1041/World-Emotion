@@ -145,7 +145,7 @@ would wire real data into that shape. Design: `docs/design/phase-5.5-bridge.md` 
   country-tap hint, small-country copy, theme label.
 - **5.5b second act:** result line after the check-in ("with N others · {Country} feels X"); place-first
   first run with the pin facing you; theme follows the viewed region; on-device journal (never sent);
-  particles as soft, land-bound weather (re-benched on the Pixel).
+  particles as soft, land-bound weather (re-benched on the Pixel). Added 2026-11-10: press feedback on every control, and faces that react (a bounce on hover; your face in the chip). No mascot.
 **Exit criteria:** each row's criterion in the design doc, mutation-listed; `pnpm check`, e2e and the Pixel
 bench pass; initial JS within 5 KB of 79 KB gz; the Phase 6 design can add `PolledSource`, vote
 persistence and the re-count path without editing `main.ts` beyond one constructor; a recorded first run
