@@ -34,6 +34,8 @@ export interface LayoutReport {
   focusBox: Rect | null;
   gliding: boolean;
   worldMood: string;
+  /** The Earth being shown or cross-faded to, by mood name (bridge T1). */
+  theme: string;
   /** Resting camera centre [lon, lat], rendered zoom, and whether anything still moves. */
   center: [number, number];
   zoom: number;

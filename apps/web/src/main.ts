@@ -29,6 +29,7 @@ import {
   countryFills,
   hitCountry,
   panelModel,
+  themeFor,
   weatherSpawns,
   worldHeadline,
 } from "./engine/regions";
@@ -187,10 +188,9 @@ function recomputeWeather(): void {
 function onSnapshot(next: Snapshot): void {
   snapshot = next;
   headline = worldHeadline(next, QUIET_WORLD_BELOW);
-  if (headline.theme !== mixer.target) {
-    mixer.setTarget(headline.theme);
-    view.worldSwap++; // replay the word's entrance
-  }
+  // Replay the word's entrance when the mood changes (not for the very first one).
+  if (view.worldMood !== null && headline.mood !== view.worldMood) view.worldSwap++;
+  retheme();
   view.worldQuiet = headline.quiet;
   view.worldMood = headline.mood;
   view.checkin.published = Object.keys(next.countries);
@@ -200,6 +200,11 @@ function onSnapshot(next: Snapshot): void {
   recomputeFills();
   recomputeWeather();
   renderPanel();
+}
+
+/** The Earth follows the region in view (bridge T1): cross-fades when that region's mood differs. */
+function retheme(): void {
+  mixer.setTarget(themeFor(snapshot, focus, QUIET_WORLD_BELOW));
 }
 
 /** The line under "You feel …" (bridge R1): recomputed on every snapshot and every check-in. */
@@ -230,6 +235,7 @@ function enter(c: Continent): void {
   focus = c;
   fitPending = true;
   selected = null;
+  retheme();
   recomputeFills();
   recomputeWeather();
   renderPanel();
@@ -252,6 +258,7 @@ function leave(): void {
   focus = null;
   selected = null;
   view.hint = null;
+  retheme();
   camera.glideTo({ center: [camera.view.center[0], 15], zoom: 1, offset: [0, 0] });
   recomputeFills();
   recomputeWeather();
@@ -518,7 +525,7 @@ async function start(): Promise<void> {
   perf.hidden = !(config.debug || config.bench);
   resize();
   layoutReady = true;
-  mixer.setTarget(headline.theme, true);
+  mixer.setTarget(themeFor(snapshot, focus, QUIET_WORLD_BELOW), true);
   onSnapshot(snapshot);
   applyTheme();
   view.status = "ready"; // the header stops saying "loading" only once the first data is in
@@ -573,6 +580,7 @@ installTestHooks({
   pin: () => moment.pin,
   sun: () => (showNight ? [sun[0], sun[1]] : null),
   worldMood: () => MOODS[snapshot.world.h] ?? "",
+  theme: () => MOODS[mixer.target] ?? "",
   aggregate: () => onSnapshot(source.aggregate()),
   face(lon, lat) {
     camera.stop();

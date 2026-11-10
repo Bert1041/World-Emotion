@@ -11,6 +11,7 @@ import {
   panelModel,
   QUIET_THEME,
   regionOf,
+  themeFor,
   weatherSpawns,
   worldHeadline,
 } from "./regions";
@@ -229,5 +230,25 @@ describe("alongside (the line under 'You feel …')", () => {
       countries: { XX: region },
     } as unknown as typeof snapshot;
     expect(alongside(s, "XX", 5)).toEqual({ scope: "country", others: 0, feels: 2 });
+  });
+});
+
+describe("themeFor (the Earth follows the region in view)", () => {
+  const region = (h: number, n = 100) => ({ n, h, dist: [] }) as never;
+  const s = {
+    world: region(2), // not the quiet Earth's mood, so a fallback to the world would show
+    continents: { EU: region(3), SA: region(5) },
+    countries: {},
+  } as unknown as typeof snapshot;
+  it("world view: the world headline's Earth; quiet below the floor", () => {
+    expect(themeFor(s, null, 5)).toBe(2);
+    expect(themeFor({ ...s, world: region(3, 4) } as never, null, 5)).toBe(QUIET_THEME);
+  });
+  it("zoomed in: that continent's mood, whatever the world feels", () => {
+    expect(themeFor(s, "EU", 5)).toBe(3);
+    expect(themeFor(s, "SA", 5)).toBe(5);
+  });
+  it("a continent absent from the snapshot (below the floor) rests on the quiet Earth", () => {
+    expect(themeFor(s, "OC", 5)).toBe(QUIET_THEME);
   });
 });

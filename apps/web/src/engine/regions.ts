@@ -219,3 +219,14 @@ export function alongside(snapshot: Snapshot, country: string, mood: MoodId): Al
     feels: region === own ? own.h : null,
   };
 }
+
+/**
+ * Which Earth to show (bridge T1, decision B1): the region you are looking at. The world view
+ * follows the world headline; zoomed into a continent, that continent's mood, so every Earth can
+ * be visited. A continent below the privacy floor (absent from the snapshot) rests on the quiet
+ * Earth, like a quiet world.
+ */
+export function themeFor(snapshot: Snapshot, focus: Continent | null, floor: number): MoodId {
+  if (focus === null) return worldHeadline(snapshot, floor).theme;
+  return snapshot.continents[focus]?.h ?? QUIET_THEME;
+}

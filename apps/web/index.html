@@ -165,6 +165,10 @@
         #checkin .faces { grid-template-columns: repeat(3, 1fr); row-gap: 0.4rem; }
         /* No room for the first-run label in a 12.5rem column: the place row still leads, with "not you?". */
         #checkin .from .label { display: none; }
+        /* Badge over link, in a row of fixed height: a long name or a long link ("ce n'est pas
+           ça ?") must not make the bar taller in one mode than another. */
+        #checkin .from { flex-direction: column; justify-content: center; min-height: 3.9rem; }
+        #checkin .from .dot { display: none; }
         /* Centre the headline over the globe's column, not the whole screen. */
         header { right: calc(12.5rem + 2 * var(--gap)); }
       }
