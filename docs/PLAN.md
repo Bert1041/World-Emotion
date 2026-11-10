@@ -66,7 +66,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 
 **Phase 3 device:** Pixel 6 Pro, the only reference device (ADR 0004, low-end risk accepted).
 
-**Can wait:** sound (recommend: post-launch), domain/brand (needed before Phase 6 for the CDN), daily history (recommend: none at launch).
+**Can wait:** sound (recommend: post-launch), domain/brand (needed before Phase 6 for the CDN), daily history (decided 2026-11-10, ADR 0007: hourly public totals archived from Phase 6; nothing displayed until there is real data).
 
 ---
 
@@ -158,6 +158,7 @@ first check-in, launch gate (Phase 8); a named launch community and cold-start c
 
 **Scope:** cron Worker, Stage 1 aggregation, R2 write, state file (G4), purge, client polling with jitter + tweening, version rejection.
 **From Phase 5 (measured):** purge hourly, not every run (the measured index order makes the purge scan everything); the app starts sending `deviceKey` and shows the `counted`/`conn` answer ("counts for the world only"); re-measure `rows_written`/`rows_read` on the real D1; confirm the Rate Limiting binding exists on the free plan (fallback: D1 counter table).
+**Added 2026-11-10 (ADR 0007):** the aggregator archives hourly public totals to R2 (published regions only); a test proves a region below the floor never reaches the archive. No display yet: "compared to usual" waits for about four weeks of real data.
 **Exit criteria:** end-to-end locally: simulator → D1 → aggregator → R2 → app shows tween. Rows read per run measured against the G2 budget. Client keeps the last good snapshot on a bad version/500 (verified in a browser).
 **Needs from you:** domain decision.
 
