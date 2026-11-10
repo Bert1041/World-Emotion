@@ -1,5 +1,7 @@
 <script lang="ts">
 import { FixedStep, SPRING, Spring } from "@world-emotion/motion";
+import { i18n } from "../i18n/i18n.svelte";
+import { around, fill } from "../i18n/messages";
 import BarRow from "./BarRow.svelte";
 import { type UiActions, view } from "./view.svelte";
 
@@ -90,11 +92,30 @@ function measure(): void {
 // A new region opens collapsed; the same region updating its numbers keeps its state.
 let openFor: string | null = null;
 $effect(() => {
-  const title = view.panel?.title ?? null;
-  if (title !== openFor) {
-    openFor = title;
+  const p = view.panel?.place;
+  // Keyed on the place, not its name: switching language is not a new region.
+  const key = p === undefined ? null : p.kind === "country" ? p.code : p.id;
+  if (key !== openFor) {
+    openFor = key;
     expanded = false;
   }
+});
+
+const title = $derived.by(() => {
+  const p = view.panel?.place;
+  if (p === undefined) return "";
+  return p.kind === "country" ? i18n.country(p.code) : i18n.t.continents[p.id];
+});
+const feels = $derived(around(i18n.t.region.feels, "mood"));
+const status = $derived.by(() => {
+  const s = view.panel?.status;
+  const r = i18n.t.region;
+  if (s === undefined) return "";
+  if (s.kind === "none") return r.none;
+  if (s.kind === "quiet") return r.quiet;
+  if (s.kind === "quietShowing")
+    return fill(r.quietShowing, { continent: i18n.t.continents[s.continent] });
+  return r.checkIns(s.n, i18n.fmt);
 });
 
 $effect(() => {
@@ -173,7 +194,7 @@ function up(e: PointerEvent): void {
         type="button"
         aria-expanded={expanded}
         aria-controls="bars"
-        aria-label={expanded ? "Hide the breakdown" : "Show the breakdown"}
+        aria-label={expanded ? i18n.t.region.hideBreakdown : i18n.t.region.showBreakdown}
         onclick={(e) => {
           // Pointer taps toggle in up() (the card holds the pointer, so a tap is part of the drag);
           // keyboard and assistive tech click with detail 0.
@@ -181,15 +202,15 @@ function up(e: PointerEvent): void {
         }}
       ></button>
     {/if}
-    <div class="kicker">Right now</div>
-    <h2 id="panel-title">{view.panel.title}</h2>
+    <div class="kicker">{i18n.t.rightNow}</div>
+    <h2 id="panel-title">{title}</h2>
     <div id="panel-mood">
-      {#if view.panel.mood}feels <span style:color={view.panel.mood.color}>{view.panel.mood.name}</span>{/if}
+      {#if view.panel.mood}{feels[0]}<span style:color={view.panel.mood.color}>{i18n.t.moods.feels[view.panel.mood.id]}</span>{feels[1]}{/if}
     </div>
-    <div id="panel-sub" bind:this={peekEnd}>{view.panel.sub}</div>
+    <div id="panel-sub" bind:this={peekEnd}>{status}</div>
     <!-- Fades with the slide: collapsed, the strip below the peek line shows no half-cut bars. -->
     <ul id="bars" style:opacity={collapsedBy > 0 ? Math.max(0, 1 - offset / collapsedBy) : null}>
-      {#each view.panel.bars as bar (bar.name)}
+      {#each view.panel.bars as bar (bar.mood)}
         <BarRow {bar} />
       {/each}
     </ul>

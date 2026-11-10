@@ -19,13 +19,7 @@ import {
 import { geoCentroid, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { SnapshotSim } from "./demo/snapshot-sim";
-import {
-  Camera,
-  CONTINENT_NAMES,
-  CONTINENT_VIEWS,
-  STRETCH_COMMIT,
-  type View,
-} from "./engine/camera";
+import { Camera, CONTINENT_VIEWS, STRETCH_COMMIT, type View } from "./engine/camera";
 import { guessCountry } from "./engine/country-guess";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
@@ -36,6 +30,7 @@ import { pinPoint } from "./engine/pin";
 import { Ripples, ringOutline } from "./engine/ripple";
 import { FrameRecorder, type FrameSummary } from "./engine/stats";
 import { ThemeMixer } from "./engine/themes";
+import { i18n } from "./i18n/i18n.svelte";
 import App from "./ui/App.svelte";
 import { type Bar, view } from "./ui/view.svelte";
 
@@ -82,6 +77,8 @@ const fxCtx = fxCanvas.getContext("2d") as CanvasRenderingContext2D;
  * engine's element references and canvases exist.
  */
 let layoutReady = false;
+// The language is picked before the UI mounts, so the first paint is already in it.
+i18n.init();
 mount(App, {
   target: $("ui"),
   props: {
@@ -119,7 +116,6 @@ const ui = {
   checkin: $("checkin"),
   overlays: { scanlines: $("scanlines"), frost: $("frost"), heat: $("heat") },
 };
-const countryName = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
 
 // ---- Globe ------------------------------------------------------------------------------------
 const projection = geoOrthographic().clipAngle(CLIP_ANGLE);
@@ -326,7 +322,7 @@ function onSnapshot(next: Snapshot): void {
     mixer.setTarget(next.world.h);
     view.worldSwap++; // replay the word's entrance
   }
-  view.worldMood = MOODS[next.world.h] ?? "";
+  view.worldMood = next.world.h;
   // Held still while your face is in flight: the landing ticks it (see landed()).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
@@ -336,8 +332,8 @@ function onSnapshot(next: Snapshot): void {
 
 // ---- Panels -----------------------------------------------------------------------------------
 function barsOf(r: SnapshotRegion): Bar[] {
-  return MOODS.map((name, m) => ({
-    name,
+  return MOODS.map((_, m) => ({
+    mood: m as MoodId,
     share: r.dist[m] ?? 0,
     pct: Math.round((r.dist[m] ?? 0) * 100),
     color: MOOD_COLORS[m] ?? "#fff",
@@ -346,8 +342,7 @@ function barsOf(r: SnapshotRegion): Bar[] {
 }
 
 /** "feels <mood>": the mood is always named, never colour alone. */
-const moodOf = (m: MoodId | null) =>
-  m === null ? null : { id: m, name: MOODS[m] ?? "", color: MOOD_COLORS[m] ?? "" };
+const moodOf = (m: MoodId | null) => (m === null ? null : { id: m, color: MOOD_COLORS[m] ?? "" });
 
 function renderPanel(): void {
   view.zoomed = focus !== null;
@@ -358,21 +353,21 @@ function renderPanel(): void {
   else if (selected !== null) {
     const r = regionOf(selected);
     view.panel = {
-      title: countryName.of(selected) ?? selected,
+      place: { kind: "country", code: selected },
       mood: moodOf(r && !r.quiet ? r.region.h : null),
-      sub: !r
-        ? "No check-ins yet"
+      status: !r
+        ? { kind: "none" }
         : r.quiet
-          ? `Quiet here: showing ${CONTINENT_NAMES[focus]}`
-          : `${r.region.n} check-ins`,
+          ? { kind: "quietShowing", continent: focus }
+          : { kind: "count", n: r.region.n },
       bars: r ? barsOf(r.region) : [],
     };
   } else {
     const r = snapshot.continents[focus];
     view.panel = {
-      title: CONTINENT_NAMES[focus],
+      place: { kind: "continent", id: focus },
       mood: moodOf(r ? r.h : null),
-      sub: r ? `${r.n} check-ins` : "Quiet here",
+      status: r ? { kind: "count", n: r.n } : { kind: "quiet" },
       bars: r ? barsOf(r) : [],
     };
   }
@@ -383,7 +378,7 @@ function renderPanel(): void {
 
 /** Bring the world headline back with the CURRENT world mood, animated. */
 function replayWorldHeadline(): void {
-  view.worldMood = MOODS[snapshot.world.h] ?? "";
+  view.worldMood = snapshot.world.h;
   view.worldSwap++;
 }
 
@@ -670,7 +665,7 @@ function frame(ts: number): void {
   if (themeChanging) {
     recomputeFills();
     const th = mixer.current;
-    view.themeName = th.name;
+    view.themeId = th.id;
     ui.overlays.scanlines.style.opacity = th.scanlines.toFixed(3);
     ui.overlays.frost.style.opacity = th.frost.toFixed(3);
     ui.overlays.heat.style.opacity = th.heat.toFixed(3);
@@ -794,10 +789,8 @@ const pinDrop = new Spring(0, SPRING.bouncy);
 const pinStep = new FixedStep();
 
 const PIN_KEY = "we.pin";
-const countryNames = new Intl.DisplayNames([navigator.language, "en"], { type: "region" });
-view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()]
-  .map((code) => ({ code, name: countryNames.of(code) ?? code }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+// Codes only: the check-in bar names and sorts them in the active language.
+view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()];
 
 /** Restore the saved pin or guess the country (M2); called once pin points are known. */
 function initPin(): void {
@@ -953,7 +946,7 @@ async function start(): Promise<void> {
   resize();
   layoutReady = true;
   mixer.setTarget(snapshot.world.h, true);
-  view.themeName = mixer.current.name;
+  view.themeId = mixer.current.id;
   onSnapshot(snapshot);
   const th = mixer.current;
   ui.overlays.scanlines.style.opacity = String(th.scanlines);

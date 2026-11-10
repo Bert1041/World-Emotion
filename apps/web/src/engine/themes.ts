@@ -9,7 +9,6 @@ import type { MoodId } from "@world-emotion/shared";
 
 /** One Earth per world mood (docs/design/phase-3b-look-and-feel.md). Pure data: retune freely. */
 interface ThemeDef {
-  readonly name: string;
   readonly skyInner: string;
   readonly skyOuter: string;
   readonly ocean: string;
@@ -24,7 +23,7 @@ interface ThemeDef {
 
 export const THEMES: Readonly<Record<MoodId, ThemeDef>> = {
   0: {
-    name: "Overgrown Earth",
+    // Overgrown Earth (names are UI text: src/i18n, `themes`)
     skyInner: "#14382b",
     skyOuter: "#04110c",
     ocean: "#0f4c5c",
@@ -36,7 +35,7 @@ export const THEMES: Readonly<Record<MoodId, ThemeDef>> = {
     heat: 0,
   },
   1: {
-    name: "Waterworld",
+    // Waterworld (names are UI text: src/i18n, `themes`)
     skyInner: "#0c2c40",
     skyOuter: "#03101a",
     ocean: "#1b6d8a",
@@ -48,7 +47,7 @@ export const THEMES: Readonly<Record<MoodId, ThemeDef>> = {
     heat: 0,
   },
   2: {
-    name: "City-lights Earth",
+    // City-lights Earth (names are UI text: src/i18n, `themes`)
     skyInner: "#1d1133",
     skyOuter: "#06030d",
     ocean: "#0d0b24",
@@ -60,7 +59,7 @@ export const THEMES: Readonly<Record<MoodId, ThemeDef>> = {
     heat: 0,
   },
   3: {
-    name: "Simulation Earth",
+    // Simulation Earth (names are UI text: src/i18n, `themes`)
     skyInner: "#07150d",
     skyOuter: "#010402",
     ocean: "#031a10",
@@ -72,7 +71,7 @@ export const THEMES: Readonly<Record<MoodId, ThemeDef>> = {
     heat: 0,
   },
   4: {
-    name: "Ice-age Earth",
+    // Ice-age Earth (names are UI text: src/i18n, `themes`)
     skyInner: "#1e2c40",
     skyOuter: "#090f17",
     ocean: "#4a6a85",
@@ -84,7 +83,7 @@ export const THEMES: Readonly<Record<MoodId, ThemeDef>> = {
     heat: 0,
   },
   5: {
-    name: "Ruined Earth",
+    // Ruined Earth (names are UI text: src/i18n, `themes`)
     skyInner: "#2c1009",
     skyOuter: "#0c0402",
     ocean: "#2b1a14",
@@ -101,7 +100,8 @@ type ColorKey = "skyInner" | "skyOuter" | "ocean" | "land" | "border" | "rim";
 const COLOR_KEYS: readonly ColorKey[] = ["skyInner", "skyOuter", "ocean", "land", "border", "rim"];
 
 export interface ResolvedTheme {
-  readonly name: string;
+  /** The theme shown (the nearer one mid cross-fade): its name is UI text, `i18n.t.themes[id]`. */
+  readonly id: MoodId;
   readonly lab: Readonly<Record<ColorKey, Oklab>>;
   readonly css: Readonly<Record<ColorKey, string>>;
   readonly scanlines: number;
@@ -109,8 +109,8 @@ export interface ResolvedTheme {
   readonly heat: number;
 }
 
-const resolve = (d: ThemeDef): Omit<ResolvedTheme, "css"> => ({
-  name: d.name,
+const resolve = (id: MoodId, d: ThemeDef = THEMES[id]): Omit<ResolvedTheme, "css"> => ({
+  id,
   lab: Object.fromEntries(COLOR_KEYS.map((k) => [k, hexToOklab(d[k])])) as Record<ColorKey, Oklab>,
   scanlines: d.scanlines,
   frost: d.frost,
@@ -130,7 +130,7 @@ export class ThemeMixer {
     private readonly durationS = 2.5,
   ) {
     this.target = mood;
-    this.from = resolve(THEMES[mood]);
+    this.from = resolve(mood);
     this.to = this.from;
     this.cached = this.compute();
   }
@@ -138,7 +138,7 @@ export class ThemeMixer {
   setTarget(mood: MoodId, instant = false): void {
     if (mood === this.target && !instant) return;
     this.from = this.compute();
-    this.to = resolve(THEMES[mood]);
+    this.to = resolve(mood);
     this.target = mood;
     this.t = instant ? 1 : 0;
     this.cached = this.compute();
@@ -162,7 +162,7 @@ export class ThemeMixer {
     ) as Record<ColorKey, Oklab>;
     const lerp = (a: number, b: number) => a + (b - a) * k;
     return {
-      name: k < 0.5 ? this.from.name : this.to.name,
+      id: k < 0.5 ? this.from.id : this.to.id,
       lab,
       css: Object.fromEntries(COLOR_KEYS.map((c) => [c, oklabToCss(lab[c])])) as Record<
         ColorKey,

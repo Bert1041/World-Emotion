@@ -37,8 +37,13 @@ fix it in every language.
 - **Choosing the language.** First visit: the first of `navigator.languages` whose language we ship
   (`fr-CA` → French, `es-AR` → es-419, `pt-PT` → pt-BR), else English. The switcher stores the
   choice in `localStorage` (wrapped in try/catch). `?lang=fr` forces a language for testing.
-- **Loading.** English is in the main bundle; others are separate chunks loaded before first paint
-  of text (they are ~2 KB each; the wait is one small request, and the globe draws meanwhile).
+- **Loading (as built: all four bundled).** The UI mounts synchronously, so a lazy catalogue would
+  either flash English or hold the whole app for a fetch. Bundled, the phase costs 5 KB gzipped of
+  initial JS (73.8 → 78.9 KB of the 150 KB budget), switcher and i18n code included.
+- **Moods are nouns in sentences (as built).** "Francia se siente tranquil**a**" but "Brasil se siente
+  tranquil**o**": an adjective agrees with the country's gender, which we do not know. Nouns do
+  not: "Le monde ressent du calme", "Francia siente calma", "O mundo sente calma". Each language has
+  a short `label` (faces, bars) and the `feels` form that fills `{mood}`.
 - **Country search** matches names in the active language and in English (people type either).
 - **Switcher.** A small "EN ▾" button in the header's corner, keyboard-reachable, never over the
   Earth (the layout rule test covers it at all 11 viewports).
@@ -62,7 +67,7 @@ fix it in every language.
    catalogue).
 3. Plurals: 0, 1, 2, 5, 21, 1000 render correctly in each language (unit test with `PluralRules`).
 4. Layout rule passes on all 11 viewports in the longest language (likely Portuguese or French).
-5. Initial-JS budget still met (English in the main bundle only).
+5. Initial-JS budget still met (all four bundled; measured 78.9 KB of 150 KB).
 6. Country names and the count follow the switcher, not just the browser (test: browser `en`,
    switch to `fr`, see "Allemagne").
 7. Each catalogue has a glossary and tone notes, and the back-translation table is in the doc;
@@ -79,3 +84,56 @@ messages (Phase 5+), date formats (none shown yet).
 - **I2. Switcher: the header's top-right corner**, small and quiet.
 - **I3. Review: Claude**, not paid or native reviewers; all languages visible; user suggestions.
 - **Variants: `es-419` and `pt-BR`.**
+
+## 6. Review record (Claude, not a native speaker; 2026-11-09)
+
+**Glossary** (one word per idea on every screen):
+
+| Idea | French | Spanish (es-419) | Portuguese (pt-BR) |
+|---|---|---|---|
+| a check-in (count) | humeur partagée | respuesta | resposta |
+| right now | en ce moment | ahora mismo | agora mesmo |
+| quiet (few votes) | peu de monde | poca gente | pouca gente |
+| move your pin | déplacer | mover | mover |
+| pick (no country yet) | choisir | elegir | escolher |
+| the reader | tu | tú | você |
+
+**Tone notes, moods** (label / sentence form):
+
+| Mood | French | Spanish | Portuguese | Why |
+|---|---|---|---|---|
+| happy | joie / de la joie | alegría | alegria | warm, everyday; "bonheur"/"felicidad" are too grand for a moment |
+| calm | calme / du calme | calma | calma | |
+| excited | enthousiasme / de l’enthousiasme | entusiasmo | empolgação | French "excitation" can read as sexual; pt "empolgação" is the everyday Brazilian word |
+| stressed | stress / du stress | estrés | estresse | the borrowed word is what people say; "anxiété/ansiedad" is clinical |
+| sad | tristesse / de la tristesse | tristeza | tristeza | |
+| angry | colère / de la colère | enojo | raiva | es-419 "enojo" (Spain says "enfado"); pt "raiva" over formal "ira" |
+
+Theme names are equivalents for feel, not literal: Waterworld → "Monde englouti" / "Mundo
+sumergido" / "Mundo submerso" (a sunken world), Overgrown Earth → "Terre verdoyante" / "Tierra
+frondosa" / "Terra verdejante" (lush rather than "overgrown", which reads as neglect).
+
+**Back-translation** (each string translated back to English without looking at the source; any
+drift fixed or explained):
+
+| Key | French → back | Spanish → back | Portuguese → back | Drift? |
+|---|---|---|---|---|
+| worldFeels | "The world feels {calm}" | "The world feels {calm}" | "The world feels {calm}" | none (noun form) |
+| feelingNow | "N people feel something" | "N people feel something right now" | "N people feeling something now" | French drops "right now": the kicker above says it, and it wrapped at 360 px |
+| region.checkIns | "N shared moods" | "N responses" | "N responses" | wording differs from "check-ins" on purpose: no native word |
+| region.quiet | "Few people here" | "Few people around here" | "Few people around here" | clearer than "quiet", which collides with "calm" |
+| checkin.ask | "How do you feel right now?" | same | "How do you feel now?" | none |
+| checkin.youFeel | "You feel {joy}" | "You feel {joy}" | "You feel {joy}" | none |
+| checkin.tooSmall | "Too small to touch it?" | "Too small to touch it?" | "Too small to touch?" | none |
+| checkin.typeIt | "Type its name…" | "Type it…" | "Type the name…" | none |
+| checkin.showMe | "choose" | "choose" | "choose" | "show me" → "choose": the action picks a country |
+| back | "← World" | same | same | none |
+| language.suggest | "Suggest a better translation" | same | same | none |
+
+**Numbers and plurals** (tested in i18n.test.ts): French writes "1 000" with a narrow no-break space
+and uses the singular for 0; Latin-American Spanish writes "1,000" and "42%" (no space, unlike
+Spain); Brazilian Portuguese writes "1.000" and uses the plural for 0, against CLDR's "one" (Brazilian
+usage).
+
+**What this review cannot promise:** wording that is correct but feels slightly off to a local.
+The language menu's "Suggest a better translation" link (a prefilled GitHub issue) is for that.

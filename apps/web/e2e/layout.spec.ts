@@ -4,7 +4,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { circleHitsRect, type Rect, rectsOverlap } from "../src/engine/layout";
-import { UNTIL_DONE } from "./wait";
+import { frames, UNTIL_DONE } from "./wait";
 
 type Layout = {
   globe: { cx: number; cy: number; r: number; halo: number };
@@ -21,7 +21,7 @@ const layout = (page: Page) =>
 /** Every visible piece of UI that contains text or controls. */
 async function uiBoxes(page: Page): Promise<{ name: string; box: Rect }[]> {
   const out: { name: string; box: Rect }[] = [];
-  for (const sel of ["header", "#back", "#panel", "#dev", "#checkin"]) {
+  for (const sel of ["header", "#back", "#panel", "#dev", "#checkin", "#lang"]) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     const b = await el.boundingBox();
@@ -84,113 +84,122 @@ async function expectWorldClear(page: Page) {
   expect(L.globe.r, "globe too small to read").toBeGreaterThan(Math.min(vp.width, vp.height) * 0.2);
 }
 
-const errors: string[] = [];
-test.beforeEach(async ({ page }) => {
-  errors.length = 0;
-  page.on("pageerror", (e) => errors.push(String(e)));
-  page.on("console", (m) => {
-    if (m.type() === "error") errors.push(m.text());
-  });
-  await page.goto("/?auto=0");
-  await page.evaluate(
-    () => (window as unknown as { __bench: { ready: Promise<void> } }).__bench.ready,
-  );
-  await page.waitForTimeout(400);
-});
-test.afterEach(() => expect(errors, "page errors").toEqual([]));
-
-test("world view: no text on the Earth", async ({ page }, info) => {
-  await expectWorldClear(page);
-  await page.screenshot({ path: info.outputPath("world.png") });
-});
-
-/** A point inside each continent to tap, and where to face first so it is on the near side. */
-const TAPS: Record<string, { face: [number, number]; tap: [number, number] }> = {
-  AF: { face: [20, 5], tap: [22, 6] },
-  AN: { face: [0, -70], tap: [10, -78] },
-  AS: { face: [100, 35], tap: [100, 35] },
-  EU: { face: [10, 45], tap: [2.5, 46.5] },
-  NA: { face: [-100, 40], tap: [-100, 40] },
-  OC: { face: [134, -25], tap: [134, -25] },
-  SA: { face: [-55, -10], tap: [-55, -10] },
-};
-
-test("a tap never reports arrival before the glide has started", async ({ page }) => {
-  await page.evaluate(() => {
-    const b = (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench;
-    b.face(10, 45);
-  });
-  await page.waitForTimeout(200);
-  const p = await page.evaluate(() =>
-    (
-      window as unknown as { __bench: { screenPoint(a: number, b: number): [number, number] } }
-    ).__bench.screenPoint(2.5, 46.5),
-  );
-  // Dispatch the tap and read the layout in the same task, before any animation frame runs.
-  const l = await page.evaluate(([x, y]) => {
-    const fx = document.getElementById("fx") as HTMLCanvasElement;
-    const o = { clientX: x, clientY: y, bubbles: true, pointerId: 1, isPrimary: true };
-    fx.dispatchEvent(new PointerEvent("pointerdown", o));
-    fx.dispatchEvent(new PointerEvent("pointerup", o));
-    return (window as unknown as { __bench: { layout(): Layout } }).__bench.layout();
-  }, p);
-  expect(l.focus, "tap selected the continent").toBe("EU");
-  expect(l.gliding, "focused but reported as arrived before gliding").toBe(true);
-});
-
-for (const [continent, { face, tap }] of Object.entries(TAPS)) {
-  test(`zoomed into ${continent}: card and controls clear of the continent, then back`, async ({
-    page,
-  }, info) => {
-    const vp = page.viewportSize() ?? { width: 0, height: 0 };
-    await page.evaluate(
-      ([lon, lat]) =>
-        (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench.face(
-          lon,
-          lat,
-        ),
-      face,
-    );
-    await page.waitForTimeout(200);
-    const p = await page.evaluate(
-      ([lon, lat]) =>
-        (
-          window as unknown as {
-            __bench: { screenPoint(a: number, b: number): [number, number] | null };
-          }
-        ).__bench.screenPoint(lon, lat),
-      tap,
-    );
-    expect(p, "tap point must be visible").not.toBeNull();
-    await page.mouse.click((p as [number, number])[0], (p as [number, number])[1]);
-    await settled(page, continent);
-
-    const L = await layout(page);
-    const box = L.focusBox as Rect;
-    expect(box, "focus box").not.toBeNull();
-    for (const { name, box: ui } of await uiBoxes(page)) {
-      expect(
-        rectsOverlap(box, ui),
-        `${name} ${JSON.stringify(ui)} covers ${continent} ${JSON.stringify(box)}`,
-      ).toBe(false);
-    }
-    expect(box.x, "continent off the left").toBeGreaterThanOrEqual(-1);
-    expect(box.y, "continent off the top").toBeGreaterThanOrEqual(-1);
-    expect(box.x + box.w, "continent off the right").toBeLessThanOrEqual(vp.width + 1);
-    expect(box.y + box.h, "continent off the bottom").toBeLessThanOrEqual(vp.height + 1);
-    // Playwright counts opacity:0 as visible, so check what the eye sees: off-screen or transparent.
-    const headerGone = await page.locator("header").evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      return r.bottom <= 0 || Number(getComputedStyle(el).opacity) < 0.05;
+/**
+ * English, and French: the longest language by measure (headline 34 characters against 24, the
+ * count line 55 against 35, face labels 12 against 8; Phase 4.5).
+ */
+for (const lang of ["en", "fr"]) {
+  test.describe(lang, () => {
+    const errors: string[] = [];
+    test.beforeEach(async ({ page }) => {
+      errors.length = 0;
+      page.on("pageerror", (e) => errors.push(String(e)));
+      page.on("console", (m) => {
+        if (m.type() === "error") errors.push(m.text());
+      });
+      await page.goto(`/?auto=0&lang=${lang}`);
+      await page.evaluate(
+        () => (window as unknown as { __bench: { ready: Promise<void> } }).__bench.ready,
+      );
+      await page.waitForTimeout(400);
     });
-    expect(headerGone, "world headline still on screen while zoomed").toBe(true);
-    await page.screenshot({ path: info.outputPath(`zoom-${continent}.png`) });
+    test.afterEach(() => expect(errors, "page errors").toEqual([]));
 
-    await page.locator("#back").click();
-    await settled(page, null);
-    await expect(page.locator("#panel")).toBeHidden();
-    const after = await layout(page);
-    await expect(page.locator("#world-mood")).toHaveText(after.worldMood);
-    await expectWorldClear(page);
+    test("world view: no text on the Earth", async ({ page }, info) => {
+      await expectWorldClear(page);
+      await page.screenshot({ path: info.outputPath("world.png") });
+    });
+
+    /** A point inside each continent to tap, and where to face first so it is on the near side. */
+    const TAPS: Record<string, { face: [number, number]; tap: [number, number] }> = {
+      AF: { face: [20, 5], tap: [22, 6] },
+      AN: { face: [0, -70], tap: [10, -78] },
+      AS: { face: [100, 35], tap: [100, 35] },
+      EU: { face: [10, 45], tap: [2.5, 46.5] },
+      NA: { face: [-100, 40], tap: [-100, 40] },
+      OC: { face: [134, -25], tap: [134, -25] },
+      SA: { face: [-55, -10], tap: [-55, -10] },
+    };
+
+    test("a tap never reports arrival before the glide has started", async ({ page }) => {
+      await page.evaluate(() => {
+        const b = (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench;
+        b.face(10, 45);
+      });
+      await frames(page); // face() applies on the next frame
+      const p = await page.evaluate(() =>
+        (
+          window as unknown as { __bench: { screenPoint(a: number, b: number): [number, number] } }
+        ).__bench.screenPoint(2.5, 46.5),
+      );
+      // Dispatch the tap and read the layout in the same task, before any animation frame runs.
+      const l = await page.evaluate(([x, y]) => {
+        const fx = document.getElementById("fx") as HTMLCanvasElement;
+        const o = { clientX: x, clientY: y, bubbles: true, pointerId: 1, isPrimary: true };
+        fx.dispatchEvent(new PointerEvent("pointerdown", o));
+        fx.dispatchEvent(new PointerEvent("pointerup", o));
+        return (window as unknown as { __bench: { layout(): Layout } }).__bench.layout();
+      }, p);
+      expect(l.focus, "tap selected the continent").toBe("EU");
+      expect(l.gliding, "focused but reported as arrived before gliding").toBe(true);
+    });
+
+    for (const [continent, { face, tap }] of Object.entries(TAPS)) {
+      test(`zoomed into ${continent}: card and controls clear of the continent, then back`, async ({
+        page,
+      }, info) => {
+        const vp = page.viewportSize() ?? { width: 0, height: 0 };
+        await page.evaluate(
+          ([lon, lat]) =>
+            (window as unknown as { __bench: { face(a: number, b: number): void } }).__bench.face(
+              lon,
+              lat,
+            ),
+          face,
+        );
+        await frames(page); // face() applies on the next frame
+        const p = await page.evaluate(
+          ([lon, lat]) =>
+            (
+              window as unknown as {
+                __bench: { screenPoint(a: number, b: number): [number, number] | null };
+              }
+            ).__bench.screenPoint(lon, lat),
+          tap,
+        );
+        expect(p, "tap point must be visible").not.toBeNull();
+        await page.mouse.click((p as [number, number])[0], (p as [number, number])[1]);
+        await settled(page, continent);
+
+        const L = await layout(page);
+        const box = L.focusBox as Rect;
+        expect(box, "focus box").not.toBeNull();
+        for (const { name, box: ui } of await uiBoxes(page)) {
+          expect(
+            rectsOverlap(box, ui),
+            `${name} ${JSON.stringify(ui)} covers ${continent} ${JSON.stringify(box)}`,
+          ).toBe(false);
+        }
+        expect(box.x, "continent off the left").toBeGreaterThanOrEqual(-1);
+        expect(box.y, "continent off the top").toBeGreaterThanOrEqual(-1);
+        expect(box.x + box.w, "continent off the right").toBeLessThanOrEqual(vp.width + 1);
+        expect(box.y + box.h, "continent off the bottom").toBeLessThanOrEqual(vp.height + 1);
+        // Playwright counts opacity:0 as visible, so check what the eye sees: off-screen or transparent.
+        const headerGone = await page.locator("header").evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return r.bottom <= 0 || Number(getComputedStyle(el).opacity) < 0.05;
+        });
+        expect(headerGone, "world headline still on screen while zoomed").toBe(true);
+        await page.screenshot({ path: info.outputPath(`zoom-${continent}.png`) });
+
+        await page.locator("#back").click();
+        await settled(page, null);
+        await expect(page.locator("#panel")).toBeHidden();
+        const after = await layout(page);
+        // The mood id, not the word: the word is in the page's language ("du calme").
+        await expect(page.locator("#world-mood")).toHaveAttribute("data-mood", after.worldMood);
+        await expectWorldClear(page);
+      });
+    }
   });
 }

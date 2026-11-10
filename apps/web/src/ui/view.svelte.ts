@@ -1,11 +1,13 @@
-import type { MoodId } from "@world-emotion/shared";
+import type { Continent, MoodId } from "@world-emotion/shared";
 
 /**
  * Everything the DOM UI shows (README §8.1 layer 4). The engine (main.ts) writes here; Svelte
  * renders it. The canvases, theme overlays and per-frame perf readout are not UI and stay outside.
+ * The engine writes meaning (ids, numbers), never words: the UI puts them into the active
+ * language (src/i18n), so switching language needs nothing from the engine.
  */
 export interface Bar {
-  readonly name: string;
+  readonly mood: MoodId;
   /** 0..1 */
   readonly share: number;
   readonly pct: number;
@@ -13,11 +15,22 @@ export interface Bar {
   readonly lead: boolean;
 }
 
+export type Place =
+  | { readonly kind: "continent"; readonly id: Continent }
+  | { readonly kind: "country"; readonly code: string };
+
+/** The card's last line: no data, quiet (few votes), quiet with the continent shown, or a count. */
+export type PanelStatus =
+  | { readonly kind: "none" }
+  | { readonly kind: "quiet" }
+  | { readonly kind: "quietShowing"; readonly continent: Continent }
+  | { readonly kind: "count"; readonly n: number };
+
 export interface PanelView {
-  readonly title: string;
+  readonly place: Place;
   /** Leading mood, or null when quiet / no data (then no "feels …" line). */
-  readonly mood: { readonly id: MoodId; readonly name: string; readonly color: string } | null;
-  readonly sub: string;
+  readonly mood: { readonly id: MoodId; readonly color: string } | null;
+  readonly status: PanelStatus;
   readonly bars: readonly Bar[];
 }
 
@@ -30,10 +43,10 @@ export interface Flight {
 }
 
 export const view = $state({
-  worldMood: "",
+  worldMood: null as MoodId | null,
   /** Bumped to replay the headline word's entrance (a change of mood, or coming back out). */
   worldSwap: 0,
-  themeName: "",
+  themeId: null as MoodId | null,
   zoomed: false,
   panel: null as PanelView | null,
   devVisible: false,
@@ -44,7 +57,8 @@ export const view = $state({
     /** World view only: the bottom bar, like the card in a region. */
     visible: false,
     country: null as string | null,
-    countries: [] as { readonly code: string; readonly name: string }[],
+    /** Every pickable country code; names come from the active language (i18n.country). */
+    countries: [] as readonly string[],
     /** Your active mood this session, or null before you check in. */
     mine: null as MoodId | null,
     /** Pick mode: the globe is the country picker ("tap where you are"). */

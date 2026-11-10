@@ -85,16 +85,6 @@ export const CONTINENT_VIEWS: Readonly<Record<Continent, ContinentFrame>> = {
   },
 };
 
-export const CONTINENT_NAMES: Readonly<Record<Continent, string>> = {
-  AF: "Africa",
-  AN: "Antarctica",
-  AS: "Asia",
-  EU: "Europe",
-  NA: "North America",
-  OC: "Oceania",
-  SA: "South America",
-};
-
 /** Rubber band: how far a zoom gesture can stretch (natural log of the zoom factor). */
 export const STRETCH_LIMIT = 0.35;
 /** Release past this stretch (log zoom ≈ ×1.25 / ×0.8) commits to the next level. */
