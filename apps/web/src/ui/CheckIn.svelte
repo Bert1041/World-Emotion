@@ -68,6 +68,18 @@ const like = $derived(
     ? null
     : alongsideText(view.checkin.result, i18n.t.checkin, i18n.fmt),
 );
+/** The journal strip toggles a line saying where it is kept, with the way to clear it. */
+let journalOpen = $state(false);
+const weekLabel = $derived(
+  view.checkin.week === null
+    ? ""
+    : `${i18n.t.journal.label}: ${view.checkin.week
+        .map((m) => (m === null ? i18n.t.journal.none : i18n.t.moods.label[m]))
+        .join(", ")}`,
+);
+$effect(() => {
+  if (view.checkin.week === null) journalOpen = false;
+});
 const countryFeels = $derived(around(i18n.t.checkin.countryFeels, "mood"));
 
 function pick(m: MoodId, el: HTMLElement): void {
@@ -138,13 +150,32 @@ function choose(code: string): void {
         {youFeel[0]}<strong style:color={MOOD_COLORS[view.checkin.mine]}>{i18n.t.moods.feels[view.checkin.mine]}</strong>{youFeel[1]}
         ·
         <button type="button" class="link" onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
-        {#if like !== null && view.checkin.result !== null}
+        {#if journalOpen && view.checkin.week !== null}
+          <div class="alongside" id="journal-info">
+            <span class="like">{i18n.t.journal.onDevice}</span><span class="sep" aria-hidden="true"> · </span><button
+              type="button"
+              class="link"
+              id="journal-clear"
+              onclick={() => actions.clearJournal()}>{i18n.t.journal.clear}</button
+            >
+          </div>
+        {:else if like !== null && view.checkin.result !== null}
           {@const r = view.checkin.result}
           <div class="alongside" id="checkin-result" data-scope={r.scope} data-others={r.scope === "early" ? r.total : r.others}>
             <span class="like">{like}</span>{#if r.scope !== "early" && r.feels !== null}<span class="sep" aria-hidden="true"> · </span><span class="feels"
                 >{countryFeels[0]}<strong style:color={MOOD_COLORS[r.feels]}>{i18n.t.moods.feels[r.feels]}</strong>{countryFeels[1]}</span
               >{/if}
           </div>
+        {/if}
+        {#if view.checkin.week !== null}
+          <!-- Your last seven days, today last; kept on this device only (bridge R2). -->
+          <button type="button" class="week" id="journal" aria-label={weekLabel} aria-expanded={journalOpen} onclick={() => (journalOpen = !journalOpen)}>
+            {#each view.checkin.week as m, i (i)}
+              <span class="day" class:today={i === view.checkin.week.length - 1} data-mood={m === null ? "" : MOODS[m]}>
+                {#if m !== null}<Face mood={m} size={16} />{:else}<span class="empty"></span>{/if}
+              </span>
+            {/each}
+          </button>
         {/if}
       {/if}
     </div>

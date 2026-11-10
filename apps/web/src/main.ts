@@ -11,6 +11,7 @@ import { geoCentroid, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
+import { addEntry, type JournalEntry, lastWeek, loadJournal, saveJournal } from "./checkin/journal";
 import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
 import { DemoSource } from "./data/demo-source";
@@ -91,6 +92,11 @@ mount(App, {
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
         moment.checkIn(mood, from);
         refreshResult();
+        if (view.checkin.mine !== null && view.checkin.country !== null) {
+          journal = addEntry(journal, { mood, at: new Date(), country: view.checkin.country });
+          saveJournal(journal);
+          refreshJournal();
+        }
         if (view.checkin.mine !== null) {
           view.checkin.firstRun = false; // the place row goes back under the faces
           mark(FLAG_CHECKED_IN);
@@ -103,6 +109,11 @@ mount(App, {
       startPick: () => moment.startPick(),
       cancelPick: () => moment.cancelPick(),
       landed: (id: number) => moment.landed(id),
+      clearJournal: () => {
+        journal = [];
+        saveJournal(journal);
+        refreshJournal();
+      },
       cardMoved: () => {
         if (layoutReady) refitToCard();
       },
@@ -194,12 +205,19 @@ function onSnapshot(next: Snapshot): void {
   view.worldQuiet = headline.quiet;
   view.worldMood = headline.mood;
   view.checkin.published = Object.keys(next.countries);
+  refreshJournal(); // the window moves at midnight while the page stays open
   refreshResult();
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
   recomputeWeather();
   renderPanel();
+}
+
+/** Your own check-ins, on this device only (bridge R2). The strip appears from the second day. */
+let journal: JournalEntry[] = loadJournal();
+function refreshJournal(): void {
+  view.checkin.week = journal.length >= 2 ? lastWeek(journal, new Date()) : null;
 }
 
 /** The Earth follows the region in view (bridge T1): cross-fades when that region's mood differs. */
@@ -514,6 +532,7 @@ async function start(): Promise<void> {
   lods = { move: m, "110m": a, "50m": b };
   moment.init(new Map(b.countries.map((f) => [String(f.id), pinPoint(f)])), navigator.languages);
   view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
+  refreshJournal();
   // Open facing your pin (decision B2): "you are here" is on screen before any tap, so a wrong
   // guess is obvious. Bench runs keep the fixed start pose so frames compare across runs.
   if (moment.pin !== null && !config.bench) camera.view = { center: moment.pin.lonLat, zoom: 1 };

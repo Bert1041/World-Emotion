@@ -84,6 +84,13 @@ export const en: Messages = {
     smallCountry: "Small countries show their continent until {n} people check in.",
   },
 
+  journal: {
+    label: "Your last 7 days",
+    none: "no check-in",
+    onDevice: "Kept only on this device",
+    clear: "clear",
+  },
+
   hints: { tapCountry: "Tap a country" },
 
   language: { menu: "Language", suggest: "Suggest a better translation" },

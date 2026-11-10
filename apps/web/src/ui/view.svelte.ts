@@ -78,6 +78,11 @@ export const view = $state({
     mine: null as MoodId | null,
     /** Who else feels it, from the snapshot (bridge R1); null before you check in. */
     result: null as Alongside | null,
+    /**
+     * Your last seven days, oldest first (bridge R2): each day's mood or null. Null until you
+     * have checked in on two different days; kept on this device only.
+     */
+    week: null as readonly (MoodId | null)[] | null,
     /** Pick mode: the globe is the country picker ("tap where you are"). */
     picking: false,
   },
@@ -96,6 +101,8 @@ export interface UiActions {
   cancelPick(): void;
   /** The flying face reached your country (flight `id`). */
   landed(id: number): void;
+  /** Forget the on-device journal (bridge R2). */
+  clearJournal(): void;
   /** The region card finished moving (peek ↔ open): re-measure and re-fit the map. */
   cardMoved(): void;
 }

@@ -87,6 +87,13 @@ export const ptBR: Messages = {
     smallCountry: "Países pequenos mostram seu continente até que {n} pessoas respondam.",
   },
 
+  journal: {
+    label: "Seus últimos 7 dias",
+    none: "nada",
+    onDevice: "Fica só neste aparelho",
+    clear: "apagar",
+  },
+
   hints: { tapCountry: "Toque em um país" },
 
   language: { menu: "Idioma", suggest: "Sugerir uma tradução melhor" },

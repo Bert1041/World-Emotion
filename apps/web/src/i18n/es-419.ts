@@ -97,6 +97,13 @@ export const es419: Messages = {
     smallCountry: "Los países pequeños muestran su continente hasta que {n} personas respondan.",
   },
 
+  journal: {
+    label: "Tus últimos 7 días",
+    none: "nada",
+    onDevice: "Se guarda solo en este dispositivo",
+    clear: "borrar",
+  },
+
   hints: { tapCountry: "Toca un país" },
 
   language: { menu: "Idioma", suggest: "Sugerir una mejor traducción" },

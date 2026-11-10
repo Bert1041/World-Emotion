@@ -107,6 +107,16 @@ export interface Messages {
     readonly smallCountry: string;
   };
 
+  /** Your on-device journal (bridge R2): a strip of the last seven days. */
+  readonly journal: {
+    /** The strip's accessible name; the days follow it, read as mood labels. */
+    readonly label: string;
+    /** A day with no check-in, in that list. */
+    readonly none: string;
+    readonly onDevice: string;
+    readonly clear: string;
+  };
+
   /** One-time hints (bridge U6). */
   readonly hints: {
     readonly tapCountry: string;

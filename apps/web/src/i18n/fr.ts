@@ -109,6 +109,13 @@ export const fr: Messages = {
       "Les petits pays affichent leur continent tant que moins de {n} personnes ont partagé leur humeur.",
   },
 
+  journal: {
+    label: "Tes 7 derniers jours",
+    none: "rien",
+    onDevice: "Gardé uniquement sur cet appareil",
+    clear: "effacer",
+  },
+
   hints: { tapCountry: "Touche un pays" },
 
   language: { menu: "Langue", suggest: "Proposer une meilleure traduction" },
