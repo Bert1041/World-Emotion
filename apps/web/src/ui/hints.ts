@@ -22,6 +22,26 @@ export function firstTime(key: string, store: FlagStore | null = defaultStore())
   return true;
 }
 
+/** This device has checked in before (bridge J2): the first run leads with the place. */
+export const FLAG_CHECKED_IN = "we.checkedIn";
+
+/** Whether `key` has been marked on this device. Unknown (no storage) counts as not seen. */
+export function seen(key: string, store: FlagStore | null = defaultStore()): boolean {
+  try {
+    return store !== null && store.getItem(key) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function mark(key: string, store: FlagStore | null = defaultStore()): void {
+  try {
+    store?.setItem(key, "1");
+  } catch {
+    // a per-device convenience only
+  }
+}
+
 function defaultStore(): FlagStore | null {
   try {
     return typeof localStorage === "undefined" ? null : localStorage;

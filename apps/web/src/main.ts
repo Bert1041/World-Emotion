@@ -35,7 +35,7 @@ import {
 import { ThemeMixer } from "./engine/themes";
 import { i18n } from "./i18n/i18n.svelte";
 import App from "./ui/App.svelte";
-import { firstTime, HINT_TAP_COUNTRY } from "./ui/hints";
+import { FLAG_CHECKED_IN, firstTime, HINT_TAP_COUNTRY, mark, seen } from "./ui/hints";
 import { view } from "./ui/view.svelte";
 
 /**
@@ -90,6 +90,10 @@ mount(App, {
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
         moment.checkIn(mood, from);
         refreshResult();
+        if (view.checkin.mine !== null) {
+          view.checkin.firstRun = false; // the place row goes back under the faces
+          mark(FLAG_CHECKED_IN);
+        }
       },
       setCountry: (code: string) => {
         moment.setCountry(code);
@@ -502,6 +506,10 @@ async function start(): Promise<void> {
   ]);
   lods = { move: m, "110m": a, "50m": b };
   moment.init(new Map(b.countries.map((f) => [String(f.id), pinPoint(f)])), navigator.languages);
+  view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
+  // Open facing your pin (decision B2): "you are here" is on screen before any tap, so a wrong
+  // guess is obvious. Bench runs keep the fixed start pose so frames compare across runs.
+  if (moment.pin !== null && !config.bench) camera.view = { center: moment.pin.lonLat, zoom: 1 };
   centroids = b.countries.map((f) => {
     const [lon, lat] = geoCentroid(f);
     return { code: String(f.id), lon, lat };

@@ -59,6 +59,8 @@ export const en: Messages = {
     move: "move",
     showMe: "show me",
     whereAreYou: "Where are you?",
+    yourCountry: "Your country:",
+    notYou: "not you?",
     tapYourCountry: "Tap your country on the globe",
     tooSmall: "Too small to tap?",
     typeIt: "Type it…",

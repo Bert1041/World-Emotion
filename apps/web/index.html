@@ -125,6 +125,8 @@
       #checkin .from .place { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
         background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
       #checkin .from .where { color: var(--text); }
+      /* First run (bridge J2): the place row sits above the faces. */
+      #checkin .from.first { margin: 0 0 0.65rem; }
       #checkin .pin path { fill: var(--accent); }
       #checkin .pin circle { fill: #0a0c10; }
       #checkin .pick { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; }
@@ -150,6 +152,9 @@
         #checkin .faces { flex: 1; }
         #checkin .from { flex-direction: column; gap: 0.35rem; margin: 0; padding: 0.3rem 0 0.3rem 1rem; border-left: 1px solid rgba(255, 255, 255, 0.12); align-self: stretch; }
         #checkin .from .dot { display: none; }
+        /* Columns are fixed, so the first-run order in the DOM does not swap them. */
+        #checkin .stack { grid-column: 1; grid-row: 1; }
+        #checkin .from, #checkin .from.first { grid-column: 2; grid-row: 1; margin: 0; }
       }
       /* A phone on its side has no height to spare: a panel on the right, sized to its content.
          Same query as DOCK_RIGHT in main.ts. */
@@ -158,6 +163,8 @@
         #checkin:not([hidden]) { left: auto; right: max(var(--gap), env(safe-area-inset-right)); top: 0; bottom: 0; margin: auto 0; height: fit-content;
           max-height: calc(100vh - 2 * var(--gap)); width: 12.5rem; max-width: none; display: flex; flex-direction: column; justify-content: center; }
         #checkin .faces { grid-template-columns: repeat(3, 1fr); row-gap: 0.4rem; }
+        /* No room for the first-run label in a 12.5rem column: the place row still leads, with "not you?". */
+        #checkin .from .label { display: none; }
         /* Centre the headline over the globe's column, not the whole screen. */
         header { right: calc(12.5rem + 2 * var(--gap)); }
       }

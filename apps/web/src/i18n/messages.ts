@@ -81,6 +81,9 @@ export interface Messages {
     readonly move: string;
     readonly showMe: string;
     readonly whereAreYou: string;
+    /** First run (bridge J2): a label before the place badge, and the link to correct a wrong guess. */
+    readonly yourCountry: string;
+    readonly notYou: string;
     readonly tapYourCountry: string;
     readonly tooSmall: string;
     readonly typeIt: string;

@@ -83,6 +83,8 @@ export const fr: Messages = {
     move: "déplacer",
     showMe: "choisir",
     whereAreYou: "Où es-tu ?",
+    yourCountry: "Ton pays :",
+    notYou: "ce n’est pas ça ?",
     tapYourCountry: "Touche ton pays sur le globe",
     tooSmall: "Trop petit pour le toucher ?",
     typeIt: "Tape son nom…",

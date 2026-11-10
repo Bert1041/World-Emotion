@@ -57,6 +57,10 @@ const matches = $derived.by(() => {
   );
   return [...starts, ...within].slice(0, 3);
 });
+/** First run with a guessed country: lead with it. Not while picking, and not with no guess. */
+const placeFirst = $derived(
+  view.checkin.firstRun && view.checkin.country !== null && mode !== "pick",
+);
 const youFeel = $derived(around(i18n.t.checkin.youFeel, "mood"));
 /** The line under it (bridge R1): real numbers from the snapshot, updated with every one. */
 const like = $derived(
@@ -88,7 +92,28 @@ function choose(code: string): void {
 }
 </script>
 
-<section id="checkin" hidden={!view.checkin.visible} aria-label={i18n.t.checkin.label} data-country={view.checkin.country ?? ""} data-mode={mode}>
+{#snippet place()}
+  <div class="from" class:first={placeFirst}>
+    {#if placeFirst}<span class="label">{i18n.t.checkin.yourCountry}</span>{/if}
+    <span class="place">
+      <svg class="pin" width="12" height="16" viewBox="0 0 12 16" aria-hidden="true">
+        <path d="M6 15.5C6 15.5 1 9.6 1 6a5 5 0 0 1 10 0c0 3.6-5 9.5-5 9.5z" />
+        <circle cx="6" cy="6" r="2" />
+      </svg>
+      <span class="where">{countryName ?? i18n.t.checkin.whereAreYou}</span>
+    </span>
+    {#if mode !== "pick"}
+      <span class="dot" aria-hidden="true">·</span>
+      <button type="button" class="link" id="checkin-move" onclick={(e) => startPick(e.detail === 0)}>
+        {countryName === null ? i18n.t.checkin.showMe : placeFirst ? i18n.t.checkin.notYou : i18n.t.checkin.move}
+      </button>
+    {/if}
+  </div>
+{/snippet}
+
+<section id="checkin" hidden={!view.checkin.visible} aria-label={i18n.t.checkin.label} data-country={view.checkin.country ?? ""} data-mode={mode} data-first={placeFirst}>
+  <!-- First run on this device (bridge J2): the place comes first, so a wrong guess is seen before the tap. -->
+  {#if placeFirst}{@render place()}{/if}
   <div class="stack">
     <div class="layer faces-layer" class:off={mode !== "faces"} inert={mode !== "faces"}>
       <div class="prompt" id="checkin-prompt">{i18n.t.checkin.ask}</div>
@@ -150,21 +175,7 @@ function choose(code: string): void {
     </div>
   </div>
 
-  <div class="from">
-    <span class="place">
-      <svg class="pin" width="12" height="16" viewBox="0 0 12 16" aria-hidden="true">
-        <path d="M6 15.5C6 15.5 1 9.6 1 6a5 5 0 0 1 10 0c0 3.6-5 9.5-5 9.5z" />
-        <circle cx="6" cy="6" r="2" />
-      </svg>
-      <span class="where">{countryName ?? i18n.t.checkin.whereAreYou}</span>
-    </span>
-    {#if mode !== "pick"}
-      <span class="dot" aria-hidden="true">·</span>
-      <button type="button" class="link" id="checkin-move" onclick={(e) => startPick(e.detail === 0)}>
-        {countryName === null ? i18n.t.checkin.showMe : i18n.t.checkin.move}
-      </button>
-    {/if}
-  </div>
+  {#if !placeFirst}{@render place()}{/if}
   {#if countryQuiet && view.status === "ready"}
     <div class="small-country">{smallCountry}</div>
   {/if}

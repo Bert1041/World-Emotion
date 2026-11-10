@@ -72,6 +72,8 @@ export const view = $state({
     countries: [] as readonly string[],
     /** Countries in the snapshot (at or above the privacy floor); others show their continent. */
     published: [] as readonly string[],
+    /** No check-in from this device yet: the bar leads with your place (bridge J2). */
+    firstRun: false,
     /** Your active mood this session, or null before you check in. */
     mine: null as MoodId | null,
     /** Who else feels it, from the snapshot (bridge R1); null before you check in. */

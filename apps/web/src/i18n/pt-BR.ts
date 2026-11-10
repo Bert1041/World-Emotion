@@ -69,6 +69,8 @@ export const ptBR: Messages = {
     move: "mover",
     showMe: "escolher",
     whereAreYou: "Onde você está?",
+    yourCountry: "Seu país:",
+    notYou: "não é aqui?",
     tapYourCountry: "Toque no seu país no globo",
     tooSmall: "Pequeno demais para tocar?",
     typeIt: "Digite o nome…",

@@ -72,6 +72,8 @@ export const es419: Messages = {
     move: "mover",
     showMe: "elegir",
     whereAreYou: "¿Dónde estás?",
+    yourCountry: "Tu país:",
+    notYou: "¿no es aquí?",
     tapYourCountry: "Toca tu país en el globo",
     tooSmall: "¿Muy pequeño para tocarlo?",
     typeIt: "Escríbelo…",
