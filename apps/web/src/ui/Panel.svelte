@@ -1,5 +1,6 @@
 <script lang="ts">
 import { FixedStep, SPRING, Spring } from "@world-emotion/motion";
+import { REDUCED_MOTION_QUERY, SIDE_CARD_QUERY } from "../engine/breakpoints";
 import { i18n } from "../i18n/i18n.svelte";
 import { around, fill } from "../i18n/messages";
 import BarRow from "./BarRow.svelte";
@@ -13,9 +14,9 @@ import { type UiActions, view } from "./view.svelte";
  */
 let { actions }: { actions: UiActions } = $props();
 
-/** Same query as SIDE_CARD in main.ts and the index.html media query. */
-const side = matchMedia("(min-aspect-ratio: 6/5)");
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** One definition of "landscape" (engine/breakpoints.ts; the CSS repeats it, a test checks). */
+const side = matchMedia(SIDE_CARD_QUERY);
+const reduced = matchMedia(REDUCED_MOTION_QUERY).matches;
 let wide = $state(side.matches);
 $effect(() => {
   const on = () => (wide = side.matches);
