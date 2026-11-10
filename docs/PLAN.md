@@ -132,6 +132,28 @@ Also: phone **peek card** for the zoomed region (decided 2026-11-07): collapsed 
 - Simulator runs spikes/waves/trolls against `wrangler dev`, not against mocks.
 - CORS and input validation tested at the boundary.
 
+### Phase 5.5: The bridge (added 2026-11-10, from `docs/audit-2026-11-10.md`)
+
+**Why:** the audit found the client has no data-source seam, no quiet state, no failure state, no payoff
+after the check-in, and a first-run country guess that is wrong for most English installs. Phase 6
+would wire real data into that shape. Design: `docs/design/phase-5.5-bridge.md` (decisions B1–B6).
+**Rule:** a bridge item needs no API, aggregator or deploy; anything that does stays in Phase 6+.
+**Two PRs:**
+- **5.5a foundations:** quiet world headline (P0, ADR 0003); `SnapshotSource` seam with `DemoSource`;
+  `main.ts` split (≤ 350 lines, bench harness out of the bundle, unit tests for the extracted logic);
+  loading and failure states; early-tap guard; one definition of landscape; tap targets, label size,
+  country-tap hint, small-country copy, theme label.
+- **5.5b second act:** result line after the check-in ("with N others · {Country} feels X"); place-first
+  first run with the pin facing you; theme follows the viewed region; on-device journal (never sent);
+  particles as soft, land-bound weather (re-benched on the Pixel).
+**Exit criteria:** each row's criterion in the design doc, mutation-listed; `pnpm check`, e2e and the Pixel
+bench pass; initial JS within 5 KB of 79 KB gz; the Phase 6 design can add `PolledSource`, vote
+persistence and the re-count path without editing `main.ts` beyond one constructor; a recorded first run
+on a real phone shows place → pin → tap → result line.
+**Moves to later phases:** persist the vote with the device key and the `counted: "world"` re-count
+(Phase 6); daily artefact and the list view as a launch gate (Phase 7); Turnstile unconditional on the
+first check-in, launch gate (Phase 8); a named launch community and cold-start checklist (Phase 9).
+
 ### Phase 6: Aggregator + snapshot + client polling
 
 **Scope:** cron Worker, Stage 1 aggregation, R2 write, state file (G4), purge, client polling with jitter + tweening, version rejection.
