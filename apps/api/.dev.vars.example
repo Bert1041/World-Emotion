@@ -1,0 +1,5 @@
+# Copy to .dev.vars (gitignored) for `pnpm dev`. Production: `wrangler secret put <NAME>`.
+DEVICE_HASH_SECRET=dev-only-device-secret
+IP_SALT_SECRET=dev-only-ip-secret
+# Lets tools/simulate set the connection country and IP with x-sim-* headers. Never set in production.
+SIMULATE=1

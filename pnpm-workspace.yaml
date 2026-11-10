@@ -6,3 +6,9 @@ packages:
 # Supply-chain guard: never resolve a package version published less than
 # 14 days ago (value in minutes). Applies to transitive dependencies too.
 minimumReleaseAge: 20160
+
+# Packages allowed to run install scripts: workerd downloads the Workers runtime binary;
+# esbuild its platform binary (both used by wrangler / vitest-pool-workers in apps/api).
+allowBuilds:
+  esbuild: true
+  workerd: true

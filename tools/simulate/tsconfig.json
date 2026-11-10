@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["es2023", "dom"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["*.ts", "../../apps/api/src/purge-sql.ts"]
+}

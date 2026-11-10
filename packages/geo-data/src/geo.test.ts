@@ -42,7 +42,7 @@ describe("country map", () => {
     const id = "3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b";
     for (const country of codes) {
       expect(
-        checkinRequestSchema.safeParse({ mood: 0, country, checkinId: id }).success,
+        checkinRequestSchema.safeParse({ mood: 0, country, checkinId: id, deviceKey: id }).success,
         country,
       ).toBe(true);
     }

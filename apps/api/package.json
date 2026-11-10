@@ -1,0 +1,23 @@
+{
+  "name": "@world-emotion/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
+    "db:migrate": "wrangler d1 migrations apply world-emotion --local",
+    "check:migrations": "node scripts/migrations.ts"
+  },
+  "dependencies": {
+    "@world-emotion/geo-data": "workspace:*",
+    "@world-emotion/shared": "workspace:*",
+    "hono": "4.13.14"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.8",
+    "@cloudflare/workers-types": "5.20261026.1",
+    "vitest": "4.1.12",
+    "wrangler": "4.153.0"
+  }
+}

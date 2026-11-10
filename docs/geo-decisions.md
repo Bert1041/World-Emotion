@@ -33,8 +33,8 @@ client uses `Intl.DisplayNames` (localised).
 ## Validation boundary
 
 `checkinRequestSchema` (shared) checks the **format** `^[A-Z]{2}$`; `isKnownCountry` (geo-data)
-checks **membership**. `shared` cannot import `geo-data` (it would be a cycle), so the API must
-apply both (Phase 5).
+checks **membership**. `shared` cannot import `geo-data` (it would be a cycle), so the API
+applies both (done in Phase 5: `apps/api/src/app.ts`, tested in `apps/api/test/checkin.test.ts`).
 
 ## Sizes (gzipped)
 

@@ -129,11 +129,12 @@ Raw per-minute data twitches, and a twitchy globe feels fake.
 ### 5.6 Abuse resistance
 - Device key: random ID created on first visit, kept locally. Not an identity, just a "one active vote" handle. The server stores only a **salted hash**.
 - Rate limit by a hash of the IP using a **daily-rotating salt** (throttle without storing IPs).
-- Changing country manually is allowed but rate-limited (country-hopping is the obvious troll move; shrinkage limits the damage).
+- Changing country manually is allowed. A separate country-change limit was dropped (2026-11-10): under the rule below, a pick that does not match the connection counts for the world only, so country-hopping gains nothing. One flood limit remains.
 - **A vote counts for a country only where it is cast from** (decided 2026-11-09). The API compares the chosen country with `request.cf.country`, at request time, without storing the IP: if they match, the vote counts for the country, its continent and the world; if not (someone in Canada picking the United States, a traveller), or if the connection country is unknown, it counts for the **world only**. This stops people outside a country from setting its mood; GPS was rejected (a permission prompt for a mood app). The app says so when the two differ, rather than silently discounting.
 - Country detection is "good enough", not truth: VPNs will fool it. Accepted for a parody app.
 - `request.cf.country` can return non-countries (`XX` unknown, `T1` Tor). These are treated as unknown: the user is asked to pick a country, otherwise the vote counts toward the world only.
-- A manually chosen country is validated against the generated ISO list from `packages/geo-data`. Where rate-limit counters live (Workers Rate Limiting binding vs. a D1 table, which costs writes) is decided in the API phase; verify free-plan availability first.
+- A manually chosen country is validated against the generated ISO list from `packages/geo-data`. Rate-limit counters use the **Workers Rate Limiting binding** (no D1 writes; approximate, per location), keyed by daily-salted IP hash and by device hash. Free-plan availability is unverified until there is an account; the fallback is a D1 counter table (docs/design/phase-5-api.md §4).
+- A picked country that does not count (mismatch or unknown connection) is **not stored**: the row keeps `country = NULL`. The check-in reply tells the app the connection country, so it can say the vote counted for the world only.
 - Turnstile challenge only when a suspicious spike is detected.
 
 ---
@@ -144,12 +145,12 @@ Raw per-minute data twitches, and a twitchy globe feels fake.
 -- migrations/0001_init.sql
 CREATE TABLE votes (
   voter_hash  TEXT PRIMARY KEY,      -- salted hash of device key; one row per device
-  country     TEXT NOT NULL,         -- ISO 3166-1 alpha-2, from the request
+  country     TEXT,                  -- ISO 3166-1 alpha-2; NULL = counts for the world only (§5.6)
   mood        INTEGER NOT NULL,      -- enum 0..N
   created_at  INTEGER NOT NULL,      -- unix seconds, server time
   last_checkin_id TEXT NOT NULL      -- idempotency key of the last accepted check-in
 );
-CREATE INDEX idx_votes_window ON votes (created_at, country, mood);
+CREATE INDEX idx_votes_window ON votes (country, mood, created_at);  -- order measured: Phase 5 design §3
 ```
 
 **`POST /checkin`** takes `{ mood, country? }` plus an idempotency key, so retries (offline queue, flaky networks) never double count. If the key matches `last_checkin_id`, the server returns success **without writing**, so a replay neither refreshes `created_at` (which would stretch the window) nor spends write budget. The offline queue keeps **only the latest** check-in per device, so stale replays cannot overwrite a newer mood.
@@ -178,8 +179,8 @@ Limits read from Cloudflare's published docs on 2026-11-05. **They change. Re-ve
 | Worker requests | 100,000 / day | Reads bypass Workers via CDN-cached R2 file. Only check-ins and cache misses invoke a Worker. |
 | Worker CPU time | 10 ms / request | `POST /checkin` does one validated upsert. Keep it boring. |
 | Cron triggers | 5 / account | We need one. |
-| D1 rows written | 100,000 / day | ~4 row writes over a vote's life: insert (row + index) and purge (row + index); a re-vote updates in place instead ⇒ roughly **25k new check-ins/day** before the ceiling. *Estimate; measured with `meta.rows_written` in the API phase.* |
-| D1 rows read | 5,000,000 / day | See aggregation note below. |
+| D1 rows written | 100,000 / day | **Measured** (local D1, 2026-11-10): a new device's first check-in costs 2 (row + index), a changed mood 2, a replay **0**, and the purge 1 per vote ⇒ **3 over a vote's life**, roughly **33k new devices/day** before the ceiling (each re-vote costs 2 more). Re-measure on the real database in Phase 6. |
+| D1 rows read | 5,000,000 / day | **Measured:** the aggregation reads 1 row per *stored* vote (not 2: index order chosen to avoid a billed sort). See aggregation note below. |
 | D1 storage | 5 GB | Votes are tiny and purged. |
 | R2 | 10 GB-month, 1M Class A ops/month | One snapshot write per minute is ~43k/month. |
 
@@ -189,7 +190,7 @@ Limits read from Cloudflare's published docs on 2026-11-05. **They change. Re-ve
 
 ### Aggregation cost: the one thing that will bite
 Scanning every vote in the window on each run multiplies rows-read by runs per day. Two stages:
-1. **Stage 1 (launch):** aggregate every **5 minutes** from `votes` using the covering index. At 2 minutes the read cap binds first: 720 runs/day × 10k votes in window = 7.2M rows read, over the 5M limit (break-even ≈ 6.9k votes). At 5 minutes, 288 runs × 10k ≈ 2.9M.
+1. **Stage 1 (launch):** aggregate every **5 minutes** from `votes` using the covering index `(country, mood, created_at)`, and **purge hourly**, not every run (the purge scans the whole index). Measured cost: each run reads every stored vote, about 1.08 × the votes in the window with an hourly purge, so 288 runs + 24 purges ≈ **337 × V rows/day**. That reaches 5M at **V ≈ 15k votes in the window**, with 10k costing ≈ 3.4M. (Index order `(created_at, …)` would have doubled this: SQLite sorts for the GROUP BY and D1 bills the sort, so V ≈ 8.7k.) At 2 minutes the read cap binds much earlier.
 2. **Stage 2 (if viral):** time-bucketed counters (`bucket_counts(bucket_ts, country, mood, n)`, 15-minute buckets). Check-ins increment the current bucket; the aggregator sums the last 24. Cost then scales with countries, not votes.
 
 Trigger: move to Stage 2 when daily rows-read passes ~50% of the limit.
@@ -331,7 +332,7 @@ world-emotion/
 │  └─ geo-data/            # build script + generated country→continent map
 ├─ tools/
 │  └─ simulate/            # fake traffic generator for local testing
-├─ migrations/             # D1 .sql migrations
+├─ migrations/             # D1 .sql migrations (rollback/ holds each one's reverse)
 ├─ docs/
 │  ├─ sketches/            # design sketches from planning
 │  ├─ decisions/           # short decision records
