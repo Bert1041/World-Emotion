@@ -18,7 +18,8 @@ import {
 } from "@world-emotion/shared";
 import { geoCentroid, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
-import { SnapshotSim } from "./demo/snapshot-sim";
+import { DemoSource } from "./data/demo-source";
+import type { SnapshotSource } from "./data/snapshot-source";
 import { Camera, CONTINENT_VIEWS, STRETCH_COMMIT, type View } from "./engine/camera";
 import { guessCountry } from "./engine/country-guess";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod, pointCount } from "./engine/geo";
@@ -63,6 +64,15 @@ const config = {
 };
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// ---- Data source (src/data): demo for now; Phase 6 swaps in the polled snapshot + API -----------
+// Demo cadence: one aggregation run every 2 s; the world's mood moves every 20 s unless ?auto=0.
+// Bench runs never step on their own, so frames compare across runs.
+const source: SnapshotSource = new DemoSource({
+  autoCycle: !config.bench && params.get("auto") !== "0",
+  paused: config.bench,
+  now: performance.now(),
+});
+
 // ---- DOM --------------------------------------------------------------------------------------
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const baseCanvas = $<HTMLCanvasElement>("base");
@@ -85,9 +95,8 @@ mount(App, {
     actions: {
       back: () => leave(),
       previewMood: (m: MoodId) => {
-        sim.bias = m;
-        autoCycle = false;
-        view.autoCycle = false;
+        source.demo?.previewMood(m);
+        view.autoCycle = source.demo?.autoCycle ?? false;
       },
       checkIn: (mood: MoodId, from: { x: number; y: number }) => checkIn(mood, from),
       setCountry: (code: string) => setCountry(code),
@@ -100,9 +109,7 @@ mount(App, {
         if (layoutReady) refitToCard();
       },
       toggleAuto: () => {
-        autoCycle = !autoCycle;
-        cycleAt = performance.now();
-        view.autoCycle = autoCycle;
+        view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
     },
   },
@@ -260,8 +267,7 @@ function applyCamera(): void {
 }
 
 // ---- Data → colours and weather ---------------------------------------------------------------
-const sim = new SnapshotSim(1);
-let snapshot: Snapshot = sim.snapshot;
+let snapshot: Snapshot = source.snapshot;
 const mixer = new ThemeMixer(snapshot.world.h, 2.5);
 const moodLab = MOOD_COLORS.map(hexToOklab);
 const fills = new Map<string, string>();
@@ -586,9 +592,7 @@ fxCanvas.addEventListener(
 );
 
 // ---- Dev switcher: preview any theme, or let the demo cycle (buttons in ui/App.svelte) -------
-let autoCycle = !config.bench && params.get("auto") !== "0";
-let cycleAt = performance.now();
-view.autoCycle = autoCycle;
+view.autoCycle = source.demo?.autoCycle ?? false;
 view.devVisible = config.dev && !config.bench;
 view.checkin.visible = !config.bench;
 document.body.classList.toggle("dev", view.devVisible);
@@ -596,7 +600,6 @@ document.body.classList.toggle("dev", view.devVisible);
 // ---- Frame loop -------------------------------------------------------------------------------
 let prevTs = 0;
 let perfAt = 0;
-let stepAt = 0;
 let lastFrameMs = 0;
 let idleRotating = false;
 let wasAnimating = false;
@@ -625,15 +628,8 @@ function frame(ts: number): void {
   idleRotating = false;
   const dt = prevTs === 0 ? 0 : Math.min((ts - prevTs) / 1000, 0.05);
 
-  // Demo data: one aggregation run every 2 s; the world bias moves every 20 s.
-  if (!config.bench && ts - stepAt > 2000) {
-    stepAt = ts;
-    if (autoCycle && ts - cycleAt > 20_000) {
-      cycleAt = ts;
-      sim.bias = ((sim.bias + 1) % MOOD_COUNT) as MoodId;
-    }
-    onSnapshot(sim.step());
-  }
+  const arrived = source.tick(ts);
+  if (arrived !== null) onSnapshot(arrived);
 
   if (showNight && !config.bench && ts - sunAt > NIGHT_REFRESH_MS) {
     sunAt = ts;
@@ -884,7 +880,7 @@ function checkIn(mood: MoodId, from: { x: number; y: number }): void {
   if (myPin === null) return;
   const { code, lonLat } = myPin;
   const first = view.checkin.mine === null;
-  sim.checkIn(code, mood); // counted from the next aggregation run, like the real pipeline
+  source.checkIn(code, mood); // counted from the next aggregation run, like the real pipeline
   view.checkin.mine = mood;
   lastInput = performance.now();
   // Turn your pin to the front; the face lands where it will be (the globe's centre).
@@ -1107,7 +1103,7 @@ window.__bench = {
     };
   },
   aggregate() {
-    onSnapshot(sim.step());
+    onSnapshot(source.aggregate());
   },
   face(lon, lat) {
     camera.stop();
