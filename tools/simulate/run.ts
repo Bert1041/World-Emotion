@@ -202,23 +202,34 @@ async function spike() {
 async function sharedIpSpike() {
   reset();
   // 1,000 devices behind only 20 IPs (offices, carrier NAT): the per-IP limit (10/min) bites.
+  // The limiter counts in fixed one-minute windows, so a burst that crosses a minute boundary
+  // (CI is slower) legitimately gets a fresh 10 per IP: allow 10 per IP per window touched.
   const ips = Array.from({ length: 20 }, newIp);
+  const startMin = Math.floor(Date.now() / 60_000);
   const rs = await pool(
     Array.from({ length: 1000 }, (_, i) => i),
     50,
-    (i) =>
-      send(
+    async (i) => ({
+      ip: ips[i % 20] as string,
+      r: await send(
         { mood: i % 6, checkinId: randomUUID(), deviceKey: randomUUID() },
         "CA",
         ips[i % 20] as string,
       ),
+    }),
   );
-  const s = statuses(rs);
+  const windows = Math.floor(Date.now() / 60_000) - startMin + 1;
+  const s = statuses(rs.map((x) => x.r));
+  const perIp = new Map<string, number>();
+  for (const { ip, r } of rs) if (r.status === 200) perIp.set(ip, (perIp.get(ip) ?? 0) + 1);
+  const counts = [...perIp.values()];
   const rows = one("SELECT count(*) AS n FROM votes");
   check(
     "shared-IP spike",
-    `1000 devices / 20 IPs → ${JSON.stringify(s)}`,
-    s[200] === 200 && s[429] === 800,
+    `1000 devices / 20 IPs over ${windows} limiter window(s) → ${JSON.stringify(s)}; accepted per IP ${Math.min(...counts)}–${Math.max(...counts)} (limit 10 × ${windows})`,
+    counts.length === 20 &&
+      counts.every((n) => n >= 10 && n <= 10 * windows) &&
+      (s[200] ?? 0) + (s[429] ?? 0) === 1000,
   );
   check(
     "shared-IP spike",
