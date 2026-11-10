@@ -57,6 +57,8 @@ export const view = $state({
   themeId: null as MoodId | null,
   zoomed: false,
   panel: null as PanelView | null,
+  /** A one-time hint on screen (bridge U6), or null. */
+  hint: null as "tapCountry" | null,
   devVisible: false,
   autoCycle: true,
   /** Active check-ins in the world snapshot; ticks up when yours lands. */
@@ -67,6 +69,8 @@ export const view = $state({
     country: null as string | null,
     /** Every pickable country code; names come from the active language (i18n.country). */
     countries: [] as readonly string[],
+    /** Countries in the snapshot (at or above the privacy floor); others show their continent. */
+    published: [] as readonly string[],
     /** Your active mood this session, or null before you check in. */
     mine: null as MoodId | null,
     /** Pick mode: the globe is the country picker ("tap where you are"). */

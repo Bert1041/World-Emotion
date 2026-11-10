@@ -34,6 +34,7 @@ import {
 import { ThemeMixer } from "./engine/themes";
 import { i18n } from "./i18n/i18n.svelte";
 import App from "./ui/App.svelte";
+import { firstTime, HINT_TAP_COUNTRY } from "./ui/hints";
 import { view } from "./ui/view.svelte";
 
 /**
@@ -181,6 +182,7 @@ function onSnapshot(next: Snapshot): void {
   }
   view.worldQuiet = headline.quiet;
   view.worldMood = headline.mood;
+  view.checkin.published = Object.keys(next.countries);
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
@@ -201,6 +203,9 @@ function renderPanel(): void {
 
 /** True between a tap and the start of its glide (one frame), so callers never see "arrived". */
 let fitPending = false;
+/** The country-tap hint stays this long on the first zoom (bridge U6). */
+const HINT_MS = 4000;
+
 function enter(c: Continent): void {
   focus = c;
   fitPending = true;
@@ -208,6 +213,12 @@ function enter(c: Continent): void {
   recomputeFills();
   recomputeWeather();
   renderPanel();
+  if (firstTime(HINT_TAP_COUNTRY)) {
+    view.hint = "tapCountry";
+    setTimeout(() => {
+      if (view.hint === "tapCountry") view.hint = null;
+    }, HINT_MS);
+  }
   // Fit once the card has its final size, so the continent lands beside it, not under it.
   requestAnimationFrame(() => {
     fitPending = false;
@@ -220,6 +231,7 @@ function enter(c: Continent): void {
 function leave(): void {
   focus = null;
   selected = null;
+  view.hint = null;
   camera.glideTo({ center: [camera.view.center[0], 15], zoom: 1, offset: [0, 0] });
   recomputeFills();
   recomputeWeather();
@@ -285,6 +297,7 @@ const input = attachInput(fxCanvas, {
     } else if (focus !== hit.continent) enter(hit.continent);
     else {
       selected = hit.code;
+      view.hint = null; // they found it
       renderPanel(); // the ResizeObserver re-fits if the card's height changes
     }
   },

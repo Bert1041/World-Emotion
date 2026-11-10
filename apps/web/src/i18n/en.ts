@@ -64,7 +64,10 @@ export const en: Messages = {
     typeIt: "Type it…",
     noMatch: "No match",
     cancel: "cancel",
+    smallCountry: "Small countries show their continent until {n} people check in.",
   },
+
+  hints: { tapCountry: "Tap a country" },
 
   language: { menu: "Language", suggest: "Suggest a better translation" },
 };

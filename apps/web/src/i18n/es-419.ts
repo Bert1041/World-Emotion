@@ -77,7 +77,10 @@ export const es419: Messages = {
     typeIt: "Escríbelo…",
     noMatch: "Sin resultados",
     cancel: "cancelar",
+    smallCountry: "Los países pequeños muestran su continente hasta que {n} personas respondan.",
   },
+
+  hints: { tapCountry: "Toca un país" },
 
   language: { menu: "Idioma", suggest: "Sugerir una mejor traducción" },
 };

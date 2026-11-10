@@ -74,7 +74,10 @@ export const ptBR: Messages = {
     typeIt: "Digite o nome…",
     noMatch: "Nada encontrado",
     cancel: "cancelar",
+    smallCountry: "Países pequenos mostram seu continente até que {n} pessoas respondam.",
   },
+
+  hints: { tapCountry: "Toque em um país" },
 
   language: { menu: "Idioma", suggest: "Sugerir uma tradução melhor" },
 };

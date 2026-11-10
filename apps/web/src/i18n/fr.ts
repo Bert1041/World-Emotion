@@ -88,7 +88,11 @@ export const fr: Messages = {
     typeIt: "Tape son nom…",
     noMatch: "Aucun résultat",
     cancel: "annuler",
+    smallCountry:
+      "Les petits pays affichent leur continent tant que moins de {n} personnes ont partagé leur humeur.",
   },
+
+  hints: { tapCountry: "Touche un pays" },
 
   language: { menu: "Langue", suggest: "Proposer une meilleure traduction" },
 };

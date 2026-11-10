@@ -1,10 +1,10 @@
 <script lang="ts">
-import { MOODS, type MoodId } from "@world-emotion/shared";
+import { DEFAULT_CONFIG, MOODS, type MoodId } from "@world-emotion/shared";
 import { tick } from "svelte";
 import { MOOD_COLORS } from "../engine/palette";
 import { i18n } from "../i18n/i18n.svelte";
 import { makeCountryName } from "../i18n/locale";
-import { around } from "../i18n/messages";
+import { around, fill } from "../i18n/messages";
 import Face from "./Face.svelte";
 import { type UiActions, view } from "./view.svelte";
 
@@ -24,6 +24,13 @@ const mode = $derived(
 );
 const countryName = $derived(
   view.checkin.country === null ? null : i18n.country(view.checkin.country),
+);
+/** Your country is below the privacy floor: the card would show its continent (bridge SC). */
+const countryQuiet = $derived(
+  view.checkin.country !== null && !view.checkin.published.includes(view.checkin.country),
+);
+const smallCountry = $derived(
+  fill(i18n.t.checkin.smallCountry, { n: i18n.fmt.n(DEFAULT_CONFIG.publishMinN) }),
 );
 
 /** Accent- and case-insensitive: "cote" finds Côte d'Ivoire. */
@@ -142,4 +149,7 @@ function choose(code: string): void {
       </button>
     {/if}
   </div>
+  {#if countryQuiet && view.status === "ready"}
+    <div class="small-country">{smallCountry}</div>
+  {/if}
 </section>

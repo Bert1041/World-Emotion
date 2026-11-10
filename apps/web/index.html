@@ -101,7 +101,7 @@
       #checkin .prompt { font-size: 0.87rem; color: var(--muted); margin-bottom: 0.35rem; }
       #checkin .faces { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.2rem; }
       #checkin .face { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.3rem 0 0.25rem; border: 0; border-radius: 0.6rem;
-        background: none; color: var(--text); font: 0.72rem/1.1 system-ui, sans-serif; cursor: pointer; transition: transform var(--fast), background var(--fast); }
+        background: none; color: var(--text); font: 0.78rem/1.1 system-ui, sans-serif; cursor: pointer; transition: transform var(--fast), background var(--fast); }
       #checkin .face:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); }
       #checkin .face:active:not(:disabled) { transform: scale(0.92); }
       #checkin .face:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -110,7 +110,13 @@
       #checkin .stack > * { grid-area: 1 / 1; transition: opacity var(--base); }
       #checkin .stack > .off { opacity: 0; visibility: hidden; }
       #checkin .chip { font-size: 1rem; align-self: center; }
-      #checkin .link { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+      /* Text links keep their look; the hit area is at least 24 px tall (WCAG 2.5.8, bridge U3). */
+      #checkin .link { border: 0; padding: 0.3rem 0.25rem; margin: -0.3rem -0.25rem; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+      /* Your country is below the privacy floor (bridge SC): say so before the check-in, not after. */
+      #checkin .small-country { margin-top: 0.45rem; font-size: 0.78rem; color: var(--muted); }
+      /* One-time hint under the back button (bridge U6). */
+      #hint { position: fixed; top: calc(max(var(--gap), env(safe-area-inset-top)) + 3rem); left: var(--gap); padding: 0.4rem 0.7rem; border-radius: 999px;
+        background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.85rem; pointer-events: none; animation: rise var(--base) cubic-bezier(.2, .8, .2, 1); }
       #checkin .from { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.65rem; font-size: 0.82rem; color: var(--muted); }
       /* Your location as a badge: a pill with room around the pin and name. */
       #checkin .from .place { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
@@ -164,7 +170,7 @@
       [hidden] { display: none; }
 
       @media (prefers-reduced-motion: reduce) {
-        #world-mood.swap, #panel, #loading-disc { animation: none; }
+        #world-mood.swap, #panel, #loading-disc, #hint { animation: none; }
         .fill { transition: none; }
         /* Cross-fades only: the headline fades away when zoomed, it does not slide. */
         header { transition: opacity var(--base); }

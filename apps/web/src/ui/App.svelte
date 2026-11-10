@@ -61,6 +61,10 @@ const feeling = $derived(
 <LanguageMenu />
 
 <button id="back" type="button" hidden={!view.zoomed} onclick={() => actions.back()}>{i18n.t.back}</button>
+{#if view.hint === "tapCountry"}
+  <!-- Once per device, under the back button (bridge U6): countries are tappable, nothing said so. -->
+  <div id="hint" role="status">{i18n.t.hints.tapCountry}</div>
+{/if}
 
 <Panel {actions} />
 

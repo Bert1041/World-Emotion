@@ -86,6 +86,13 @@ export interface Messages {
     readonly typeIt: string;
     readonly noMatch: string;
     readonly cancel: string;
+    /** Your country is below the privacy floor; "{n}" is the floor. */
+    readonly smallCountry: string;
+  };
+
+  /** One-time hints (bridge U6). */
+  readonly hints: {
+    readonly tapCountry: string;
   };
 
   readonly language: {

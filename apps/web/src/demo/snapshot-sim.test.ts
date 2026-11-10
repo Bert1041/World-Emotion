@@ -1,3 +1,4 @@
+import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
 import { describe, expect, it } from "vitest";
 import { SnapshotSim } from "./snapshot-sim";
 
@@ -32,5 +33,13 @@ describe("SnapshotSim with a fixed number of votes", () => {
     expect(sim.snapshot.world.n).toBe(votes);
     sim.step();
     expect(sim.snapshot.world.n, "stable across runs").toBe(votes);
+  });
+
+  it("puts them all in the first country: below the floor at 4, published at 5", () => {
+    const [first] = COUNTRY_TO_CONTINENT.keys();
+    expect(new SnapshotSim(1, { votes: 4 }).snapshot.countries[first as string]).toBeUndefined();
+    const five = new SnapshotSim(1, { votes: 5 }).snapshot;
+    expect(five.countries[first as string]?.n).toBe(5);
+    expect(Object.keys(five.countries), "no other country").toEqual([first]);
   });
 });

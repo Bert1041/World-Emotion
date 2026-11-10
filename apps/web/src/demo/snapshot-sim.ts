@@ -22,20 +22,23 @@ export class SnapshotSim {
   /** This device's active check-in (README §5.2: one per device; a new one replaces it). */
   private mine: { country: string; mood: MoodId } | null = null;
 
+  /** Fixed-votes mode (tests): counts go in as they are, not through the demo's mood weighting. */
+  private readonly fixed: boolean;
+
   /**
-   * `votes`: instead of a full world, exactly this many check-ins, one per country, all for the
-   * bias mood (tests: a quiet world below the privacy floor, or just over it). `undefined` is the
-   * full demo world.
+   * `votes`: instead of a full world, exactly this many check-ins, all in the first country of the
+   * map and all for the bias mood (tests: a quiet world below the privacy floor at 4, that country
+   * published at 5). `undefined` is the full demo world.
    */
   constructor(bias: MoodId, opts: { readonly votes?: number } = {}) {
     this.bias = bias;
+    this.fixed = opts.votes !== undefined;
     const r = rng(7);
     let left = opts.votes;
     for (const code of COUNTRY_TO_CONTINENT.keys()) {
       if (left !== undefined) {
-        // One vote per country for the bias mood: step() weights it 5/10, rounded up to 1.
-        this.home.set(code, { mood: bias, n: left > 0 ? 1 : 0 });
-        left = Math.max(0, left - 1);
+        this.home.set(code, { mood: bias, n: left });
+        left = 0;
         continue;
       }
       // Skewed sizes: many small countries (some below the privacy floor), a few big ones.
@@ -54,6 +57,10 @@ export class SnapshotSim {
   step(): Snapshot {
     const counts: VoteCount[] = [];
     for (const [country, { mood, n }] of this.home) {
+      if (this.fixed) {
+        if (n > 0) counts.push({ country, mood, n });
+        continue;
+      }
       for (let m = 0; m < MOOD_COUNT; m++) {
         // Bias of 2 (not more): the world headline follows the bias, but countries whose home
         // mood differs keep their own colour, so the map stays varied like real data.
