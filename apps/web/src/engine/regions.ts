@@ -177,3 +177,45 @@ export function hitCountry(
     ? { code, continent, lonLat: [lonLat[0], lonLat[1]] }
     : null;
 }
+
+/**
+ * Below this many check-ins a region's published shares are mostly shrinkage (k = 15 virtual votes
+ * pull toward the parent, README §5.4): four calm people in the world read as a 34 % calm share.
+ * A per-mood number from that would be wrong, so the line falls back to a wider region, and in an
+ * early world to the one exact figure there is: the raw count `n`.
+ */
+export const ALONGSIDE_MIN_N = 50;
+
+/** Who else feels what you feel (bridge R1): the line under "You feel …" after a check-in. */
+export type Alongside =
+  | {
+      /** Your country when it has enough check-ins; otherwise the world. */
+      readonly scope: "country" | "world";
+      /** People in that scope with your mood, not counting you. 0 means you are the first. */
+      readonly others: number;
+      /** The country's headline mood (country scope only; the header names the world's). */
+      readonly feels: MoodId | null;
+    }
+  | {
+      /** An early world: no per-mood number is honest yet. */
+      readonly scope: "early";
+      /** Everyone who has checked in, you included (exact, at least 1). */
+      readonly total: number;
+    };
+
+/**
+ * Real numbers from the snapshot, never a placeholder: `dist[mood] × n` of your region, minus you
+ * (the aggregator's estimate, the same one the card's bars show). Until the next aggregation run
+ * counts your vote it reads one low; it never reads high and never below zero.
+ */
+export function alongside(snapshot: Snapshot, country: string, mood: MoodId): Alongside {
+  const own = snapshot.countries[country];
+  const region = own && own.n >= ALONGSIDE_MIN_N ? own : snapshot.world;
+  if (region.n < ALONGSIDE_MIN_N) return { scope: "early", total: Math.max(1, snapshot.world.n) };
+  const withYou = Math.round((region.dist[mood] ?? 0) * region.n);
+  return {
+    scope: region === own ? "country" : "world",
+    others: Math.max(0, withYou - 1),
+    feels: region === own ? own.h : null,
+  };
+}

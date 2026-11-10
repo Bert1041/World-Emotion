@@ -88,6 +88,21 @@ export const fr: Messages = {
     typeIt: "Tape son nom…",
     noMatch: "Aucun résultat",
     cancel: "annuler",
+    likeCountry: (n, f) =>
+      f.plural(n) === "one"
+        ? "Comme {count} autre personne dans ton pays"
+        : "Comme {count} autres personnes dans ton pays",
+    likeWorld: (n, f) =>
+      f.plural(n) === "one"
+        ? "Comme {count} autre personne dans le monde"
+        : "Comme {count} autres personnes dans le monde",
+    firstCountry: "La première personne à le ressentir dans ton pays",
+    firstWorld: "La première personne à le ressentir dans le monde",
+    early: (n, f) =>
+      f.plural(n) === "one" && n === 1
+        ? "La première humeur partagée en ce moment"
+        : "Parmi les {count} premières humeurs partagées",
+    countryFeels: "Ton pays ressent {mood}",
     smallCountry:
       "Les petits pays affichent leur continent tant que moins de {n} personnes ont partagé leur humeur.",
   },

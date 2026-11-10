@@ -4,6 +4,7 @@ import type { SnapshotRegion } from "@world-emotion/shared";
 import { geoOrthographic } from "d3-geo";
 import { describe, expect, it } from "vitest";
 import {
+  alongside,
   barsOf,
   clarity,
   hitCountry,
@@ -178,5 +179,55 @@ describe("worldHeadline", () => {
   });
   it("the quiet Earth is Waterworld (calm), which is not the tie-break mood (happy)", () => {
     expect(QUIET_THEME).toBe(1);
+  });
+});
+
+describe("alongside (the line under 'You feel …')", () => {
+  // FR in the fixture: 80 calm (1), 20 sad (4) = 100, published. LU: 1 sad, below the floor.
+  it("country with enough check-ins: others = dist × n, minus you; names its headline", () => {
+    const fr = snapshot.countries.FR as SnapshotRegion;
+    const calm = alongside(snapshot, "FR", 1);
+    expect(calm).toEqual({
+      scope: "country",
+      others: Math.round((fr.dist[1] ?? 0) * fr.n) - 1,
+      feels: fr.h,
+    });
+    expect((calm as { others: number }).others).toBeGreaterThan(50);
+  });
+  it("country below the privacy floor, or published but small: the world's numbers", () => {
+    const w = snapshot.world;
+    const expected = {
+      scope: "world",
+      others: Math.round((w.dist[4] ?? 0) * w.n) - 1,
+      feels: null,
+    };
+    expect(alongside(snapshot, "LU", 4), "suppressed").toEqual(expected);
+    // Published but small: 30 check-ins in the country, plenty in the world.
+    const small = {
+      ...snapshot,
+      countries: { ...snapshot.countries, XX: { n: 30, h: 4, dist: [0, 0, 0, 0, 1, 0] } },
+    } as unknown as typeof snapshot;
+    expect(alongside(small, "XX", 4), "published, under 50").toEqual(expected);
+  });
+  it("an early world gives the exact total, never a per-mood estimate", () => {
+    const region = (n: number) => ({ n, h: 1, dist: [0.1, 0.5, 0.1, 0.1, 0.1, 0.1] }) as never;
+    const world = (n: number) =>
+      ({
+        world: region(n),
+        continents: {},
+        countries: { XX: region(n) },
+      }) as unknown as typeof snapshot;
+    expect(alongside(world(49), "XX", 1)).toEqual({ scope: "early", total: 49 });
+    expect(alongside(world(0), "XX", 1), "you are counted").toEqual({ scope: "early", total: 1 });
+    expect(alongside(world(50), "XX", 1)).toEqual({ scope: "country", others: 24, feels: 1 });
+  });
+  it("never below zero: a mood nobody else has means you are the first", () => {
+    const region = { n: 60, h: 2, dist: [0, 0, 1, 0, 0, 0] } as never;
+    const s = {
+      world: region,
+      continents: {},
+      countries: { XX: region },
+    } as unknown as typeof snapshot;
+    expect(alongside(s, "XX", 5)).toEqual({ scope: "country", others: 0, feels: 2 });
   });
 });

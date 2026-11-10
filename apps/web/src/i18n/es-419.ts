@@ -77,6 +77,21 @@ export const es419: Messages = {
     typeIt: "Escríbelo…",
     noMatch: "Sin resultados",
     cancel: "cancelar",
+    likeCountry: (n, f) =>
+      f.plural(n) === "one"
+        ? "Como {count} persona más en tu país"
+        : "Como {count} personas más en tu país",
+    likeWorld: (n, f) =>
+      f.plural(n) === "one"
+        ? "Como {count} persona más en el mundo"
+        : "Como {count} personas más en el mundo",
+    firstCountry: "La primera persona que lo siente en tu país ahora",
+    firstWorld: "La primera persona que lo siente en el mundo ahora",
+    early: (n, f) =>
+      f.plural(n) === "one"
+        ? "La primera respuesta ahora mismo"
+        : "Entre las primeras {count} respuestas",
+    countryFeels: "Tu país siente {mood}",
     smallCountry: "Los países pequeños muestran su continente hasta que {n} personas respondan.",
   },
 

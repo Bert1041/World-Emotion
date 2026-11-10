@@ -25,6 +25,7 @@ import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
 import {
+  alongside,
   countryFills,
   hitCountry,
   panelModel,
@@ -86,8 +87,14 @@ mount(App, {
       toggleAuto: () => {
         view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
-      checkIn: (mood: MoodId, from: { x: number; y: number }) => moment.checkIn(mood, from),
-      setCountry: (code: string) => moment.setCountry(code),
+      checkIn: (mood: MoodId, from: { x: number; y: number }) => {
+        moment.checkIn(mood, from);
+        refreshResult();
+      },
+      setCountry: (code: string) => {
+        moment.setCountry(code);
+        refreshResult();
+      },
       startPick: () => moment.startPick(),
       cancelPick: () => moment.cancelPick(),
       landed: (id: number) => moment.landed(id),
@@ -183,11 +190,20 @@ function onSnapshot(next: Snapshot): void {
   view.worldQuiet = headline.quiet;
   view.worldMood = headline.mood;
   view.checkin.published = Object.keys(next.countries);
+  refreshResult();
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
   recomputeWeather();
   renderPanel();
+}
+
+/** The line under "You feel …" (bridge R1): recomputed on every snapshot and every check-in. */
+function refreshResult(): void {
+  const mine = view.checkin.mine;
+  const country = view.checkin.country;
+  view.checkin.result =
+    mine === null || country === null ? null : alongside(snapshot, country, mine);
 }
 
 function renderPanel(): void {
@@ -289,7 +305,10 @@ const input = attachInput(fxCanvas, {
     const hit = hitAt(at.x, at.y);
     if (view.checkin.picking) {
       // The globe is the country picker: a tap on land places your pin; ocean does nothing.
-      if (hit !== null) moment.placePin(hit.code, hit.lonLat);
+      if (hit !== null) {
+        moment.placePin(hit.code, hit.lonLat);
+        refreshResult();
+      }
       return;
     }
     if (hit === null) {

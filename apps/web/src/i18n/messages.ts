@@ -86,6 +86,20 @@ export interface Messages {
     readonly typeIt: string;
     readonly noMatch: string;
     readonly cancel: string;
+    /**
+     * After a check-in (bridge R1), under "You feel …": how many others share the mood. "{count}"
+     * is the number of OTHER people (1 or more). Says "your country", never its name: names
+     * need prepositions and articles that differ per country (au Nigeria, en France, no Brasil).
+     */
+    readonly likeCountry: (n: number, f: Fmt) => string;
+    readonly likeWorld: (n: number, f: Fmt) => string;
+    /** Nobody else yet in that scope. */
+    readonly firstCountry: string;
+    readonly firstWorld: string;
+    /** An early world (too few check-ins for a per-mood number): "{count}" is everyone so far. */
+    readonly early: (n: number, f: Fmt) => string;
+    /** "{mood}" is coloured: your country's leading mood. */
+    readonly countryFeels: string;
     /** Your country is below the privacy floor; "{n}" is the floor. */
     readonly smallCountry: string;
   };

@@ -5,6 +5,7 @@ import { MOOD_COLORS } from "../engine/palette";
 import { i18n } from "../i18n/i18n.svelte";
 import { makeCountryName } from "../i18n/locale";
 import { around, fill } from "../i18n/messages";
+import { alongsideText } from "./alongside-text";
 import Face from "./Face.svelte";
 import { type UiActions, view } from "./view.svelte";
 
@@ -57,6 +58,13 @@ const matches = $derived.by(() => {
   return [...starts, ...within].slice(0, 3);
 });
 const youFeel = $derived(around(i18n.t.checkin.youFeel, "mood"));
+/** The line under it (bridge R1): real numbers from the snapshot, updated with every one. */
+const like = $derived(
+  view.checkin.result === null
+    ? null
+    : alongsideText(view.checkin.result, i18n.t.checkin, i18n.fmt),
+);
+const countryFeels = $derived(around(i18n.t.checkin.countryFeels, "mood"));
 
 function pick(m: MoodId, el: HTMLElement): void {
   const r = el.getBoundingClientRect();
@@ -105,6 +113,14 @@ function choose(code: string): void {
         {youFeel[0]}<strong style:color={MOOD_COLORS[view.checkin.mine]}>{i18n.t.moods.feels[view.checkin.mine]}</strong>{youFeel[1]}
         ·
         <button type="button" class="link" onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
+        {#if like !== null && view.checkin.result !== null}
+          {@const r = view.checkin.result}
+          <div class="alongside" id="checkin-result" data-scope={r.scope} data-others={r.scope === "early" ? r.total : r.others}>
+            <span class="like">{like}</span>{#if r.scope !== "early" && r.feels !== null}<span class="sep" aria-hidden="true"> · </span><span class="feels"
+                >{countryFeels[0]}<strong style:color={MOOD_COLORS[r.feels]}>{i18n.t.moods.feels[r.feels]}</strong>{countryFeels[1]}</span
+              >{/if}
+          </div>
+        {/if}
       {/if}
     </div>
 

@@ -110,6 +110,9 @@
       #checkin .stack > * { grid-area: 1 / 1; transition: opacity var(--base); }
       #checkin .stack > .off { opacity: 0; visibility: hidden; }
       #checkin .chip { font-size: 1rem; align-self: center; }
+      /* Who else feels it (bridge R1): quieter than "You feel …", may wrap on a phone. */
+      #checkin .chip .alongside { margin-top: 0.3rem; font-size: 0.82rem; color: var(--muted); line-height: 1.3; }
+      #checkin .chip .alongside .like { color: var(--text); }
       /* Text links keep their look; the hit area is at least 24 px tall (WCAG 2.5.8, bridge U3). */
       #checkin .link { border: 0; padding: 0.3rem 0.25rem; margin: -0.3rem -0.25rem; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
       /* Your country is below the privacy floor (bridge SC): say so before the check-in, not after. */
