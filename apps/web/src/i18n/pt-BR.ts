@@ -84,7 +84,7 @@ export const ptBR: Messages = {
     firstWorld: "A primeira pessoa a sentir isso no mundo agora",
     early: (n) => (n === 1 ? "A primeira resposta agora" : "Entre as primeiras {count} respostas"),
     countryFeels: "Seu país sente {mood}",
-    smallCountry: "Países pequenos mostram seu continente até que {n} pessoas respondam.",
+    smallCountry: "Seu país mostra seu humor com {n} respostas.",
   },
 
   journal: {

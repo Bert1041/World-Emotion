@@ -103,7 +103,7 @@ export interface Messages {
     readonly early: (n: number, f: Fmt) => string;
     /** "{mood}" is coloured: your country's leading mood. */
     readonly countryFeels: string;
-    /** Your country is below the privacy floor; "{n}" is the floor. */
+    /** Your country is below the privacy floor (any country can be, not only small ones); "{n}" is the floor. */
     readonly smallCountry: string;
   };
 

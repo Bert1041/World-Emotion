@@ -94,7 +94,7 @@ export const es419: Messages = {
         ? "La primera respuesta ahora mismo"
         : "Entre las primeras {count} respuestas",
     countryFeels: "Tu país siente {mood}",
-    smallCountry: "Los países pequeños muestran su continente hasta que {n} personas respondan.",
+    smallCountry: "Tu país necesita {n} respuestas para mostrar su ánimo.",
   },
 
   journal: {

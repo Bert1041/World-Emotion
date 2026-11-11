@@ -8,9 +8,11 @@ import {
   barsOf,
   clarity,
   hitCountry,
+  LAND_HALF_AREA,
   panelModel,
   QUIET_THEME,
   regionOf,
+  sizeWeight,
   themeFor,
   weatherSpawns,
   worldHeadline,
@@ -91,15 +93,17 @@ describe("panelModel", () => {
 });
 
 describe("weatherSpawns", () => {
+  const at = (lon: number, lat: number) => new Float32Array([lon, lat]);
+  const BIG = 0.05; // a large country's area (sr): size weight ~1
   const centroids = [
-    { code: "FR", lon: 2, lat: 46 },
-    { code: "LU", lon: 6, lat: 49.7 },
-    { code: "BR", lon: -53, lat: -10 },
-    { code: "ZZ", lon: 0, lat: 0 },
+    { code: "FR", points: at(2, 46), area: BIG },
+    { code: "LU", points: at(6, 49.7), area: BIG },
+    { code: "BR", points: at(-53, -10), area: BIG },
+    { code: "ZZ", points: at(0, 0), area: BIG },
   ];
   it("weights published regions above quiet ones, skips unknown codes", () => {
     const s = weatherSpawns(snapshot, centroids, COUNTRY_TO_CONTINENT, null);
-    const by = new Map(s.map((p) => [p.lon, p]));
+    const by = new Map(s.map((p) => [p.points[0], p]));
     expect(by.has(0), "unknown code").toBe(false);
     expect(by.has(-53), "a published country on another continent spawns in the world view").toBe(
       true,
@@ -110,7 +114,7 @@ describe("weatherSpawns", () => {
   });
   it("zoomed into a continent, only its countries spawn", () => {
     const s = weatherSpawns(snapshot, centroids, COUNTRY_TO_CONTINENT, "EU");
-    expect(s.map((p) => p.lon).sort()).toEqual([2, 6]);
+    expect(s.map((p) => p.points[0]).sort()).toEqual([2, 6]);
   });
 });
 
@@ -250,5 +254,31 @@ describe("themeFor (the Earth follows the region in view)", () => {
   });
   it("a continent absent from the snapshot (below the floor) rests on the quiet Earth", () => {
     expect(themeFor(s, "OC", 5)).toBe(QUIET_THEME);
+  });
+});
+
+describe("sizeWeight (weather follows land, up to a point)", () => {
+  it("is near 1 for large countries, fades for tiny ones, never zero, and rises with area", () => {
+    expect(sizeWeight(0.19), "Australia").toBeGreaterThan(0.98);
+    expect(sizeWeight(LAND_HALF_AREA)).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(sizeWeight(0.00002), "a Pacific atoll nation").toBeLessThan(0.07);
+    expect(sizeWeight(0.00002)).toBeGreaterThan(0);
+    expect(sizeWeight(0)).toBe(0);
+    const pairs: [number, number][] = [
+      [0.0001, 0.001],
+      [0.001, 0.01],
+      [0.01, 0.1],
+    ];
+    for (const [a, b] of pairs) expect(sizeWeight(b)).toBeGreaterThan(sizeWeight(a));
+  });
+  it("in weatherSpawns: the same region, smaller land, less weather", () => {
+    const one = (area: number) =>
+      weatherSpawns(
+        snapshot,
+        [{ code: "FR", points: new Float32Array([2, 46]), area }],
+        COUNTRY_TO_CONTINENT,
+        null,
+      )[0]?.weight ?? 0;
+    expect(one(0.0001)).toBeLessThan(one(0.05) / 5);
   });
 });

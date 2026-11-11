@@ -57,6 +57,8 @@ export interface TestHooks {
   layout(): LayoutReport;
   /** Run one aggregation now (tests: force a snapshot at a chosen moment). */
   aggregate(): void;
+  /** Mood weather (bridge U2): spread over the land yet, and each particle's anchor. */
+  weather(): { spread: boolean; anchors: [number, number, number][] };
   /** Point the camera at a lon/lat (scripted tours). */
   face(lon: number, lat: number): void;
   /** CSS-pixel position of a lon/lat on screen (null if on the far side), for scripted taps. */

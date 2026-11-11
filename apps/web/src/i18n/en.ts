@@ -81,7 +81,7 @@ export const en: Messages = {
         ? "The first to check in right now"
         : "One of the first {count} to check in",
     countryFeels: "Your country feels {mood}",
-    smallCountry: "Small countries show their continent until {n} people check in.",
+    smallCountry: "Your country needs {n} check-ins to show its own mood.",
   },
 
   journal: {

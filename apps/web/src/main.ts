@@ -7,7 +7,7 @@ import {
   type MoodId,
   type Snapshot,
 } from "@world-emotion/shared";
-import { geoCentroid, geoOrthographic, geoPath } from "d3-geo";
+import { geoArea, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
@@ -22,6 +22,7 @@ import { LayoutFit } from "./engine/fit";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { attachInput } from "./engine/input";
+import { landSamples } from "./engine/land";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
@@ -29,6 +30,7 @@ import {
   alongside,
   countryFills,
   hitCountry,
+  type LandPoints,
   panelModel,
   themeFor,
   weatherSpawns,
@@ -182,7 +184,8 @@ let fills = new Map<string, string>();
 let colorVersion = 0;
 let focus: Continent | null = null;
 let selected: string | null = null;
-let centroids: { code: string; lon: number; lat: number }[] = [];
+/** Where weather rises from, per country: pin points at first, spread over the land when idle. */
+let land: LandPoints[] = [];
 let lods: Record<LodName, Lod> | undefined;
 let particles: ParticleField;
 
@@ -193,7 +196,7 @@ function recomputeFills(): void {
 }
 
 function recomputeWeather(): void {
-  particles.setSpawns(weatherSpawns(snapshot, centroids, COUNTRY_TO_CONTINENT, focus));
+  particles.setSpawns(weatherSpawns(snapshot, land, COUNTRY_TO_CONTINENT, focus));
 }
 
 function onSnapshot(next: Snapshot): void {
@@ -219,6 +222,41 @@ let journal: JournalEntry[] = loadJournal();
 function refreshJournal(): void {
   view.checkin.week = journal.length >= 2 ? lastWeek(journal, new Date()) : null;
 }
+
+const LAND_POINTS = 8;
+const sampled = (f: Lod["countries"][number], random: () => number): LandPoints => ({
+  code: String(f.id),
+  points: landSamples(f, LAND_POINTS, random),
+  area: geoArea(f),
+});
+
+/**
+ * Spread weather over each country's land in idle time (bridge U2): one country at a time, and
+ * only while the browser says there is idle time left, so the cost of any one slice is one
+ * country's (the slowest ~13 ms on a laptop), never a batch.
+ */
+function spreadWeatherWhenIdle(countries: Lod["countries"]): void {
+  const random = rng(7);
+  const next: LandPoints[] = [];
+  let i = 0;
+  const work = (more: () => boolean) => {
+    do next.push(sampled(countries[i++] as Lod["countries"][number], random));
+    while (i < countries.length && more());
+    if (i < countries.length) schedule();
+    else {
+      land = next;
+      landSpread = true;
+      recomputeWeather();
+    }
+  };
+  const schedule =
+    "requestIdleCallback" in window
+      ? () => requestIdleCallback((d) => work(() => d.timeRemaining() > 4), { timeout: 1000 })
+      : () => setTimeout(() => work(() => false), 16); // Safari: no requestIdleCallback
+  schedule();
+}
+/** Whether weather has spread over the land yet (exposed for tests). */
+let landSpread = false;
 
 /** The Earth follows the region in view (bridge T1): cross-fades when that region's mood differs. */
 function retheme(): void {
@@ -530,17 +568,25 @@ async function start(): Promise<void> {
     loadLod("50m"),
   ]);
   lods = { move: m, "110m": a, "50m": b };
-  moment.init(new Map(b.countries.map((f) => [String(f.id), pinPoint(f)])), navigator.languages);
+  const pins = new Map(b.countries.map((f) => [String(f.id), pinPoint(f)]));
+  moment.init(pins, navigator.languages);
   view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
   refreshJournal();
   // Open facing your pin (decision B2): "you are here" is on screen before any tap, so a wrong
   // guess is obvious. Bench runs keep the fixed start pose so frames compare across runs.
   if (moment.pin !== null && !config.bench) camera.view = { center: moment.pin.lonLat, zoom: 1 };
-  centroids = b.countries.map((f) => {
-    const [lon, lat] = geoCentroid(f);
-    return { code: String(f.id), lon, lat };
-  });
+  // Weather starts at each country's pin point (always inside it) and spreads over the land in
+  // idle time: sampling every country takes ~0.25 s on a laptop, too long to hold the first paint.
+  // Bench runs sample up front, so every frame they measure has the same weather.
+  const areas = new Map(b.countries.map((f) => [String(f.id), geoArea(f)]));
+  land = [...pins].map(([code, [lon, lat]]) => ({
+    code,
+    points: new Float32Array([lon, lat]),
+    area: areas.get(code) ?? 0,
+  }));
   particles = new ParticleField(config.particles, [], rng(42));
+  if (config.bench) land = b.countries.map((f) => sampled(f, rng(7)));
+  else spreadWeatherWhenIdle(b.countries);
   perf.hidden = !(config.debug || config.bench);
   resize();
   layoutReady = true;
@@ -600,6 +646,7 @@ installTestHooks({
   sun: () => (showNight ? [sun[0], sun[1]] : null),
   worldMood: () => MOODS[snapshot.world.h] ?? "",
   theme: () => MOODS[mixer.target] ?? "",
+  weather: () => ({ spread: landSpread, anchors: particles?.anchors() ?? [] }),
   aggregate: () => onSnapshot(source.aggregate()),
   face(lon, lat) {
     camera.stop();

@@ -105,8 +105,7 @@ export const fr: Messages = {
         ? "La première humeur partagée en ce moment"
         : "Parmi les {count} premières humeurs partagées",
     countryFeels: "Ton pays ressent {mood}",
-    smallCountry:
-      "Les petits pays affichent leur continent tant que moins de {n} personnes ont partagé leur humeur.",
+    smallCountry: "Il faut {n} réponses pour voir l’humeur de ton pays.",
   },
 
   journal: {

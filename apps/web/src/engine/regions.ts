@@ -125,26 +125,44 @@ export function countryFills(
   return fills;
 }
 
-export interface Centroid {
+/** A country's land points for weather to spawn from (engine/land.ts). */
+export interface LandPoints {
   readonly code: string;
-  readonly lon: number;
-  readonly lat: number;
+  /** Flat [lon, lat, …], at least one point. */
+  readonly points: Float32Array;
+  /** The country's area in steradians (d3 geoArea), for the size term below. */
+  readonly area: number;
 }
+
+/**
+ * Weather follows how much land a country covers, up to a point (bridge U2). Weighted per country
+ * alone, 42 % of all weather fell on countries smaller than about 20,000 km² (dots in the sea at
+ * globe scale) and Australia got 2.6 % of Oceania's. sqrt(a / (a + A0)): about 1 for anything
+ * the size of A0 or larger, fading for tiny ones, never zero, so every country still shows.
+ * A0 ≈ 0.005 sr ≈ 200,000 km² (Senegal, Belarus).
+ */
+export const LAND_HALF_AREA = 0.005;
+export const sizeWeight = (area: number): number =>
+  Math.sqrt(Math.max(0, area) / (Math.max(0, area) + LAND_HALF_AREA));
 
 /** Where mood weather spawns and how strongly (README §8.2.3: quiet regions are faint). */
 export function weatherSpawns(
   snapshot: Snapshot,
-  centroids: readonly Centroid[],
+  land: readonly LandPoints[],
   map: CountryToContinent,
   focus: Continent | null,
 ): SpawnPoint[] {
   const spawns: SpawnPoint[] = [];
-  for (const { code, lon, lat } of centroids) {
+  for (const { code, points, area } of land) {
     const r = regionOf(snapshot, code, map);
     if (!r) continue;
     if (focus !== null && map.get(code) !== focus) continue;
-    const weight = (0.05 + clarity(r.region)) * (r.quiet ? 0.3 : 1) * Math.log10(10 + r.region.n);
-    spawns.push({ lon, lat, mood: r.region.h, weight });
+    const weight =
+      (0.05 + clarity(r.region)) *
+      (r.quiet ? 0.3 : 1) *
+      Math.log10(10 + r.region.n) *
+      sizeWeight(area);
+    spawns.push({ points, mood: r.region.h, weight });
   }
   return spawns;
 }

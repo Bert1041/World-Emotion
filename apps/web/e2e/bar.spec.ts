@@ -113,7 +113,34 @@ test.describe("SC: a country below the privacy floor says so in the bar", () => 
     await load(page, "?auto=0&votes=4");
     await pick(page);
     await expect(page.locator("#checkin .small-country")).toHaveText(
-      "Small countries show their continent until 5 people check in.",
+      "Your country needs 5 check-ins to show its own mood.",
     );
   });
+});
+
+test("SC: the notice fits on one line on the narrowest phone, in every language", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "phone-360", "the narrowest phone");
+  const [first] = COUNTRY_TO_CONTINENT.keys();
+  for (const lang of ["en", "fr", "es-419", "pt-BR"]) {
+    await load(page, `?auto=0&votes=4&lang=${lang}`);
+    await page.evaluate((code) => {
+      // Pick the first country directly: the search is tested above; this test is about layout.
+      localStorage.setItem("we.pin", JSON.stringify({ code, lon: 0, lat: 0 }));
+    }, first as string);
+    await page.reload();
+    await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+    const notice = page.locator("#checkin .small-country");
+    await expect(notice, lang).toBeVisible();
+    const lines = await notice.evaluate((el) => {
+      const s = getComputedStyle(el);
+      const lh =
+        s.lineHeight === "normal"
+          ? Number.parseFloat(s.fontSize) * 1.35
+          : Number.parseFloat(s.lineHeight);
+      return Math.round((el as HTMLElement).offsetHeight / lh);
+    });
+    expect(lines, `${lang}: ${await notice.textContent()}`).toBe(1);
+  }
 });

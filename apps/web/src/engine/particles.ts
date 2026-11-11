@@ -15,19 +15,30 @@ export function rng(seed: number): () => number {
 }
 
 export interface SpawnPoint {
-  readonly lon: number;
-  readonly lat: number;
+  /** Points on the region's land, flat [lon, lat, lon, lat, …] (engine/land.ts). At least one. */
+  readonly points: Float32Array;
   readonly mood: number;
   /** Relative chance of spawning here (how strongly the region feels its mood). */
   readonly weight: number;
 }
 
 /**
- * Mood weather (README §8.2.3), one behaviour per mood. Velocities are screen-space (CSS px/s,
+ * Soft round particles are drawn this much larger than their nominal size: the glow's edge fades
+ * out, so the visible core stays about as big as the old square (bridge U2).
+ */
+const SOFT_SCALE = 2;
+/** All weather is a fifth fainter than in Phase 4 (bridge U2: it read as noise on the globe). */
+const FAINTER = 0.8;
+const SPRITE_PX = 32;
+
+/**
+ * Mood weather (README §8.2.3), one behaviour per mood. `soft`: a round glow (fireflies, mist,
+ * sparkle, embers); the rest stay hard on purpose (static is square pixels, rain is streaks). Velocities are screen-space (CSS px/s,
  * negative y = up), anchored to a point on the sphere so weather rises off the land it belongs to.
  */
 const WEATHER = [
   /* happy: rising fireflies */ {
+    soft: true,
     vx: 6,
     vyMin: -16,
     vyMax: -8,
@@ -40,6 +51,7 @@ const WEATHER = [
     flicker: 0.3,
   },
   /* calm: slow drifting mist */ {
+    soft: true,
     vx: 4,
     vyMin: -2,
     vyMax: 2,
@@ -52,6 +64,7 @@ const WEATHER = [
     flicker: 0,
   },
   /* excited: sparkle bursts */ {
+    soft: true,
     vx: 0,
     vyMin: 0,
     vyMax: 0,
@@ -64,6 +77,7 @@ const WEATHER = [
     flicker: 0.6,
   },
   /* stressed: jittery static */ {
+    soft: false,
     vx: 0,
     vyMin: 0,
     vyMax: 0,
@@ -76,6 +90,7 @@ const WEATHER = [
     flicker: 0.8,
   },
   /* sad: falling rain */ {
+    soft: false,
     vx: -2,
     vyMin: 20,
     vyMax: 34,
@@ -88,6 +103,7 @@ const WEATHER = [
     flicker: 0,
   },
   /* angry: rising embers */ {
+    soft: true,
     vx: 8,
     vyMin: -30,
     vyMax: -18,
@@ -120,6 +136,9 @@ export class ParticleField {
   private readonly sy: Float32Array;
   private readonly vis: Uint8Array;
   private spawns: readonly SpawnPoint[] = [];
+  /** One pre-rendered glow per mood colour, made on the first draw (never in the frame loop after). */
+  private sprites: (HTMLCanvasElement | null)[] = [];
+  private spriteColors = "";
   private cumulative = new Float64Array(0);
 
   constructor(
@@ -180,8 +199,11 @@ export class ParticleField {
       return;
     }
     const w = WEATHER[s.mood] ?? WEATHER[0];
-    this.lon[i] = s.lon + (this.random() - 0.5) * 8;
-    this.lat[i] = s.lat + (this.random() - 0.5) * 6;
+    // A point on the land itself: no jitter, which is what pushed weather into the sea.
+    const n = s.points.length >> 1;
+    const k = n > 1 ? Math.min(n - 1, Math.floor(this.random() * n)) : 0;
+    this.lon[i] = s.points[k * 2] ?? 0;
+    this.lat[i] = s.points[k * 2 + 1] ?? 0;
     this.ox[i] = 0;
     this.oy[i] = 0;
     if (s.mood === 2) {
@@ -244,10 +266,12 @@ export class ParticleField {
       this.sx[i] = cx + r * cosP * Math.sin(dl) + (this.ox[i] as number) * px;
       this.sy[i] = cy - r * (cosP0 * sinP - sinP0 * cosP * cosDl) + (this.oy[i] as number) * px;
     }
+    this.ensureSprites(colors);
     for (let m = 0; m < MOOD_COUNT; m++) {
       const w = WEATHER[m] ?? WEATHER[0];
-      ctx.globalAlpha = w.alpha;
-      ctx.beginPath();
+      const sprite = w.soft ? this.sprites[m] : null;
+      ctx.globalAlpha = w.alpha * FAINTER;
+      if (!sprite) ctx.beginPath();
       for (let i = 0; i < this.count; i++) {
         if (this.vis[i] === 0 || this.mood[i] !== m) continue;
         const life = (this.age[i] as number) / (this.ttl[i] as number);
@@ -259,12 +283,62 @@ export class ParticleField {
           x += (this.random() - 0.5) * 2 * w.jitter * px;
           y += (this.random() - 0.5) * 2 * w.jitter * px;
         }
-        if (w.streak) ctx.rect(x, y, Math.max(1, s), s * 6);
+        if (sprite) {
+          const d = s * SOFT_SCALE;
+          ctx.drawImage(sprite, x - d / 2, y - d / 2, d, d);
+        } else if (w.streak) ctx.rect(x, y, Math.max(1, s), s * 6);
         else ctx.rect(x - s / 2, y - s / 2, s, s);
       }
-      ctx.fillStyle = colors[m] ?? "#fff";
-      ctx.fill();
+      if (!sprite) {
+        ctx.fillStyle = colors[m] ?? "#fff";
+        ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** A radial glow per soft mood, in its colour; rebuilt only if the palette changes. */
+  private ensureSprites(colors: readonly string[]): void {
+    const key = colors.join(",");
+    if (key === this.spriteColors) return;
+    this.spriteColors = key;
+    this.sprites = WEATHER.map((w, m) => {
+      if (!w.soft || typeof document === "undefined") return null;
+      const c = document.createElement("canvas");
+      c.width = SPRITE_PX;
+      c.height = SPRITE_PX;
+      const g = c.getContext("2d");
+      if (!g) return null;
+      const h = SPRITE_PX / 2;
+      const grad = g.createRadialGradient(h, h, 0, h, h, h);
+      const col = colors[m] ?? "#fff";
+      grad.addColorStop(0, col);
+      grad.addColorStop(0.35, col);
+      grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      g.fillStyle = grad;
+      g.globalAlpha = 1;
+      g.beginPath();
+      g.arc(h, h, h, 0, Math.PI * 2);
+      g.fill();
+      // Fade the colour itself to transparent at the edge (the stop above is black at 0 alpha,
+      // which would darken the rim): redraw the falloff as alpha only.
+      g.globalCompositeOperation = "destination-in";
+      const mask = g.createRadialGradient(h, h, 0, h, h, h);
+      mask.addColorStop(0, "rgba(0, 0, 0, 1)");
+      mask.addColorStop(0.35, "rgba(0, 0, 0, 0.85)");
+      mask.addColorStop(1, "rgba(0, 0, 0, 0)");
+      g.fillStyle = mask;
+      g.fillRect(0, 0, SPRITE_PX, SPRITE_PX);
+      return c;
+    });
+  }
+
+  /** Test access: where each live particle is anchored on the sphere, [lon, lat, mood]. */
+  anchors(): [number, number, number][] {
+    const out: [number, number, number][] = [];
+    for (let i = 0; i < this.count; i++)
+      if (this.mood[i] !== 255)
+        out.push([this.lon[i] as number, this.lat[i] as number, this.mood[i] as number]);
+    return out;
   }
 }

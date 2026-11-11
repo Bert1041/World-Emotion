@@ -28,6 +28,8 @@ export interface HooksDeps {
   worldMood(): string;
   /** The Earth being shown or cross-faded to, by mood name. */
   theme(): string;
+  /** Mood weather: whether it has spread over the land, and each particle's anchor [lon, lat, mood]. */
+  weather(): { spread: boolean; anchors: [number, number, number][] };
   aggregate(): void;
   /** Point the camera at a lon/lat without starting idle rotation. */
   face(lon: number, lat: number): void;
@@ -75,6 +77,7 @@ export function installTestHooks(d: HooksDeps): void {
     ready: d.ready,
     layout,
     aggregate: () => d.aggregate(),
+    weather: () => d.weather(),
     face: (lon, lat) => d.face(lon, lat),
     screenPoint(lon, lat) {
       const p = d.projection([lon, lat]);
