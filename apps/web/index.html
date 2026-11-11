@@ -38,6 +38,14 @@
       body.zoomed header { transform: translateY(-140%); opacity: 0; }
       .kicker { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       h1 { margin: 0.25rem 0 0.15rem; font-size: clamp(1.45rem, 6vw, 2.2rem); font-weight: 650; }
+      /* Press feedback on every control (bridge M1): one rule, on the motion tokens. The faces
+         keep their own, stronger press. */
+      #ui button, #ui a { transition: transform var(--fast), filter var(--fast), opacity var(--fast); }
+      #ui button:active:not(:disabled), #ui a:active { transform: scale(0.96); filter: brightness(1.2); }
+      /* Faces react (bridge M2): a small hop when you reach for one. */
+      @keyframes hop { 0% { translate: 0 0; } 40% { translate: 0 -0.3rem; } 100% { translate: 0 0; } }
+      #checkin .face:is(:hover:not(:disabled), :focus-visible) svg { animation: hop var(--base) cubic-bezier(.2, .8, .2, 1); }
+      #checkin .chip .chip-face { display: inline-flex; vertical-align: middle; margin-right: 0.35rem; }
       /* Start-up (bridge E4): a dim disc where the globe will be; a retry control if the map failed. */
       #loading-disc { position: fixed; left: 50%; top: 50%; width: min(70vw, 50vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
         background: radial-gradient(circle at 50% 45%, rgba(127, 214, 224, 0.16), rgba(10, 30, 50, 0.6) 70%, transparent 71%);
@@ -193,6 +201,9 @@
 
       @media (prefers-reduced-motion: reduce) {
         #world-mood.swap, #panel, #loading-disc, #hint { animation: none; }
+        /* No movement: a pressed control dims instead of shrinking; faces do not hop. */
+        #ui button:active:not(:disabled), #ui a:active, #checkin .face:active:not(:disabled) { transform: none; filter: none; opacity: 0.7; }
+        #checkin .face:is(:hover:not(:disabled), :focus-visible) svg { animation: none; }
         .fill { transition: none; }
         /* Cross-fades only: the headline fades away when zoomed, it does not slide. */
         header { transition: opacity var(--base); }

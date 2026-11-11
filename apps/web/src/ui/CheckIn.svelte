@@ -147,7 +147,9 @@ function choose(code: string): void {
 
     <div class="layer chip" class:off={mode !== "chip"} inert={mode !== "chip"}>
       {#if view.checkin.mine !== null}
-        {youFeel[0]}<strong style:color={MOOD_COLORS[view.checkin.mine]}>{i18n.t.moods.feels[view.checkin.mine]}</strong>{youFeel[1]}
+        <!-- Your face beside the words (bridge M2); decorative, the mood is named in text. -->
+        <span class="chip-face" data-mood={MOODS[view.checkin.mine]}><Face mood={view.checkin.mine} size={18} /></span
+        >{youFeel[0]}<strong style:color={MOOD_COLORS[view.checkin.mine]}>{i18n.t.moods.feels[view.checkin.mine]}</strong>{youFeel[1]}
         ·
         <button type="button" class="link" onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
         {#if journalOpen && view.checkin.week !== null}
