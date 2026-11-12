@@ -7,10 +7,11 @@ import {
   type MoodId,
   type Snapshot,
 } from "@world-emotion/shared";
-import { geoCentroid, geoOrthographic, geoPath } from "d3-geo";
+import { geoArea, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
+import { addEntry, type JournalEntry, lastWeek, loadJournal, saveJournal } from "./checkin/journal";
 import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
 import { DemoSource } from "./data/demo-source";
@@ -21,20 +22,24 @@ import { LayoutFit } from "./engine/fit";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
 import { attachInput } from "./engine/input";
+import { landSamples } from "./engine/land";
 import { MOOD_COLORS } from "./engine/palette";
 import { ParticleField, rng } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
 import {
+  alongside,
   countryFills,
   hitCountry,
+  type LandPoints,
   panelModel,
+  themeFor,
   weatherSpawns,
   worldHeadline,
 } from "./engine/regions";
 import { ThemeMixer } from "./engine/themes";
 import { i18n } from "./i18n/i18n.svelte";
 import App from "./ui/App.svelte";
-import { firstTime, HINT_TAP_COUNTRY } from "./ui/hints";
+import { FLAG_CHECKED_IN, firstTime, HINT_TAP_COUNTRY, mark, seen } from "./ui/hints";
 import { view } from "./ui/view.svelte";
 
 /**
@@ -86,11 +91,31 @@ mount(App, {
       toggleAuto: () => {
         view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
-      checkIn: (mood: MoodId, from: { x: number; y: number }) => moment.checkIn(mood, from),
-      setCountry: (code: string) => moment.setCountry(code),
+      checkIn: (mood: MoodId, from: { x: number; y: number }) => {
+        moment.checkIn(mood, from);
+        refreshResult();
+        if (view.checkin.mine !== null && view.checkin.country !== null) {
+          journal = addEntry(journal, { mood, at: new Date(), country: view.checkin.country });
+          saveJournal(journal);
+          refreshJournal();
+        }
+        if (view.checkin.mine !== null) {
+          view.checkin.firstRun = false; // the place row goes back under the faces
+          mark(FLAG_CHECKED_IN);
+        }
+      },
+      setCountry: (code: string) => {
+        moment.setCountry(code);
+        refreshResult();
+      },
       startPick: () => moment.startPick(),
       cancelPick: () => moment.cancelPick(),
       landed: (id: number) => moment.landed(id),
+      clearJournal: () => {
+        journal = [];
+        saveJournal(journal);
+        refreshJournal();
+      },
       cardMoved: () => {
         if (layoutReady) refitToCard();
       },
@@ -159,7 +184,8 @@ let fills = new Map<string, string>();
 let colorVersion = 0;
 let focus: Continent | null = null;
 let selected: string | null = null;
-let centroids: { code: string; lon: number; lat: number }[] = [];
+/** Where weather rises from, per country: pin points at first, spread over the land when idle. */
+let land: LandPoints[] = [];
 let lods: Record<LodName, Lod> | undefined;
 let particles: ParticleField;
 
@@ -170,24 +196,79 @@ function recomputeFills(): void {
 }
 
 function recomputeWeather(): void {
-  particles.setSpawns(weatherSpawns(snapshot, centroids, COUNTRY_TO_CONTINENT, focus));
+  particles.setSpawns(weatherSpawns(snapshot, land, COUNTRY_TO_CONTINENT, focus));
 }
 
 function onSnapshot(next: Snapshot): void {
   snapshot = next;
   headline = worldHeadline(next, QUIET_WORLD_BELOW);
-  if (headline.theme !== mixer.target) {
-    mixer.setTarget(headline.theme);
-    view.worldSwap++; // replay the word's entrance
-  }
+  // Replay the word's entrance when the mood changes (not for the very first one).
+  if (view.worldMood !== null && headline.mood !== view.worldMood) view.worldSwap++;
+  retheme();
   view.worldQuiet = headline.quiet;
   view.worldMood = headline.mood;
   view.checkin.published = Object.keys(next.countries);
+  refreshJournal(); // the window moves at midnight while the page stays open
+  refreshResult();
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();
   recomputeWeather();
   renderPanel();
+}
+
+/** Your own check-ins, on this device only (bridge R2). The strip appears from the second day. */
+let journal: JournalEntry[] = loadJournal();
+function refreshJournal(): void {
+  view.checkin.week = journal.length >= 2 ? lastWeek(journal, new Date()) : null;
+}
+
+const LAND_POINTS = 8;
+const sampled = (f: Lod["countries"][number], random: () => number): LandPoints => ({
+  code: String(f.id),
+  points: landSamples(f, LAND_POINTS, random),
+  area: geoArea(f),
+});
+
+/**
+ * Spread weather over each country's land in idle time (bridge U2): one country at a time, and
+ * only while the browser says there is idle time left, so the cost of any one slice is one
+ * country's (the slowest ~13 ms on a laptop), never a batch.
+ */
+function spreadWeatherWhenIdle(countries: Lod["countries"]): void {
+  const random = rng(7);
+  const next: LandPoints[] = [];
+  let i = 0;
+  const work = (more: () => boolean) => {
+    do next.push(sampled(countries[i++] as Lod["countries"][number], random));
+    while (i < countries.length && more());
+    if (i < countries.length) schedule();
+    else {
+      land = next;
+      landSpread = true;
+      recomputeWeather();
+    }
+  };
+  const schedule =
+    "requestIdleCallback" in window
+      ? () => requestIdleCallback((d) => work(() => d.timeRemaining() > 4), { timeout: 1000 })
+      : () => setTimeout(() => work(() => false), 16); // Safari: no requestIdleCallback
+  schedule();
+}
+/** Whether weather has spread over the land yet (exposed for tests). */
+let landSpread = false;
+
+/** The Earth follows the region in view (bridge T1): cross-fades when that region's mood differs. */
+function retheme(): void {
+  mixer.setTarget(themeFor(snapshot, focus, QUIET_WORLD_BELOW));
+}
+
+/** The line under "You feel …" (bridge R1): recomputed on every snapshot and every check-in. */
+function refreshResult(): void {
+  const mine = view.checkin.mine;
+  const country = view.checkin.country;
+  view.checkin.result =
+    mine === null || country === null ? null : alongside(snapshot, country, mine);
 }
 
 function renderPanel(): void {
@@ -210,6 +291,7 @@ function enter(c: Continent): void {
   focus = c;
   fitPending = true;
   selected = null;
+  retheme();
   recomputeFills();
   recomputeWeather();
   renderPanel();
@@ -232,6 +314,7 @@ function leave(): void {
   focus = null;
   selected = null;
   view.hint = null;
+  retheme();
   camera.glideTo({ center: [camera.view.center[0], 15], zoom: 1, offset: [0, 0] });
   recomputeFills();
   recomputeWeather();
@@ -289,7 +372,10 @@ const input = attachInput(fxCanvas, {
     const hit = hitAt(at.x, at.y);
     if (view.checkin.picking) {
       // The globe is the country picker: a tap on land places your pin; ocean does nothing.
-      if (hit !== null) moment.placePin(hit.code, hit.lonLat);
+      if (hit !== null) {
+        moment.placePin(hit.code, hit.lonLat);
+        refreshResult();
+      }
       return;
     }
     if (hit === null) {
@@ -332,6 +418,9 @@ let wasAnimating = false;
 let layoutEasing = false;
 /** Whether the last frame drew mood-weather particles (off under reduced motion). */
 let particlesDrawn = false;
+/** Weather halos, 0–1: faded out while a finger drags the globe (Pixel bench 2026-11-12). */
+let haloAmount = 1;
+const HALO_FADE_S = 0.15;
 
 // Day/night band (README §8.2.7, decision M3): real time, refreshed once a minute (the terminator
 // moves a quarter of a degree a minute). Bench runs use a fixed sun so frames compare across runs.
@@ -450,7 +539,11 @@ function frame(ts: number): void {
   if (!reducedMotion) {
     particles.update(dt);
     const [rl, rp] = projection.rotate();
-    particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr);
+    const haloGoal = input.dragging || probe.driving ? 0 : 1;
+    haloAmount +=
+      Math.sign(haloGoal - haloAmount) *
+      Math.min(Math.abs(haloGoal - haloAmount), dt / HALO_FADE_S);
+    particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr, haloAmount);
   }
   moment.draw(dt);
 
@@ -482,16 +575,29 @@ async function start(): Promise<void> {
     loadLod("50m"),
   ]);
   lods = { move: m, "110m": a, "50m": b };
-  moment.init(new Map(b.countries.map((f) => [String(f.id), pinPoint(f)])), navigator.languages);
-  centroids = b.countries.map((f) => {
-    const [lon, lat] = geoCentroid(f);
-    return { code: String(f.id), lon, lat };
-  });
+  const pins = new Map(b.countries.map((f) => [String(f.id), pinPoint(f)]));
+  moment.init(pins, navigator.languages);
+  view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
+  refreshJournal();
+  // Open facing your pin (decision B2): "you are here" is on screen before any tap, so a wrong
+  // guess is obvious. Bench runs keep the fixed start pose so frames compare across runs.
+  if (moment.pin !== null && !config.bench) camera.view = { center: moment.pin.lonLat, zoom: 1 };
+  // Weather starts at each country's pin point (always inside it) and spreads over the land in
+  // idle time: sampling every country takes ~0.25 s on a laptop, too long to hold the first paint.
+  // Bench runs sample up front, so every frame they measure has the same weather.
+  const areas = new Map(b.countries.map((f) => [String(f.id), geoArea(f)]));
+  land = [...pins].map(([code, [lon, lat]]) => ({
+    code,
+    points: new Float32Array([lon, lat]),
+    area: areas.get(code) ?? 0,
+  }));
   particles = new ParticleField(config.particles, [], rng(42));
+  if (config.bench) land = b.countries.map((f) => sampled(f, rng(7)));
+  else spreadWeatherWhenIdle(b.countries);
   perf.hidden = !(config.debug || config.bench);
   resize();
   layoutReady = true;
-  mixer.setTarget(headline.theme, true);
+  mixer.setTarget(themeFor(snapshot, focus, QUIET_WORLD_BELOW), true);
   onSnapshot(snapshot);
   applyTheme();
   view.status = "ready"; // the header stops saying "loading" only once the first data is in
@@ -546,6 +652,8 @@ installTestHooks({
   pin: () => moment.pin,
   sun: () => (showNight ? [sun[0], sun[1]] : null),
   worldMood: () => MOODS[snapshot.world.h] ?? "",
+  theme: () => MOODS[mixer.target] ?? "",
+  weather: () => ({ spread: landSpread, anchors: particles?.anchors() ?? [], halo: haloAmount }),
   aggregate: () => onSnapshot(source.aggregate()),
   face(lon, lat) {
     camera.stop();

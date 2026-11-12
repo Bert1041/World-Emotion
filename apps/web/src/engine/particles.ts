@@ -1,6 +1,7 @@
 import { MOOD_COUNT } from "@world-emotion/shared";
 
 const DEG = Math.PI / 180;
+const TAU = Math.PI * 2;
 
 /** Small, fast, seedable PRNG so benchmark runs are identical (mulberry32). */
 export function rng(seed: number): () => number {
@@ -15,19 +16,34 @@ export function rng(seed: number): () => number {
 }
 
 export interface SpawnPoint {
-  readonly lon: number;
-  readonly lat: number;
+  /** Points on the region's land, flat [lon, lat, lon, lat, …] (engine/land.ts). At least one. */
+  readonly points: Float32Array;
   readonly mood: number;
   /** Relative chance of spawning here (how strongly the region feels its mood). */
   readonly weight: number;
 }
 
 /**
- * Mood weather (README §8.2.3), one behaviour per mood. Velocities are screen-space (CSS px/s,
+ * Soft particles are a faint halo this much wider than their nominal size, with a brighter core
+ * about as big as the old square (bridge U2): batched circles, one path per layer per mood. A
+ * pre-rendered glow sprite drawn per particle cost 4x more on a Pixel 6 Pro at 4x CPU (2.4 vs
+ * 0.6 ms a frame, 9 % dropped frames while dragging); batched circles cost 1.1 ms. Square cores
+ * were tried and gained nothing: the cost is in the halos (docs/bench/2026-11-12-*).
+ */
+const SOFT_SCALE = 2;
+const CORE = 0.4;
+const HALO_ALPHA = 0.2;
+/** All weather is a fifth fainter than in Phase 4 (bridge U2: it read as noise on the globe). */
+const FAINTER = 0.8;
+
+/**
+ * Mood weather (README §8.2.3), one behaviour per mood. `soft`: a round glow (fireflies, mist,
+ * sparkle, embers); the rest stay hard on purpose (static is square pixels, rain is streaks). Velocities are screen-space (CSS px/s,
  * negative y = up), anchored to a point on the sphere so weather rises off the land it belongs to.
  */
 const WEATHER = [
   /* happy: rising fireflies */ {
+    soft: true,
     vx: 6,
     vyMin: -16,
     vyMax: -8,
@@ -40,6 +56,7 @@ const WEATHER = [
     flicker: 0.3,
   },
   /* calm: slow drifting mist */ {
+    soft: true,
     vx: 4,
     vyMin: -2,
     vyMax: 2,
@@ -52,6 +69,7 @@ const WEATHER = [
     flicker: 0,
   },
   /* excited: sparkle bursts */ {
+    soft: true,
     vx: 0,
     vyMin: 0,
     vyMax: 0,
@@ -64,6 +82,7 @@ const WEATHER = [
     flicker: 0.6,
   },
   /* stressed: jittery static */ {
+    soft: false,
     vx: 0,
     vyMin: 0,
     vyMax: 0,
@@ -76,6 +95,7 @@ const WEATHER = [
     flicker: 0.8,
   },
   /* sad: falling rain */ {
+    soft: false,
     vx: -2,
     vyMin: 20,
     vyMax: 34,
@@ -88,6 +108,7 @@ const WEATHER = [
     flicker: 0,
   },
   /* angry: rising embers */ {
+    soft: true,
     vx: 8,
     vyMin: -30,
     vyMax: -18,
@@ -104,7 +125,7 @@ if (WEATHER.length !== MOOD_COUNT) throw new Error("weather must cover every moo
 
 /**
  * Layer 3 particles (README §8.1): struct-of-arrays in typed arrays, fixed capacity, no
- * allocation in `update` or `draw`. One path + one fill per mood per frame, whatever the count.
+ * allocation in `update` or `draw`. One path + one fill per mood per frame (two for soft moods), whatever the count.
  */
 export class ParticleField {
   private readonly lon: Float32Array;
@@ -119,6 +140,8 @@ export class ParticleField {
   private readonly sx: Float32Array;
   private readonly sy: Float32Array;
   private readonly vis: Uint8Array;
+  /** Drawn radius this frame (soft moods), so the core pass reuses the halo pass's flicker. */
+  private readonly rad: Float32Array;
   private spawns: readonly SpawnPoint[] = [];
   private cumulative = new Float64Array(0);
 
@@ -139,6 +162,7 @@ export class ParticleField {
     this.sx = new Float32Array(count);
     this.sy = new Float32Array(count);
     this.vis = new Uint8Array(count);
+    this.rad = new Float32Array(count);
     this.setSpawns(spawns);
     for (let i = 0; i < count; i++) {
       this.respawn(i);
@@ -180,8 +204,11 @@ export class ParticleField {
       return;
     }
     const w = WEATHER[s.mood] ?? WEATHER[0];
-    this.lon[i] = s.lon + (this.random() - 0.5) * 8;
-    this.lat[i] = s.lat + (this.random() - 0.5) * 6;
+    // A point on the land itself: no jitter, which is what pushed weather into the sea.
+    const n = s.points.length >> 1;
+    const k = n > 1 ? Math.min(n - 1, Math.floor(this.random() * n)) : 0;
+    this.lon[i] = s.points[k * 2] ?? 0;
+    this.lat[i] = s.points[k * 2 + 1] ?? 0;
     this.ox[i] = 0;
     this.oy[i] = 0;
     if (s.mood === 2) {
@@ -213,7 +240,11 @@ export class ParticleField {
     }
   }
 
-  /** `rotate` is d3's [λ, φ]; centre/radius in canvas px; `px` = canvas px per CSS px. */
+  /**
+   * `rotate` is d3's [λ, φ]; centre/radius in canvas px; `px` = canvas px per CSS px. `halo`
+   * (0–1) scales the soft moods' halos: the frame loop fades them out while a finger drags the
+   * globe, where they cost most and are seen least, and at 0 they are not drawn at all.
+   */
   draw(
     ctx: CanvasRenderingContext2D,
     rotate: readonly [number, number],
@@ -222,6 +253,7 @@ export class ParticleField {
     r: number,
     colors: readonly string[],
     px: number,
+    halo = 1,
   ): void {
     const lam0 = -rotate[0] * DEG;
     const phi0 = -rotate[1] * DEG;
@@ -246,7 +278,9 @@ export class ParticleField {
     }
     for (let m = 0; m < MOOD_COUNT; m++) {
       const w = WEATHER[m] ?? WEATHER[0];
-      ctx.globalAlpha = w.alpha;
+      ctx.fillStyle = colors[m] ?? "#fff";
+      const halos = w.soft && halo > 0;
+      ctx.globalAlpha = w.alpha * FAINTER * (w.soft ? HALO_ALPHA * halo : 1);
       ctx.beginPath();
       for (let i = 0; i < this.count; i++) {
         if (this.vis[i] === 0 || this.mood[i] !== m) continue;
@@ -259,12 +293,41 @@ export class ParticleField {
           x += (this.random() - 0.5) * 2 * w.jitter * px;
           y += (this.random() - 0.5) * 2 * w.jitter * px;
         }
-        if (w.streak) ctx.rect(x, y, Math.max(1, s), s * 6);
+        if (w.soft) {
+          const rad = (s * SOFT_SCALE) / 2;
+          this.sx[i] = x;
+          this.sy[i] = y;
+          this.rad[i] = rad;
+          if (halos) {
+            ctx.moveTo(x + rad, y);
+            ctx.arc(x, y, rad, 0, TAU);
+          }
+        } else if (w.streak) ctx.rect(x, y, Math.max(1, s), s * 6);
         else ctx.rect(x - s / 2, y - s / 2, s, s);
       }
-      ctx.fillStyle = colors[m] ?? "#fff";
+      if (!w.soft || halos) ctx.fill();
+      if (!w.soft) continue;
+      ctx.globalAlpha = w.alpha * FAINTER;
+      ctx.beginPath();
+      for (let i = 0; i < this.count; i++) {
+        if (this.vis[i] === 0 || this.mood[i] !== m) continue;
+        const x = this.sx[i] as number;
+        const y = this.sy[i] as number;
+        const rad = (this.rad[i] as number) * CORE;
+        ctx.moveTo(x + rad, y);
+        ctx.arc(x, y, rad, 0, TAU);
+      }
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** Test access: where each live particle is anchored on the sphere, [lon, lat, mood]. */
+  anchors(): [number, number, number][] {
+    const out: [number, number, number][] = [];
+    for (let i = 0; i < this.count; i++)
+      if (this.mood[i] !== 255)
+        out.push([this.lon[i] as number, this.lat[i] as number, this.mood[i] as number]);
+    return out;
   }
 }

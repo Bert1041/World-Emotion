@@ -125,26 +125,44 @@ export function countryFills(
   return fills;
 }
 
-export interface Centroid {
+/** A country's land points for weather to spawn from (engine/land.ts). */
+export interface LandPoints {
   readonly code: string;
-  readonly lon: number;
-  readonly lat: number;
+  /** Flat [lon, lat, …], at least one point. */
+  readonly points: Float32Array;
+  /** The country's area in steradians (d3 geoArea), for the size term below. */
+  readonly area: number;
 }
+
+/**
+ * Weather follows how much land a country covers, up to a point (bridge U2). Weighted per country
+ * alone, 42 % of all weather fell on countries smaller than about 20,000 km² (dots in the sea at
+ * globe scale) and Australia got 2.6 % of Oceania's. sqrt(a / (a + A0)): about 1 for anything
+ * the size of A0 or larger, fading for tiny ones, never zero, so every country still shows.
+ * A0 ≈ 0.005 sr ≈ 200,000 km² (Senegal, Belarus).
+ */
+export const LAND_HALF_AREA = 0.005;
+export const sizeWeight = (area: number): number =>
+  Math.sqrt(Math.max(0, area) / (Math.max(0, area) + LAND_HALF_AREA));
 
 /** Where mood weather spawns and how strongly (README §8.2.3: quiet regions are faint). */
 export function weatherSpawns(
   snapshot: Snapshot,
-  centroids: readonly Centroid[],
+  land: readonly LandPoints[],
   map: CountryToContinent,
   focus: Continent | null,
 ): SpawnPoint[] {
   const spawns: SpawnPoint[] = [];
-  for (const { code, lon, lat } of centroids) {
+  for (const { code, points, area } of land) {
     const r = regionOf(snapshot, code, map);
     if (!r) continue;
     if (focus !== null && map.get(code) !== focus) continue;
-    const weight = (0.05 + clarity(r.region)) * (r.quiet ? 0.3 : 1) * Math.log10(10 + r.region.n);
-    spawns.push({ lon, lat, mood: r.region.h, weight });
+    const weight =
+      (0.05 + clarity(r.region)) *
+      (r.quiet ? 0.3 : 1) *
+      Math.log10(10 + r.region.n) *
+      sizeWeight(area);
+    spawns.push({ points, mood: r.region.h, weight });
   }
   return spawns;
 }
@@ -176,4 +194,57 @@ export function hitCountry(
   return code !== null && continent !== undefined
     ? { code, continent, lonLat: [lonLat[0], lonLat[1]] }
     : null;
+}
+
+/**
+ * Below this many check-ins a region's published shares are mostly shrinkage (k = 15 virtual votes
+ * pull toward the parent, README §5.4): four calm people in the world read as a 34 % calm share.
+ * A per-mood number from that would be wrong, so the line falls back to a wider region, and in an
+ * early world to the one exact figure there is: the raw count `n`.
+ */
+export const ALONGSIDE_MIN_N = 50;
+
+/** Who else feels what you feel (bridge R1): the line under "You feel …" after a check-in. */
+export type Alongside =
+  | {
+      /** Your country when it has enough check-ins; otherwise the world. */
+      readonly scope: "country" | "world";
+      /** People in that scope with your mood, not counting you. 0 means you are the first. */
+      readonly others: number;
+      /** The country's headline mood (country scope only; the header names the world's). */
+      readonly feels: MoodId | null;
+    }
+  | {
+      /** An early world: no per-mood number is honest yet. */
+      readonly scope: "early";
+      /** Everyone who has checked in, you included (exact, at least 1). */
+      readonly total: number;
+    };
+
+/**
+ * Real numbers from the snapshot, never a placeholder: `dist[mood] × n` of your region, minus you
+ * (the aggregator's estimate, the same one the card's bars show). Until the next aggregation run
+ * counts your vote it reads one low; it never reads high and never below zero.
+ */
+export function alongside(snapshot: Snapshot, country: string, mood: MoodId): Alongside {
+  const own = snapshot.countries[country];
+  const region = own && own.n >= ALONGSIDE_MIN_N ? own : snapshot.world;
+  if (region.n < ALONGSIDE_MIN_N) return { scope: "early", total: Math.max(1, snapshot.world.n) };
+  const withYou = Math.round((region.dist[mood] ?? 0) * region.n);
+  return {
+    scope: region === own ? "country" : "world",
+    others: Math.max(0, withYou - 1),
+    feels: region === own ? own.h : null,
+  };
+}
+
+/**
+ * Which Earth to show (bridge T1, decision B1): the region you are looking at. The world view
+ * follows the world headline; zoomed into a continent, that continent's mood, so every Earth can
+ * be visited. A continent below the privacy floor (absent from the snapshot) rests on the quiet
+ * Earth, like a quiet world.
+ */
+export function themeFor(snapshot: Snapshot, focus: Continent | null, floor: number): MoodId {
+  if (focus === null) return worldHeadline(snapshot, floor).theme;
+  return snapshot.continents[focus]?.h ?? QUIET_THEME;
 }

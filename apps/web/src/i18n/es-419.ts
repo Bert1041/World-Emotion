@@ -72,12 +72,36 @@ export const es419: Messages = {
     move: "mover",
     showMe: "elegir",
     whereAreYou: "¿Dónde estás?",
+    yourCountry: "Tu país:",
+    notYou: "¿no es aquí?",
     tapYourCountry: "Toca tu país en el globo",
     tooSmall: "¿Muy pequeño para tocarlo?",
     typeIt: "Escríbelo…",
     noMatch: "Sin resultados",
     cancel: "cancelar",
-    smallCountry: "Los países pequeños muestran su continente hasta que {n} personas respondan.",
+    likeCountry: (n, f) =>
+      f.plural(n) === "one"
+        ? "Como {count} persona más en tu país"
+        : "Como {count} personas más en tu país",
+    likeWorld: (n, f) =>
+      f.plural(n) === "one"
+        ? "Como {count} persona más en el mundo"
+        : "Como {count} personas más en el mundo",
+    firstCountry: "La primera persona que lo siente en tu país ahora",
+    firstWorld: "La primera persona que lo siente en el mundo ahora",
+    early: (n, f) =>
+      f.plural(n) === "one"
+        ? "La primera respuesta ahora mismo"
+        : "Entre las primeras {count} respuestas",
+    countryFeels: "Tu país siente {mood}",
+    smallCountry: "Tu país necesita {n} respuestas para mostrar su ánimo.",
+  },
+
+  journal: {
+    label: "Tus últimos 7 días",
+    none: "nada",
+    onDevice: "Se guarda solo en este dispositivo",
+    clear: "borrar",
   },
 
   hints: { tapCountry: "Toca un país" },

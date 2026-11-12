@@ -59,12 +59,36 @@ export const en: Messages = {
     move: "move",
     showMe: "show me",
     whereAreYou: "Where are you?",
+    yourCountry: "Your country:",
+    notYou: "not you?",
     tapYourCountry: "Tap your country on the globe",
     tooSmall: "Too small to tap?",
     typeIt: "Type it…",
     noMatch: "No match",
     cancel: "cancel",
-    smallCountry: "Small countries show their continent until {n} people check in.",
+    likeCountry: (n, f) =>
+      f.plural(n) === "one"
+        ? "Like {count} other in your country"
+        : "Like {count} others in your country",
+    likeWorld: (n, f) =>
+      f.plural(n) === "one"
+        ? "Like {count} other in the world"
+        : "Like {count} others in the world",
+    firstCountry: "The first to feel this in your country right now",
+    firstWorld: "The first to feel this in the world right now",
+    early: (n, f) =>
+      f.plural(n) === "one"
+        ? "The first to check in right now"
+        : "One of the first {count} to check in",
+    countryFeels: "Your country feels {mood}",
+    smallCountry: "Your country needs {n} check-ins to show its own mood.",
+  },
+
+  journal: {
+    label: "Your last 7 days",
+    none: "no check-in",
+    onDevice: "Kept only on this device",
+    clear: "clear",
   },
 
   hints: { tapCountry: "Tap a country" },

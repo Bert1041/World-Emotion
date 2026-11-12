@@ -81,13 +81,40 @@ export interface Messages {
     readonly move: string;
     readonly showMe: string;
     readonly whereAreYou: string;
+    /** First run (bridge J2): a label before the place badge, and the link to correct a wrong guess. */
+    readonly yourCountry: string;
+    readonly notYou: string;
     readonly tapYourCountry: string;
     readonly tooSmall: string;
     readonly typeIt: string;
     readonly noMatch: string;
     readonly cancel: string;
-    /** Your country is below the privacy floor; "{n}" is the floor. */
+    /**
+     * After a check-in (bridge R1), under "You feel …": how many others share the mood. "{count}"
+     * is the number of OTHER people (1 or more). Says "your country", never its name: names
+     * need prepositions and articles that differ per country (au Nigeria, en France, no Brasil).
+     */
+    readonly likeCountry: (n: number, f: Fmt) => string;
+    readonly likeWorld: (n: number, f: Fmt) => string;
+    /** Nobody else yet in that scope. */
+    readonly firstCountry: string;
+    readonly firstWorld: string;
+    /** An early world (too few check-ins for a per-mood number): "{count}" is everyone so far. */
+    readonly early: (n: number, f: Fmt) => string;
+    /** "{mood}" is coloured: your country's leading mood. */
+    readonly countryFeels: string;
+    /** Your country is below the privacy floor (any country can be, not only small ones); "{n}" is the floor. */
     readonly smallCountry: string;
+  };
+
+  /** Your on-device journal (bridge R2): a strip of the last seven days. */
+  readonly journal: {
+    /** The strip's accessible name; the days follow it, read as mood labels. */
+    readonly label: string;
+    /** A day with no check-in, in that list. */
+    readonly none: string;
+    readonly onDevice: string;
+    readonly clear: string;
   };
 
   /** One-time hints (bridge U6). */

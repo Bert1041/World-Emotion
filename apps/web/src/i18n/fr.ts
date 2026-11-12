@@ -83,13 +83,36 @@ export const fr: Messages = {
     move: "déplacer",
     showMe: "choisir",
     whereAreYou: "Où es-tu ?",
+    yourCountry: "Ton pays :",
+    notYou: "ce n’est pas ça ?",
     tapYourCountry: "Touche ton pays sur le globe",
     tooSmall: "Trop petit pour le toucher ?",
     typeIt: "Tape son nom…",
     noMatch: "Aucun résultat",
     cancel: "annuler",
-    smallCountry:
-      "Les petits pays affichent leur continent tant que moins de {n} personnes ont partagé leur humeur.",
+    likeCountry: (n, f) =>
+      f.plural(n) === "one"
+        ? "Comme {count} autre personne dans ton pays"
+        : "Comme {count} autres personnes dans ton pays",
+    likeWorld: (n, f) =>
+      f.plural(n) === "one"
+        ? "Comme {count} autre personne dans le monde"
+        : "Comme {count} autres personnes dans le monde",
+    firstCountry: "La première personne à le ressentir dans ton pays",
+    firstWorld: "La première personne à le ressentir dans le monde",
+    early: (n, f) =>
+      f.plural(n) === "one" && n === 1
+        ? "La première humeur partagée en ce moment"
+        : "Parmi les {count} premières humeurs partagées",
+    countryFeels: "Ton pays ressent {mood}",
+    smallCountry: "Il faut {n} réponses pour voir l’humeur de ton pays.",
+  },
+
+  journal: {
+    label: "Tes 7 derniers jours",
+    none: "rien",
+    onDevice: "Gardé uniquement sur cet appareil",
+    clear: "effacer",
   },
 
   hints: { tapCountry: "Touche un pays" },

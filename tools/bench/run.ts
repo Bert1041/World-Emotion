@@ -5,6 +5,9 @@
  *                           [--no-build] [--screenshot=path.png] [--shots=dir] [--verify]
  *   node tools/bench/run.ts --restore-phone     restore Android settings after a killed run
  *   --allow-warm  skip the cool-down waits (results are slower; the file name says "-warm")
+ *   --startup     instead of the matrix: load the app normally (not ?bench=1) and record every
+ *                 frame for the first seconds, when start-up work runs (bridge U2). --repeats=N.
+ *   --label=x     added to the results file name (A/B runs of two builds)
  *
  * android: serves the PRODUCTION build over `adb reverse` (nothing on the LAN), drives Chrome via
  *   the DevTools protocol, gates every run on thermal status, and restores the phone settings it
@@ -495,178 +498,239 @@ async function main() {
     const b = await cdp(wsUrl);
     console.log(`device: ${label}`);
 
-    const tourDir = arg("tour", "");
-    if (tourDir) {
-      // Real-browser walkthrough: every theme, then drill into Europe and France. Any page error
-      // fails the tour.
-      mkdirSync(tourDir, { recursive: true });
-      await withPage(b, `${device.pageBase}/`, async (sid) => {
-        const errors: string[] = [];
-        b.onEvent((m) => {
-          if (m.sessionId !== sid) return;
-          if (m.method === "Runtime.exceptionThrown")
-            errors.push(JSON.stringify(m.params).slice(0, 300));
-          if (
-            m.method === "Log.entryAdded" &&
-            (m.params as { entry?: { level?: string } })?.entry?.level === "error"
-          )
-            errors.push(JSON.stringify(m.params).slice(0, 300));
+    if (flag("startup")) {
+      // Start-up smoothness (bridge U2): the normal page, so the normal start-up path runs (bench
+      // runs sample weather up front and cannot see it). A recorder is installed before any page
+      // script, so frames from the very first one are counted.
+      const RECORD_MS = 6000;
+      const scenario: Scenario = { particles: 700, dragLod: "move", dpr: 2, hz: 60, throttle: 1 };
+      for (let r = 0; r < Number(arg("repeats", "5")); r++) {
+        const thermal = await device.beforeRun(scenario);
+        const { targetId } = await b.send<{ targetId: string }>("Target.createTarget", {
+          url: "about:blank",
         });
-        await b.send("Runtime.enable", {}, sid);
-        await b.send("Log.enable", {}, sid);
-        const shot = async (name: string) =>
-          writeFileSync(
-            join(tourDir, `${name}.png`),
-            Buffer.from(
-              (await b.send<{ data: string }>("Page.captureScreenshot", { format: "png" }, sid))
-                .data,
-              "base64",
-            ),
+        const { sessionId } = await b.send<{ sessionId: string }>("Target.attachToTarget", {
+          targetId,
+          flatten: true,
+        });
+        try {
+          await b.send("Target.activateTarget", { targetId });
+          await b.send("Page.enable", {}, sessionId);
+          await b.send(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {
+              source: `(() => {
+                const t = []; window.__frames = t;
+                const tick = (ts) => { t.push(ts); requestAnimationFrame(tick); };
+                requestAnimationFrame(tick);
+              })();`,
+            },
+            sessionId,
           );
-        const moods = ["happy", "calm", "excited", "stressed", "sad", "angry"];
-        for (const [m, name] of moods.entries()) {
-          await evaluate(b, sid, `(document.querySelectorAll("#dev button")[${m}].click(), 1)`);
-          await sleep(9000); // hysteresis needs a couple of 2 s aggregation steps, then a 2.5 s fade
-          const headline = await evaluate(
+          const loaded = b.once("Page.loadEventFired", sessionId);
+          await b.send("Page.navigate", { url: `${device.pageBase}/?auto=0` }, sessionId);
+          await loaded;
+          await evaluate(b, sessionId, "window.__bench.ready.then(() => 1)");
+          await sleep(RECORD_MS);
+          const v = (await evaluate(
             b,
-            sid,
-            `document.getElementById("world-mood").textContent`,
-          );
-          console.log(`theme ${name}: headline now "${String(headline)}"`);
-          await shot(`theme-${m}-${name}`);
-        }
-        const tap = async (lon: number, lat: number) => {
-          const p = (await evaluate(
-            b,
-            sid,
-            `window.__bench.screenPoint(${lon}, ${lat})`,
-          )) as unknown as [number, number] | null;
-          if (!p) throw new Error(`point ${lon},${lat} is on the far side`);
-          for (const type of ["mousePressed", "mouseReleased"])
-            await b.send(
-              "Input.dispatchMouseEvent",
-              { type, x: p[0], y: p[1], button: "left", clickCount: 1 },
-              sid,
-            );
-        };
-        await evaluate(b, sid, `(document.querySelectorAll("#dev button")[1].click(), 1)`);
-        await sleep(6000);
-        await b.send("Runtime.evaluate", { expression: "1" }, sid);
-        // Face Europe first so France is on the near side, then tap it.
-        await evaluate(b, sid, `(window.__bench.face(10, 45), 1)`);
-        await sleep(300);
-        await tap(2.5, 46.5);
-        await sleep(1800);
-        const panel1 = await evaluate(
-          b,
-          sid,
-          `document.getElementById("panel-title").textContent + " | " + document.getElementById("panel-sub").textContent`,
-        );
-        console.log(`after tap 1 (expect Europe): ${String(panel1)}`);
-        await shot("drill-1-europe");
-        await tap(2.5, 46.5);
-        await sleep(800);
-        const panel2 = await evaluate(
-          b,
-          sid,
-          `document.getElementById("panel-title").textContent + " | " + document.getElementById("panel-sub").textContent`,
-        );
-        console.log(`after tap 2 (expect France): ${String(panel2)}`);
-        await shot("drill-2-france");
-        await evaluate(b, sid, `(document.getElementById("back").click(), 1)`);
-        await sleep(1800);
-        const backHidden = await evaluate(b, sid, `document.getElementById("panel").hidden`);
-        console.log(`after back (expect panel hidden=true): ${String(backHidden)}`);
-        await shot("drill-3-back");
-        console.log(
-          errors.length
-            ? `PAGE ERRORS (${errors.length}):\n${errors.join("\n")}`
-            : "page errors: none",
-        );
-      });
-      b.ws.close();
-      return;
-    }
-    if (flag("verify")) {
-      // Correctness of render optimisations: pixel-compare against the reference renderer.
-      await withPage(b, `${device.pageBase}/?bench=1&particles=0`, async (sid) => {
-        for (const variant of [
-          { cull: true, precision0: false },
-          { cull: false, precision0: true },
-          { cull: true, precision0: true },
-          // Self-test: culling against the WRONG view centre must produce large differences;
-          // if it reports 0, the comparison itself is broken.
-          { cull: true, precision0: false, selfTestWrongCenter: true },
-        ]) {
-          const v = await evaluate(
-            b,
-            sid,
-            `window.__bench.verifyRender(${JSON.stringify(variant)})`,
-          );
-          console.log(`verify ${JSON.stringify(variant)}: ${JSON.stringify(v)}`);
-        }
-      });
-      b.ws.close();
-      return;
-    }
-
-    // Repeats outermost, scenario order rotated each repeat: no scenario always runs last (hottest).
-    for (let r = 0; r < repeats; r++) {
-      const shift = r * Math.ceil(scenarios.length / repeats);
-      const order = scenarios.map((_, i) => scenarios[(i + shift) % scenarios.length] as Scenario);
-      for (const s of order) {
-        const before = await device.beforeRun(s);
-        if (before.status > 1 || before.waitedS >= 600)
+            sessionId,
+            `(() => {
+              const t = window.__frames, d = [];
+              for (let i = 1; i < t.length; i++) d.push(t[i] - t[i - 1]);
+              const s = [...d].sort((a, b) => a - b), q = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))] ?? NaN;
+              const w = window.__bench.weather ? window.__bench.weather() : null;
+              return { frames: t.length, p50: q(0.5), p95: q(0.95), p99: q(0.99), max: s[s.length - 1] ?? NaN,
+                over33: d.filter((x) => x > 33.4).length, over50: d.filter((x) => x > 50).length,
+                spread: w ? w.spread : null };
+            })()`,
+          )) as Record<string, number | boolean | null>;
+          const f = (k: string) => Number(v[k]).toFixed(1);
           console.log(
-            `  (warning: still warm after ${before.waitedS}s: status ${before.status}, battery ${before.batteryC} °C)`,
+            `startup #${r}: frames ${v.frames} · interval p50 ${f("p50")} p95 ${f("p95")} p99 ${f("p99")} max ${f("max")} ms · >33 ms ${v.over33} · >50 ms ${v.over50} · weather spread ${v.spread} · battery ${thermal.batteryC} °C status ${thermal.status}`,
           );
-        const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}&ripple=${s.ripple ? 1 : 0}`;
-        await withPage(b, url, async (sid) => {
-          await b.send("Emulation.setCPUThrottlingRate", { rate: s.throttle }, sid);
-          const v = (await evaluate(b, sid, "window.__bench.run()")) as Record<string, number>;
-          if ((screenshot && results.length === 0) || (shotsDir && r === 0)) {
-            const png = Buffer.from(
-              (await b.send<{ data: string }>("Page.captureScreenshot", { format: "png" }, sid))
-                .data,
-              "base64",
-            );
-            if (screenshot && results.length === 0) writeFileSync(screenshot, png);
-            if (shotsDir)
-              writeFileSync(
-                join(
-                  shotsDir,
-                  `${s.throttle}x-${(s.opt || "none").replace(/,/g, "+")}${s.ripple ? "+ripple" : ""}.png`,
-                ),
-                png,
-              );
-          }
-          const after = device.thermalNow();
-          results.push({
-            ...s,
-            repeat: r,
-            device: device.name,
-            deviceLabel: label,
-            ...v,
-            thermalBefore: before,
-            thermalAfter: after,
+          results.push({ startup: true, repeat: r, ...v, thermal });
+        } finally {
+          await b.send("Target.closeTarget", { targetId }).catch(() => {});
+        }
+      }
+    } else {
+      const tourDir = arg("tour", "");
+      if (tourDir) {
+        // Real-browser walkthrough: every theme, then drill into Europe and France. Any page error
+        // fails the tour.
+        mkdirSync(tourDir, { recursive: true });
+        await withPage(b, `${device.pageBase}/`, async (sid) => {
+          const errors: string[] = [];
+          b.onEvent((m) => {
+            if (m.sessionId !== sid) return;
+            if (m.method === "Runtime.exceptionThrown")
+              errors.push(JSON.stringify(m.params).slice(0, 300));
+            if (
+              m.method === "Log.entryAdded" &&
+              (m.params as { entry?: { level?: string } })?.entry?.level === "error"
+            )
+              errors.push(JSON.stringify(m.params).slice(0, 300));
           });
-          const f = (x: number | undefined) => (x ?? Number.NaN).toFixed(2);
+          await b.send("Runtime.enable", {}, sid);
+          await b.send("Log.enable", {}, sid);
+          const shot = async (name: string) =>
+            writeFileSync(
+              join(tourDir, `${name}.png`),
+              Buffer.from(
+                (await b.send<{ data: string }>("Page.captureScreenshot", { format: "png" }, sid))
+                  .data,
+                "base64",
+              ),
+            );
+          const moods = ["happy", "calm", "excited", "stressed", "sad", "angry"];
+          for (const [m, name] of moods.entries()) {
+            await evaluate(b, sid, `(document.querySelectorAll("#dev button")[${m}].click(), 1)`);
+            await sleep(9000); // hysteresis needs a couple of 2 s aggregation steps, then a 2.5 s fade
+            const headline = await evaluate(
+              b,
+              sid,
+              `document.getElementById("world-mood").textContent`,
+            );
+            console.log(`theme ${name}: headline now "${String(headline)}"`);
+            await shot(`theme-${m}-${name}`);
+          }
+          const tap = async (lon: number, lat: number) => {
+            const p = (await evaluate(
+              b,
+              sid,
+              `window.__bench.screenPoint(${lon}, ${lat})`,
+            )) as unknown as [number, number] | null;
+            if (!p) throw new Error(`point ${lon},${lat} is on the far side`);
+            for (const type of ["mousePressed", "mouseReleased"])
+              await b.send(
+                "Input.dispatchMouseEvent",
+                { type, x: p[0], y: p[1], button: "left", clickCount: 1 },
+                sid,
+              );
+          };
+          await evaluate(b, sid, `(document.querySelectorAll("#dev button")[1].click(), 1)`);
+          await sleep(6000);
+          await b.send("Runtime.evaluate", { expression: "1" }, sid);
+          // Face Europe first so France is on the near side, then tap it.
+          await evaluate(b, sid, `(window.__bench.face(10, 45), 1)`);
+          await sleep(300);
+          await tap(2.5, 46.5);
+          await sleep(1800);
+          const panel1 = await evaluate(
+            b,
+            sid,
+            `document.getElementById("panel-title").textContent + " | " + document.getElementById("panel-sub").textContent`,
+          );
+          console.log(`after tap 1 (expect Europe): ${String(panel1)}`);
+          await shot("drill-1-europe");
+          await tap(2.5, 46.5);
+          await sleep(800);
+          const panel2 = await evaluate(
+            b,
+            sid,
+            `document.getElementById("panel-title").textContent + " | " + document.getElementById("panel-sub").textContent`,
+          );
+          console.log(`after tap 2 (expect France): ${String(panel2)}`);
+          await shot("drill-2-france");
+          await evaluate(b, sid, `(document.getElementById("back").click(), 1)`);
+          await sleep(1800);
+          const backHidden = await evaluate(b, sid, `document.getElementById("panel").hidden`);
+          console.log(`after back (expect panel hidden=true): ${String(backHidden)}`);
+          await shot("drill-3-back");
           console.log(
-            `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}${s.ripple ? " +ripple" : ""}] #${r}: ` +
-              `idle ${f(v.idleIntervalP50)} · interval p50 ${f(v.intervalP50)} p95 ${f(v.intervalP95)} · ` +
-              `script p50 ${f(v.scriptP50)} p95 ${f(v.scriptP95)} (base ${f(v.baseP50)} fx ${f(v.fxP50)}) · ` +
-              `idleDetail ${JSON.stringify((v as unknown as Record<string, unknown>).idleDetail)} · missed ${((v.missedRatio ?? 0) * 100).toFixed(2)}% · thermal ${before.status}→${after.status} (waited ${before.waitedS}s)`,
+            errors.length
+              ? `PAGE ERRORS (${errors.length}):\n${errors.join("\n")}`
+              : "page errors: none",
           );
         });
+        b.ws.close();
+        return;
+      }
+      if (flag("verify")) {
+        // Correctness of render optimisations: pixel-compare against the reference renderer.
+        await withPage(b, `${device.pageBase}/?bench=1&particles=0`, async (sid) => {
+          for (const variant of [
+            { cull: true, precision0: false },
+            { cull: false, precision0: true },
+            { cull: true, precision0: true },
+            // Self-test: culling against the WRONG view centre must produce large differences;
+            // if it reports 0, the comparison itself is broken.
+            { cull: true, precision0: false, selfTestWrongCenter: true },
+          ]) {
+            const v = await evaluate(
+              b,
+              sid,
+              `window.__bench.verifyRender(${JSON.stringify(variant)})`,
+            );
+            console.log(`verify ${JSON.stringify(variant)}: ${JSON.stringify(v)}`);
+          }
+        });
+        b.ws.close();
+        return;
+      }
+
+      // Repeats outermost, scenario order rotated each repeat: no scenario always runs last (hottest).
+      for (let r = 0; r < repeats; r++) {
+        const shift = r * Math.ceil(scenarios.length / repeats);
+        const order = scenarios.map(
+          (_, i) => scenarios[(i + shift) % scenarios.length] as Scenario,
+        );
+        for (const s of order) {
+          const before = await device.beforeRun(s);
+          if (before.status > 1 || before.waitedS >= 600)
+            console.log(
+              `  (warning: still warm after ${before.waitedS}s: status ${before.status}, battery ${before.batteryC} °C)`,
+            );
+          const url = `${device.pageBase}/?bench=1&particles=${s.particles}&dragLod=${s.dragLod}&dpr=${s.dpr}&hz=${s.hz}&seconds=10&opt=${s.opt ?? ""}&ripple=${s.ripple ? 1 : 0}`;
+          await withPage(b, url, async (sid) => {
+            await b.send("Emulation.setCPUThrottlingRate", { rate: s.throttle }, sid);
+            const v = (await evaluate(b, sid, "window.__bench.run()")) as Record<string, number>;
+            if ((screenshot && results.length === 0) || (shotsDir && r === 0)) {
+              const png = Buffer.from(
+                (await b.send<{ data: string }>("Page.captureScreenshot", { format: "png" }, sid))
+                  .data,
+                "base64",
+              );
+              if (screenshot && results.length === 0) writeFileSync(screenshot, png);
+              if (shotsDir)
+                writeFileSync(
+                  join(
+                    shotsDir,
+                    `${s.throttle}x-${(s.opt || "none").replace(/,/g, "+")}${s.ripple ? "+ripple" : ""}.png`,
+                  ),
+                  png,
+                );
+            }
+            const after = device.thermalNow();
+            results.push({
+              ...s,
+              repeat: r,
+              device: device.name,
+              deviceLabel: label,
+              ...v,
+              thermalBefore: before,
+              thermalAfter: after,
+            });
+            const f = (x: number | undefined) => (x ?? Number.NaN).toFixed(2);
+            console.log(
+              `${s.hz}Hz ${s.throttle}x ${s.dragLod} dpr${s.dpr} p${s.particles} [${s.opt || "none"}${s.ripple ? " +ripple" : ""}] #${r}: ` +
+                `idle ${f(v.idleIntervalP50)} · interval p50 ${f(v.intervalP50)} p95 ${f(v.intervalP95)} · ` +
+                `script p50 ${f(v.scriptP50)} p95 ${f(v.scriptP95)} (base ${f(v.baseP50)} fx ${f(v.fxP50)}) · ` +
+                `idleDetail ${JSON.stringify((v as unknown as Record<string, unknown>).idleDetail)} · missed ${((v.missedRatio ?? 0) * 100).toFixed(2)}% · thermal ${before.status}→${after.status} (waited ${before.waitedS}s)`,
+            );
+          });
+        }
       }
     }
     b.ws.close();
   } finally {
     cleanup();
   }
+  const label = arg("label", "");
   const out = join(
     ROOT,
-    `docs/bench/${new Date().toISOString().slice(0, 10)}-${device.name}-${arg("matrix", "gate")}${flag("allow-warm") ? "-warm" : ""}.json`,
+    `docs/bench/${new Date().toISOString().slice(0, 10)}-${device.name}-${flag("startup") ? "startup" : arg("matrix", "gate")}${label ? `-${label}` : ""}${flag("allow-warm") ? "-warm" : ""}.json`,
   );
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
