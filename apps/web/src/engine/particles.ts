@@ -1,6 +1,7 @@
 import { MOOD_COUNT } from "@world-emotion/shared";
 
 const DEG = Math.PI / 180;
+const TAU = Math.PI * 2;
 
 /** Small, fast, seedable PRNG so benchmark runs are identical (mulberry32). */
 export function rng(seed: number): () => number {
@@ -23,13 +24,17 @@ export interface SpawnPoint {
 }
 
 /**
- * Soft round particles are drawn this much larger than their nominal size: the glow's edge fades
- * out, so the visible core stays about as big as the old square (bridge U2).
+ * Soft particles are a faint halo this much wider than their nominal size, with a brighter core
+ * about as big as the old square (bridge U2): batched circles, one path per layer per mood. A
+ * pre-rendered glow sprite drawn per particle cost 4x more on a Pixel 6 Pro at 4x CPU (2.4 vs
+ * 0.6 ms a frame, 9 % dropped frames while dragging); batched circles cost 1.1 ms. Square cores
+ * were tried and gained nothing: the cost is in the halos (docs/bench/2026-11-12-*).
  */
 const SOFT_SCALE = 2;
+const CORE = 0.4;
+const HALO_ALPHA = 0.2;
 /** All weather is a fifth fainter than in Phase 4 (bridge U2: it read as noise on the globe). */
 const FAINTER = 0.8;
-const SPRITE_PX = 32;
 
 /**
  * Mood weather (README §8.2.3), one behaviour per mood. `soft`: a round glow (fireflies, mist,
@@ -120,7 +125,7 @@ if (WEATHER.length !== MOOD_COUNT) throw new Error("weather must cover every moo
 
 /**
  * Layer 3 particles (README §8.1): struct-of-arrays in typed arrays, fixed capacity, no
- * allocation in `update` or `draw`. One path + one fill per mood per frame, whatever the count.
+ * allocation in `update` or `draw`. One path + one fill per mood per frame (two for soft moods), whatever the count.
  */
 export class ParticleField {
   private readonly lon: Float32Array;
@@ -135,10 +140,9 @@ export class ParticleField {
   private readonly sx: Float32Array;
   private readonly sy: Float32Array;
   private readonly vis: Uint8Array;
+  /** Drawn radius this frame (soft moods), so the core pass reuses the halo pass's flicker. */
+  private readonly rad: Float32Array;
   private spawns: readonly SpawnPoint[] = [];
-  /** One pre-rendered glow per mood colour, made on the first draw (never in the frame loop after). */
-  private sprites: (HTMLCanvasElement | null)[] = [];
-  private spriteColors = "";
   private cumulative = new Float64Array(0);
 
   constructor(
@@ -158,6 +162,7 @@ export class ParticleField {
     this.sx = new Float32Array(count);
     this.sy = new Float32Array(count);
     this.vis = new Uint8Array(count);
+    this.rad = new Float32Array(count);
     this.setSpawns(spawns);
     for (let i = 0; i < count; i++) {
       this.respawn(i);
@@ -235,7 +240,11 @@ export class ParticleField {
     }
   }
 
-  /** `rotate` is d3's [λ, φ]; centre/radius in canvas px; `px` = canvas px per CSS px. */
+  /**
+   * `rotate` is d3's [λ, φ]; centre/radius in canvas px; `px` = canvas px per CSS px. `halo`
+   * (0–1) scales the soft moods' halos: the frame loop fades them out while a finger drags the
+   * globe, where they cost most and are seen least, and at 0 they are not drawn at all.
+   */
   draw(
     ctx: CanvasRenderingContext2D,
     rotate: readonly [number, number],
@@ -244,6 +253,7 @@ export class ParticleField {
     r: number,
     colors: readonly string[],
     px: number,
+    halo = 1,
   ): void {
     const lam0 = -rotate[0] * DEG;
     const phi0 = -rotate[1] * DEG;
@@ -266,12 +276,12 @@ export class ParticleField {
       this.sx[i] = cx + r * cosP * Math.sin(dl) + (this.ox[i] as number) * px;
       this.sy[i] = cy - r * (cosP0 * sinP - sinP0 * cosP * cosDl) + (this.oy[i] as number) * px;
     }
-    this.ensureSprites(colors);
     for (let m = 0; m < MOOD_COUNT; m++) {
       const w = WEATHER[m] ?? WEATHER[0];
-      const sprite = w.soft ? this.sprites[m] : null;
-      ctx.globalAlpha = w.alpha * FAINTER;
-      if (!sprite) ctx.beginPath();
+      ctx.fillStyle = colors[m] ?? "#fff";
+      const halos = w.soft && halo > 0;
+      ctx.globalAlpha = w.alpha * FAINTER * (w.soft ? HALO_ALPHA * halo : 1);
+      ctx.beginPath();
       for (let i = 0; i < this.count; i++) {
         if (this.vis[i] === 0 || this.mood[i] !== m) continue;
         const life = (this.age[i] as number) / (this.ttl[i] as number);
@@ -283,54 +293,33 @@ export class ParticleField {
           x += (this.random() - 0.5) * 2 * w.jitter * px;
           y += (this.random() - 0.5) * 2 * w.jitter * px;
         }
-        if (sprite) {
-          const d = s * SOFT_SCALE;
-          ctx.drawImage(sprite, x - d / 2, y - d / 2, d, d);
+        if (w.soft) {
+          const rad = (s * SOFT_SCALE) / 2;
+          this.sx[i] = x;
+          this.sy[i] = y;
+          this.rad[i] = rad;
+          if (halos) {
+            ctx.moveTo(x + rad, y);
+            ctx.arc(x, y, rad, 0, TAU);
+          }
         } else if (w.streak) ctx.rect(x, y, Math.max(1, s), s * 6);
         else ctx.rect(x - s / 2, y - s / 2, s, s);
       }
-      if (!sprite) {
-        ctx.fillStyle = colors[m] ?? "#fff";
-        ctx.fill();
+      if (!w.soft || halos) ctx.fill();
+      if (!w.soft) continue;
+      ctx.globalAlpha = w.alpha * FAINTER;
+      ctx.beginPath();
+      for (let i = 0; i < this.count; i++) {
+        if (this.vis[i] === 0 || this.mood[i] !== m) continue;
+        const x = this.sx[i] as number;
+        const y = this.sy[i] as number;
+        const rad = (this.rad[i] as number) * CORE;
+        ctx.moveTo(x + rad, y);
+        ctx.arc(x, y, rad, 0, TAU);
       }
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
-  }
-
-  /** A radial glow per soft mood, in its colour; rebuilt only if the palette changes. */
-  private ensureSprites(colors: readonly string[]): void {
-    const key = colors.join(",");
-    if (key === this.spriteColors) return;
-    this.spriteColors = key;
-    this.sprites = WEATHER.map((w, m) => {
-      if (!w.soft || typeof document === "undefined") return null;
-      const c = document.createElement("canvas");
-      c.width = SPRITE_PX;
-      c.height = SPRITE_PX;
-      const g = c.getContext("2d");
-      if (!g) return null;
-      const h = SPRITE_PX / 2;
-      const grad = g.createRadialGradient(h, h, 0, h, h, h);
-      const col = colors[m] ?? "#fff";
-      grad.addColorStop(0, col);
-      grad.addColorStop(0.35, col);
-      grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-      g.fillStyle = grad;
-      g.globalAlpha = 1;
-      g.beginPath();
-      g.arc(h, h, h, 0, Math.PI * 2);
-      g.fill();
-      // Fade the colour itself to transparent at the edge (the stop above is black at 0 alpha,
-      // which would darken the rim): redraw the falloff as alpha only.
-      g.globalCompositeOperation = "destination-in";
-      const mask = g.createRadialGradient(h, h, 0, h, h, h);
-      mask.addColorStop(0, "rgba(0, 0, 0, 1)");
-      mask.addColorStop(0.35, "rgba(0, 0, 0, 0.85)");
-      mask.addColorStop(1, "rgba(0, 0, 0, 0)");
-      g.fillStyle = mask;
-      g.fillRect(0, 0, SPRITE_PX, SPRITE_PX);
-      return c;
-    });
   }
 
   /** Test access: where each live particle is anchored on the sphere, [lon, lat, mood]. */

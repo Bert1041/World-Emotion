@@ -418,6 +418,9 @@ let wasAnimating = false;
 let layoutEasing = false;
 /** Whether the last frame drew mood-weather particles (off under reduced motion). */
 let particlesDrawn = false;
+/** Weather halos, 0–1: faded out while a finger drags the globe (Pixel bench 2026-11-12). */
+let haloAmount = 1;
+const HALO_FADE_S = 0.15;
 
 // Day/night band (README §8.2.7, decision M3): real time, refreshed once a minute (the terminator
 // moves a quarter of a degree a minute). Bench runs use a fixed sun so frames compare across runs.
@@ -536,7 +539,11 @@ function frame(ts: number): void {
   if (!reducedMotion) {
     particles.update(dt);
     const [rl, rp] = projection.rotate();
-    particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr);
+    const haloGoal = input.dragging || probe.driving ? 0 : 1;
+    haloAmount +=
+      Math.sign(haloGoal - haloAmount) *
+      Math.min(Math.abs(haloGoal - haloAmount), dt / HALO_FADE_S);
+    particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr, haloAmount);
   }
   moment.draw(dt);
 
@@ -646,7 +653,7 @@ installTestHooks({
   sun: () => (showNight ? [sun[0], sun[1]] : null),
   worldMood: () => MOODS[snapshot.world.h] ?? "",
   theme: () => MOODS[mixer.target] ?? "",
-  weather: () => ({ spread: landSpread, anchors: particles?.anchors() ?? [] }),
+  weather: () => ({ spread: landSpread, anchors: particles?.anchors() ?? [], halo: haloAmount }),
   aggregate: () => onSnapshot(source.aggregate()),
   face(lon, lat) {
     camera.stop();

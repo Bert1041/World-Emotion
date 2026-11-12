@@ -21,8 +21,13 @@ function countries50m(): Feature[] {
   return (feature(topo, topo.objects.countries) as unknown as FeatureCollection).features;
 }
 
-type Weather = { spread: boolean; anchors: [number, number, number][] };
-type Bench = { ready: Promise<void>; weather(): Weather };
+type Weather = { spread: boolean; anchors: [number, number, number][]; halo: number };
+type Bench = {
+  ready: Promise<void>;
+  weather(): Weather;
+  face(lon: number, lat: number): void;
+  screenPoint(lon: number, lat: number): [number, number] | null;
+};
 
 test("every particle is anchored on land, before and after weather spreads", async ({
   page,
@@ -78,4 +83,27 @@ test("every particle is anchored on land, before and after weather spreads", asy
   );
   const offLate = late.anchors.filter(([lon, lat]) => !onLand([lon, lat]));
   expect(offLate, "after spreading").toEqual([]);
+});
+
+test("soft halos fade out while a finger drags the globe, and come back on release", async ({
+  page,
+}, info) => {
+  // Pixel bench 2026-11-12: halos are most of the weather's cost during a drag, and least seen.
+  test.skip(!["phone-390", "laptop-1440"].includes(info.project.name), "behaviour, not layout");
+  await page.goto("/?auto=0");
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  const halo = () =>
+    page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.weather().halo);
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.face(0, 0));
+  const [x, y] = (await page.evaluate(() =>
+    (window as unknown as { __bench: Bench }).__bench.screenPoint(0, 0),
+  )) as [number, number];
+  expect(await halo(), "at rest").toBe(1);
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40, y, { steps: 8 });
+  await expect.poll(halo, { message: "while dragging", timeout: 2000 }).toBe(0);
+  await page.mouse.up();
+  await expect.poll(halo, { message: "after release", timeout: 2000 }).toBe(1);
 });
