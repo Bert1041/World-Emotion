@@ -57,6 +57,11 @@ const matches = $derived.by(() => {
   );
   return [...starts, ...within].slice(0, 3);
 });
+/**
+ * Nothing in the bar acts before the globe is ready: the country is named from the first paint
+ * (for the final layout), but a check-in or a pick needs the map.
+ */
+const ready = $derived(view.status === "ready");
 /** First run with a guessed country: lead with it. Not while picking, and not with no guess. */
 const placeFirst = $derived(
   view.checkin.firstRun && view.checkin.country !== null && mode !== "pick",
@@ -116,7 +121,7 @@ function choose(code: string): void {
     </span>
     {#if mode !== "pick"}
       <span class="dot" aria-hidden="true">·</span>
-      <button type="button" class="link" id="checkin-move" onclick={(e) => startPick(e.detail === 0)}>
+      <button type="button" class="link" id="checkin-move" disabled={!ready} onclick={(e) => startPick(e.detail === 0)}>
         {countryName === null ? i18n.t.checkin.showMe : placeFirst ? i18n.t.checkin.notYou : i18n.t.checkin.move}
       </button>
     {/if}
@@ -135,7 +140,7 @@ function choose(code: string): void {
             type="button"
             class="face"
             data-mood={name}
-            disabled={view.checkin.country === null}
+            disabled={!ready || view.checkin.country === null}
             onclick={(e) => pick(m as MoodId, e.currentTarget)}
           >
             <Face mood={m} size={36} />
@@ -154,7 +159,7 @@ function choose(code: string): void {
         <button type="button" class="link" onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
         {#if journalOpen && view.checkin.week !== null}
           <div class="alongside" id="journal-info">
-            <span class="like">{i18n.t.journal.onDevice}</span><span class="sep" aria-hidden="true"> · </span><button
+            <span class="like">{i18n.t.journal.onDevice}</span><span class="sep" aria-hidden="true">{" · "}</span><button
               type="button"
               class="link"
               id="journal-clear"
@@ -164,7 +169,7 @@ function choose(code: string): void {
         {:else if like !== null && view.checkin.result !== null}
           {@const r = view.checkin.result}
           <div class="alongside" id="checkin-result" data-scope={r.scope} data-others={r.scope === "early" ? r.total : r.others}>
-            <span class="like">{like}</span>{#if r.scope !== "early" && r.feels !== null}<span class="sep" aria-hidden="true"> · </span><span class="feels"
+            <span class="like">{like}</span>{#if r.scope !== "early" && r.feels !== null}<span class="sep" aria-hidden="true">{" · "}</span><span class="feels"
                 >{countryFeels[0]}<strong style:color={MOOD_COLORS[r.feels]}>{i18n.t.moods.feels[r.feels]}</strong>{countryFeels[1]}</span
               >{/if}
           </div>

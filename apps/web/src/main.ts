@@ -354,6 +354,9 @@ const moment = new CheckInMoment({
 });
 // Codes only: the check-in bar names and sorts them in the active language.
 view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()];
+// The bar's final layout from the first paint (bridge J2): both need storage only, not the map.
+view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
+moment.preview(navigator.languages);
 
 const hitAt = (x: number, y: number) =>
   hitCountry(x, y, {
@@ -577,7 +580,6 @@ async function start(): Promise<void> {
   lods = { move: m, "110m": a, "50m": b };
   const pins = new Map(b.countries.map((f) => [String(f.id), pinPoint(f)]));
   moment.init(pins, navigator.languages);
-  view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
   refreshJournal();
   // Open facing your pin (decision B2): "you are here" is on screen before any tap, so a wrong
   // guess is obvious. Bench runs keep the fixed start pose so frames compare across runs.

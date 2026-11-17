@@ -52,6 +52,9 @@ test("after a check-in: 'Like N others in your country', N from the snapshot, an
     `Like ${n.toLocaleString("en-US")} ${n === 1 ? "other" : "others"} in your country`,
   );
   await expect(result(page).locator(".feels")).toContainText("Your country feels ");
+  // The two halves read as a sentence with a spaced separator (Svelte trims spaces at the edges
+  // of an element, so a literal " · " inside the span rendered as "country·Your": Pixel 2026-11-17).
+  await expect(result(page)).toHaveText(/ in your country · Your country feels \w+$/);
   // Not a pill: the line must not inherit the search results' look.
   expect(await result(page).evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
 

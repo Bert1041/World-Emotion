@@ -25,6 +25,46 @@ const top = async (page: Page, sel: string) => (await page.locator(sel).bounding
 test.describe("Nigeria (en-NG)", () => {
   test.use({ locale: "en-NG" });
 
+  test("while the map loads, the bar already has its first-run layout; nothing in it acts, and nothing moves when ready", async ({
+    page,
+  }, info) => {
+    // The Pixel recording of 2026-11-17 showed "Where are you?" under the faces while loading,
+    // then "Your country: Nigeria" jumping above them when the globe was ready.
+    only(info.project.name);
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    await page.route(/world-50m\.topo/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto("/?auto=0");
+    await page.waitForFunction(() => "__bench" in window);
+    await expect(page.locator("header")).toHaveAttribute("data-status", "loading");
+
+    const bar = page.locator("#checkin");
+    await expect(bar).toHaveAttribute("data-first", "true");
+    await expect(page.locator("#checkin .where")).toHaveText("Nigeria");
+    await expect(page.locator("#checkin-move")).toHaveText("not you?");
+    await expect(page.locator("#checkin-move"), "no pick before the map").toBeDisabled();
+    for (const face of await page.locator("#checkin .face").all())
+      await expect(face).toBeDisabled();
+    const boxes = async () => ({
+      from: await top(page, "#checkin .from"),
+      faces: await top(page, "#checkin .faces"),
+      height: await bar.evaluate((e) => (e as HTMLElement).offsetHeight),
+    });
+    const loading = await boxes();
+
+    release();
+    await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+    await expect(page.locator("header")).toHaveAttribute("data-status", "ready");
+    await expect(page.locator("#checkin-move")).toBeEnabled();
+    await expect(page.locator("#checkin .face").first()).toBeEnabled();
+    expect(await boxes(), "same place row, faces and height as while loading").toEqual(loading);
+  });
+
   test("first visit: the globe faces your pin, and it is on screen", async ({ page }, info) => {
     only(info.project.name);
     await load(page);

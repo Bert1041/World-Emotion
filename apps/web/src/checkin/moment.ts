@@ -34,6 +34,14 @@ export interface MomentDeps {
   touched(): void;
 }
 
+function savedPin(): string | null {
+  try {
+    return localStorage.getItem(PIN_KEY);
+  } catch {
+    return null; // storage blocked
+  }
+}
+
 export class CheckInMoment {
   pin: Pin | null = null;
   readonly ripples = new Ripples();
@@ -48,16 +56,21 @@ export class CheckInMoment {
 
   constructor(private readonly d: MomentDeps) {}
 
+  /**
+   * Name your country before the map has loaded: the saved pin's code, or the guess. Needs no
+   * pin points, so the check-in bar has its final layout from the first paint (a first run used
+   * to show "Where are you?" under the faces, then jump to "Your country: …" above them).
+   * `init` places the pin itself later and keeps this code unless the map cannot place it.
+   */
+  preview(languages: readonly string[]): void {
+    view.checkin.country =
+      parseSavedPin(savedPin(), this.d.known)?.code ?? guessCountry(languages, this.d.known);
+  }
+
   /** Restore the saved pin or guess the country (M2); called once pin points are known. */
   init(pinPoints: Map<string, [number, number]>, languages: readonly string[]): void {
     this.pinPoints = pinPoints;
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(PIN_KEY);
-    } catch {
-      // storage blocked
-    }
-    this.pin = parseSavedPin(saved, this.d.known);
+    this.pin = parseSavedPin(savedPin(), this.d.known);
     if (this.pin === null) {
       const code = guessCountry(languages, this.d.known);
       const at = code === null ? undefined : pinPoints.get(code);

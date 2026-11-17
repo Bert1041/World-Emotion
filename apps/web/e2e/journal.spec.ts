@@ -102,7 +102,7 @@ test("tapping the strip says where it is kept; 'clear' forgets everything", asyn
   await expect(page.locator("#journal")).toHaveAttribute("aria-expanded", "false");
   await page.locator("#journal").click();
   await expect(page.locator("#journal")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#journal-info")).toContainText("Kept only on this device");
+  await expect(page.locator("#journal-info")).toHaveText("Kept only on this device · clear");
   await expect(
     page.locator("#checkin-result"),
     "the info takes the result line's place",
