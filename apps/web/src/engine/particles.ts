@@ -27,12 +27,21 @@ export interface SpawnPoint {
  * Soft particles are a faint halo this much wider than their nominal size, with a brighter core
  * about as big as the old square (bridge U2): batched circles, one path per layer per mood. A
  * pre-rendered glow sprite drawn per particle cost 4x more on a Pixel 6 Pro at 4x CPU (2.4 vs
- * 0.6 ms a frame, 9 % dropped frames while dragging); batched circles cost 1.1 ms. Square cores
- * were tried and gained nothing: the cost is in the halos (docs/bench/2026-11-12-*).
+ * 0.6 ms a frame, 9 % dropped frames while dragging); batched circles cost 1.1 ms. With halos on,
+ * square cores gained nothing: the halos dominate (docs/bench/2026-11-12-*). With halos off
+ * while dragging, the round cores are what is left; see SQUARE_CORE_MAX.
  */
 const SOFT_SCALE = 2;
 const CORE = 0.4;
 const HALO_ALPHA = 0.2;
+/**
+ * While halos are off (a finger dragging the globe), cores of weather up to this size (CSS px) are
+ * squares of the same area: 1–2 px across and moving, the shape cannot be seen, and rects fill
+ * cheaper than arcs. With halos off, round cores still cost ~1.6x main's squares (Pixel
+ * 2026-11-17). Mist's cores are several px wide, where a square shows, so they stay round.
+ */
+const SQUARE_CORE_MAX = 4;
+const SQRT_PI = Math.sqrt(Math.PI);
 /** All weather is a fifth fainter than in Phase 4 (bridge U2: it read as noise on the globe). */
 const FAINTER = 0.8;
 
@@ -308,14 +317,20 @@ export class ParticleField {
       if (!w.soft || halos) ctx.fill();
       if (!w.soft) continue;
       ctx.globalAlpha = w.alpha * FAINTER;
+      const square = !halos && w.size <= SQUARE_CORE_MAX;
       ctx.beginPath();
       for (let i = 0; i < this.count; i++) {
         if (this.vis[i] === 0 || this.mood[i] !== m) continue;
         const x = this.sx[i] as number;
         const y = this.sy[i] as number;
         const rad = (this.rad[i] as number) * CORE;
-        ctx.moveTo(x + rad, y);
-        ctx.arc(x, y, rad, 0, TAU);
+        if (square) {
+          const side = rad * SQRT_PI;
+          ctx.rect(x - side / 2, y - side / 2, side, side);
+        } else {
+          ctx.moveTo(x + rad, y);
+          ctx.arc(x, y, rad, 0, TAU);
+        }
       }
       ctx.fill();
     }

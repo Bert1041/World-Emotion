@@ -84,27 +84,38 @@ describe("ParticleField drawing cost (bridge U2, Pixel bench 2026-11-12)", () =>
   });
 });
 
-describe("ParticleField halos while dragging (Pixel bench 2026-11-12)", () => {
-  it("at halo 0 draws only the cores: half the circles, and no halo fills", () => {
-    const soft = [0, 1, 2, 5].map((m) => spawn([m, 0], m)); // the four soft moods
+describe("ParticleField halos while dragging (Pixel bench 2026-11-12, 2026-11-17)", () => {
+  /** Mood 1 (calm) is mist: large, soft, round. Moods 0, 2, 5 are small soft dots. */
+  function count(halo: number, moods = [0, 1, 2, 5]) {
+    const c = { arc: 0, rect: 0, fill: 0 };
+    const ctx = {
+      globalAlpha: 1,
+      fillStyle: "",
+      beginPath() {},
+      moveTo() {},
+      rect: () => void c.rect++,
+      arc: () => void c.arc++,
+      fill: () => void c.fill++,
+    } as unknown as CanvasRenderingContext2D;
+    const spawns = moods.map((m) => spawn([m, 0], m));
     const colors = ["#a", "#b", "#c", "#d", "#e", "#f"];
-    const count = (halo: number) => {
-      const c = { arc: 0, fill: 0 };
-      const ctx = {
-        globalAlpha: 1,
-        fillStyle: "",
-        beginPath() {},
-        moveTo() {},
-        rect() {},
-        arc: () => void c.arc++,
-        fill: () => void c.fill++,
-      } as unknown as CanvasRenderingContext2D;
-      new ParticleField(200, soft, rng(11)).draw(ctx, [0, 0], 500, 500, 400, colors, 2, halo);
-      return c;
-    };
+    new ParticleField(200, spawns, rng(11)).draw(ctx, [0, 0], 500, 500, 400, colors, 2, halo);
+    return c;
+  }
+
+  it("at rest every soft particle is a round halo and a round core", () => {
+    const full = count(1);
+    expect(full.rect).toBe(0);
+    expect(full.arc % 2).toBe(0);
+  });
+
+  it("while dragging: no halos, one core each, square for small dots, round for mist", () => {
     const full = count(1);
     const none = count(0);
-    expect(none.arc * 2).toBe(full.arc);
+    expect((none.arc + none.rect) * 2, "one core per particle, no halo").toBe(full.arc);
     expect(full.fill - none.fill, "the four halo fills are gone").toBe(4);
+    expect(count(0, [0, 2, 5]).arc, "small dots: square cores").toBe(0);
+    expect(count(0, [1]).rect, "mist: round cores").toBe(0);
+    expect(count(0, [1]).arc).toBeGreaterThan(0);
   });
 });
