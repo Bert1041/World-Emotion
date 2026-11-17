@@ -472,9 +472,14 @@ async function main() {
 
   // Restore on Ctrl-C / terminal close too. (A hard kill can't be caught: that is what the
   // phone backup file is for.)
+  // The server is stopped even if the phone restore throws (a dropped cable did that on
+  // 2026-11-17 and leaked the server, so the next run refused the busy port).
   const cleanup = () => {
-    device.teardown();
-    preview.kill();
+    try {
+      device.teardown();
+    } finally {
+      preview.kill();
+    }
   };
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const)
     process.once(sig, () => {
