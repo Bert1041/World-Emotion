@@ -56,6 +56,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: google-chrome --version
+      # Render like an Android phone: "system-ui" there is Roboto. The runner's default sans is a
+      # wide desktop font, which wrapped a line that fits on 360 px phones (2026-11-22). Prints
+      # what the two generic families resolve to, so the log shows the font in use.
+      - name: Phone-like system font (Roboto)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-roboto >/dev/null
+          mkdir -p ~/.config/fontconfig
+          cat > ~/.config/fontconfig/fonts.conf <<'XML'
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <alias binding="strong"><family>system-ui</family><prefer><family>Roboto</family></prefer></alias>
+            <alias binding="strong"><family>sans-serif</family><prefer><family>Roboto</family></prefer></alias>
+          </fontconfig>
+          XML
+          fc-cache -f >/dev/null
+          echo "system-ui -> $(fc-match system-ui)"; echo "sans-serif -> $(fc-match sans-serif)"
       - run: pnpm --filter @world-emotion/web test:e2e --shard=${{ matrix.shard }}/3
       - name: Upload screenshots on failure
         if: failure()
