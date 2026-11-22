@@ -266,3 +266,39 @@ test("a check-in that cannot be delivered says so, and goes out when the connect
   await cron(request);
   expect((await served(request)).world.n, "counted once").toBe(before.world.n + 1);
 });
+
+test("the count includes you even when you tap before the first snapshot has loaded", async ({
+  page,
+  request,
+}, info) => {
+  // QA on the hosted app (2026-11-22): tapping before the first snapshot arrived showed the
+  // server's count without you (2, not 3) until the next run.
+  one(info.project.name);
+  const before = (await served(request)).world.n;
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route(SNAPSHOT, async (route) => {
+    await held;
+    await route.continue();
+  });
+  await open(page);
+  await page.locator('#checkin .face[data-mood="calm"]').click();
+  await expect(page.locator(".flight")).toHaveCount(0, { timeout: 15_000 }); // landed
+  release(); // the snapshot (made before your vote) arrives now
+  await expect.poll(() => snapshotAt(page)).toBeGreaterThan(0);
+  await expect(page.locator("#world-count .count")).toHaveAttribute(
+    "data-value",
+    String(before + 1),
+  );
+  // The next run includes you: still one more than before, not two.
+  await cron(request);
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.aggregate());
+  await expect.poll(async () => (await served(request)).world.n).toBe(before + 1);
+  await page.waitForTimeout(1500);
+  await expect(page.locator("#world-count .count")).toHaveAttribute(
+    "data-value",
+    String(before + 1),
+  );
+});

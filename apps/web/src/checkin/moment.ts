@@ -29,7 +29,8 @@ export interface MomentDeps {
   landingPoint(): { x: number; y: number };
   dpr(): number;
   /** Active check-ins in the world snapshot, so a landing never counts below it. */
-  worldN(): number;
+  /** The world count to show now: the snapshot's, plus your new check-in until it is in one. */
+  worldShown(): number;
   invalidate(): void;
   touched(): void;
 }
@@ -144,8 +145,8 @@ export class CheckInMoment {
     const l = this.landing;
     this.landing = null;
     if (l === null) return;
-    // A first check-in adds one; a change of mood replaces your vote. Never below the snapshot.
-    view.worldCount = Math.max(view.worldCount + (l.first ? 1 : 0), this.d.worldN());
+    // The count the flight held still catches up: the snapshot's, plus you if you are new to it.
+    view.worldCount = this.d.worldShown();
     if (this.d.reducedMotion) return;
     this.ripples.add(l.center, MOOD_COLORS[l.mood] ?? "#fff");
     // Android; iOS has no vibration API (README §8.6). 30 ms: 12 ms could not be felt on a Pixel 6 Pro.

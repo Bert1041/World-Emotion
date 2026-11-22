@@ -69,6 +69,10 @@ export class PolledSource implements SnapshotSource {
     return null;
   }
 
+  now(): number {
+    return Math.floor(Date.now() / 1000);
+  }
+
   /** Tests: poll on the next frame. Returns what is current now (the poll is asynchronous). */
   aggregate(): Snapshot {
     this.nextAt = 0;

@@ -103,6 +103,7 @@ mount(App, {
         view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
+        if (view.checkin.mine === null && view.checkin.country !== null) selfSince = source.now();
         const sent = moment.checkIn(mood, from);
         if (sent !== null) saveCurrent({ mood, at: Date.now() }); // survives a reload (6 h)
         sent?.then(delivered);
@@ -256,6 +257,19 @@ function refreshStale(): void {
 }
 setInterval(refreshStale, 30_000); // the age grows while nothing new arrives
 
+/**
+ * When your first check-in (a new vote, not a change of mood) was made, until a snapshot made after
+ * it arrives. Until then the count shows the snapshot's number plus you. Before this the landing
+ * took max(count + 1, snapshot), which lost you when you tapped before the first snapshot loaded,
+ * and a snapshot made just before your vote dropped the count by one (QA, 2026-11-22).
+ */
+let selfSince: number | null = null;
+function worldShown(): number {
+  // On the source's own clock: the demo's runs five minutes a step, not in real time.
+  if (selfSince !== null && snapshot.generatedAt > selfSince) selfSince = null;
+  return snapshot.world.n + (selfSince === null ? 0 : 1);
+}
+
 function onSnapshot(next: Snapshot): void {
   fillTween.start(fillTarget(next));
   snapshot = next;
@@ -270,7 +284,7 @@ function onSnapshot(next: Snapshot): void {
   refreshResult();
   refreshStale();
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
-  if (view.flight === null) view.worldCount = next.world.n;
+  if (view.flight === null) view.worldCount = worldShown();
   recomputeFills();
   recomputeWeather();
   renderPanel();
@@ -423,7 +437,7 @@ const moment = new CheckInMoment({
   accent: () => mixer.current.css.rim,
   landingPoint: () => ({ x: fit.goal.x / dpr, y: fit.goal.y / dpr }),
   dpr: () => dpr,
-  worldN: () => snapshot.world.n,
+  worldShown: () => worldShown(),
   invalidate,
   touched,
 });

@@ -15,6 +15,11 @@ export interface SnapshotSource {
    * null if it could not be delivered yet (it stays on the device and goes with the next one).
    */
   checkIn(country: string, mood: MoodId): Promise<CheckinOutcome | null>;
+  /**
+   * "Now" on the clock this source's snapshots are dated with (unix seconds): the wall clock for
+   * real data, the simulated clock for the demo (which runs five minutes per step).
+   */
+  now(): number;
   /** Run one aggregation now and return it (tests: force a snapshot at a chosen moment). */
   aggregate(): Snapshot;
   /** Prototype controls, present only on the demo source (the `?dev=1` bar). */

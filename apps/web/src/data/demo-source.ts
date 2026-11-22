@@ -75,6 +75,11 @@ export class DemoSource implements SnapshotSource {
     return Promise.resolve({ counted: "country", conn: country });
   }
 
+  /** The simulated clock: a check-in made now is in every snapshot dated after it. */
+  now(): number {
+    return this.sim.now;
+  }
+
   aggregate(): Snapshot {
     this.snapshot = this.sim.step();
     return this.snapshot;

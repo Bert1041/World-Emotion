@@ -28,6 +28,10 @@ export const CONTINENT_LEAN: Readonly<Record<Continent, MoodId>> = {
 export class SnapshotSim {
   private state: AggregatorState | undefined;
   private simTime = 1_700_000_000;
+  /** The simulated clock (unix seconds): the next snapshot is dated after it. */
+  get now(): number {
+    return this.simTime;
+  }
   private readonly home = new Map<string, { mood: number; n: number }>();
   snapshot: Snapshot;
   bias: MoodId;
