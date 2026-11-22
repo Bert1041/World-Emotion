@@ -1,5 +1,5 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
-import { hexToOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
+import { DURATION, hexToOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
 import {
   type Continent,
   DEFAULT_CONFIG,
@@ -18,6 +18,7 @@ import { DemoSource } from "./data/demo-source";
 import type { SnapshotSource } from "./data/snapshot-source";
 import { DOCK_RIGHT_QUERY, REDUCED_MOTION_QUERY, SIDE_CARD_QUERY } from "./engine/breakpoints";
 import { Camera, STRETCH_COMMIT } from "./engine/camera";
+import { FillTween } from "./engine/fill-tween";
 import { LayoutFit } from "./engine/fit";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
@@ -28,7 +29,7 @@ import { ParticleField, rng } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
 import {
   alongside,
-  countryFills,
+  countryFillLabs,
   hitCountry,
   type LandPoints,
   panelModel,
@@ -189,8 +190,15 @@ let land: LandPoints[] = [];
 let lods: Record<LodName, Lod> | undefined;
 let particles: ParticleField;
 
+/** Country colours ease to a new snapshot instead of jumping (Phase 6; instant under reduced motion). */
+const fillTween = new FillTween(reducedMotion ? 0 : DURATION.data);
+const fillTarget = (s: Snapshot) =>
+  countryFillLabs(s, COUNTRY_TO_CONTINENT, focus, mixer.current.lab, moodLab);
+
 function recomputeFills(): void {
-  fills = countryFills(snapshot, COUNTRY_TO_CONTINENT, focus, mixer.current.lab, moodLab);
+  fills = new Map();
+  for (const [code, lab] of fillTween.colours(fillTarget(snapshot)))
+    fills.set(code, oklabToCss(lab));
   colorVersion++;
   dirty = true;
 }
@@ -200,6 +208,7 @@ function recomputeWeather(): void {
 }
 
 function onSnapshot(next: Snapshot): void {
+  fillTween.start(fillTarget(next));
   snapshot = next;
   headline = worldHeadline(next, QUIET_WORLD_BELOW);
   // Replay the word's entrance when the mood changes (not for the very first one).
@@ -488,10 +497,11 @@ function frame(ts: number): void {
   }
 
   const themeChanging = mixer.update(dt);
-  if (themeChanging) {
-    recomputeFills();
-    applyTheme();
-  }
+  // Keyed on "was easing before this step", so the frame the tween ends still draws its target.
+  const fillsEasing = fillTween.tweening;
+  fillTween.step(dt);
+  if (themeChanging || fillsEasing) recomputeFills();
+  if (themeChanging) applyTheme();
 
   const anchorEasing = fit.ease(dt);
   layoutEasing = anchorEasing;
@@ -502,7 +512,7 @@ function frame(ts: number): void {
   // points) is drawn once, when everything has settled. Before this, the theme cross-fade and
   // layout easing redrew 50m every frame: 7–8 full redraws in a 2 s "idle" window, 531 ms
   // frames at 4× on the Pixel (2026-11-07 gate run).
-  const animating = moving || anchorEasing || themeChanging;
+  const animating = moving || anchorEasing || themeChanging || fillsEasing;
   if (wasAnimating && !animating) dirty = true; // settle: one detailed redraw
   wasAnimating = animating;
   // Zoomed into a continent the simplified outline is visibly crude, and culling already skips
@@ -668,6 +678,8 @@ installTestHooks({
   pin: () => moment.pin,
   sun: () => (showNight ? [sun[0], sun[1]] : null),
   worldMood: () => MOODS[snapshot.world.h] ?? "",
+  fill: (code) => fills.get(code) ?? null,
+  snapshotAt: () => snapshot.generatedAt,
   theme: () => MOODS[mixer.target] ?? "",
   weather: () => ({ spread: landSpread, anchors: particles?.anchors() ?? [], halo: haloAmount }),
   aggregate: () => onSnapshot(source.aggregate()),

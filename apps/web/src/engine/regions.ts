@@ -111,7 +111,21 @@ export function countryFills(
   theme: { readonly land: Lab; readonly ocean: Lab },
   moodLab: readonly Lab[],
 ): Map<string, string> {
-  const fills = new Map<string, string>();
+  const css = new Map<string, string>();
+  for (const [code, lab] of countryFillLabs(snapshot, map, focus, theme, moodLab))
+    css.set(code, oklabToCss(lab));
+  return css;
+}
+
+/** `countryFills` in OKLab, so a change of snapshot can be eased (engine/fill-tween.ts). */
+export function countryFillLabs(
+  snapshot: Snapshot,
+  map: CountryToContinent,
+  focus: Continent | null,
+  theme: { readonly land: Lab; readonly ocean: Lab },
+  moodLab: readonly Lab[],
+): Map<string, Lab> {
+  const fills = new Map<string, Lab>();
   for (const code of map.keys()) {
     const r = regionOf(snapshot, code, map);
     // Quantised strength keeps the number of distinct fills (= fill calls) small.
@@ -120,7 +134,7 @@ export function countryFills(
       ? mixOklab(theme.land, moodLab[r.region.h] ?? theme.land, 0.12 + 0.7 * strength)
       : theme.land;
     if (focus !== null && map.get(code) !== focus) col = mixOklab(col, theme.ocean, 0.7);
-    fills.set(code, oklabToCss(col));
+    fills.set(code, col);
   }
   return fills;
 }
