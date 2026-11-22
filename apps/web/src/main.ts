@@ -12,6 +12,7 @@ import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
 import { loadConn, saveConn } from "./checkin/conn";
+import { loadCurrent, saveCurrent } from "./checkin/current";
 import { addEntry, type JournalEntry, lastWeek, loadJournal, saveJournal } from "./checkin/journal";
 import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
@@ -102,7 +103,9 @@ mount(App, {
         view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
-        moment.checkIn(mood, from)?.then((o) => {
+        const sent = moment.checkIn(mood, from);
+        if (sent !== null) saveCurrent({ mood, at: Date.now() }); // survives a reload (6 h)
+        sent?.then((o) => {
           if (o === null) return; // kept on the device, sent with the next check-in
           view.checkin.counted = o.counted;
           if (o.conn !== view.checkin.conn) {
@@ -412,6 +415,8 @@ view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()];
 view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
 moment.preview(navigator.languages);
 view.checkin.conn = loadConn(COUNTRY_TO_CONTINENT);
+// A check-in still inside its window shows as "You feel …" after a reload, not as a fresh ask.
+view.checkin.mine = loadCurrent(Date.now(), DEFAULT_CONFIG.windowSeconds * 1000)?.mood ?? null;
 
 const hitAt = (x: number, y: number) =>
   hitCountry(x, y, {

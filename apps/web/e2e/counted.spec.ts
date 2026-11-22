@@ -45,3 +45,29 @@ test("no notice when the connection matches the pin, is unknown, or is not a cou
     await expect(page.locator("#checkin-world-only"), String(conn)).toHaveCount(0);
   }
 });
+
+test("a check-in survives a reload for as long as it counts, then is forgotten", async ({
+  page,
+}, info) => {
+  // Reported on the real site, 2026-11-22: check in, reload, and the faces asked again, though
+  // the server held the vote for 6 hours.
+  only(info.project.name);
+  await start(page, null);
+  await page.locator('#checkin .face[data-mood="calm"]').click();
+  await expect(page.locator("#checkin")).toHaveAttribute("data-mode", "chip");
+  await page.reload();
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  await expect(page.locator("#checkin"), "still checked in after a reload").toHaveAttribute(
+    "data-mode",
+    "chip",
+  );
+  await expect(page.locator("#checkin .chip")).toContainText("You feel calm");
+
+  // Seven hours later the server has let it go; so does the app.
+  await page.evaluate(() => {
+    localStorage.setItem("we.current", JSON.stringify({ mood: 1, at: Date.now() - 7 * 3_600_000 }));
+  });
+  await page.reload();
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  await expect(page.locator("#checkin")).toHaveAttribute("data-mode", "faces");
+});
