@@ -86,6 +86,10 @@ Serving `snapshot.json` costs nothing per request **only behind the CDN**, which
 9. Initial JS within 5 KB of 83.5 KB gz.
 10. If L1 = deploy now: real D1 `rows_written` / `rows_read` re-measured; Rate Limiting binding confirmed on the free plan (else the D1-table fallback from Phase 5).
 
+**Results (2026-11-22):** 1–9 met. 10 measured on the real account: D1 costs match Phase 5
+exactly (2 / 0 / 2 / 1 rows written); the Rate Limiting binding refused nothing (65 of 65), so rate
+limiting moves to the edge plus Turnstile (ADR 0008, launch gate). Initial JS 86,443 B gz (+2,945).
+
 ## 7. Not in this phase
 
 Offline queue beyond "latest check-in, sent next time", service worker and PWA (Phase 7); Turnstile
