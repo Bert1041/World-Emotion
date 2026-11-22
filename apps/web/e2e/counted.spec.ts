@@ -71,3 +71,15 @@ test("a check-in survives a reload for as long as it counts, then is forgotten",
   await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
   await expect(page.locator("#checkin")).toHaveAttribute("data-mode", "faces");
 });
+
+test("after a check-in with the keyboard, focus stays on the bar ('change')", async ({
+  page,
+}, info) => {
+  // QA, 2026-11-22: the focused face became inert and focus fell to the page.
+  only(info.project.name);
+  await start(page, null);
+  await page.locator('#checkin .face[data-mood="happy"]').focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#checkin")).toHaveAttribute("data-mode", "chip");
+  await expect(page.locator("#checkin .chip .link").first()).toBeFocused();
+});

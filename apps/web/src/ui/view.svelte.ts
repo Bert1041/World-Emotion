@@ -83,6 +83,8 @@ export const view = $state({
     mine: null as MoodId | null,
     /** Who else feels it, from the snapshot (bridge R1); null before you check in. */
     result: null as Alongside | null,
+    /** Your check-in is kept on this device, not yet delivered (an error, a limit, or offline). */
+    unsent: false,
     /** Where your last check-in counted (the API's answer); null before the answer arrives. */
     counted: null as "country" | "world" | null,
     /**

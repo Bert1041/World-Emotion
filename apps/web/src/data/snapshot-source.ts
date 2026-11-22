@@ -19,6 +19,10 @@ export interface SnapshotSource {
   aggregate(): Snapshot;
   /** Prototype controls, present only on the demo source (the `?dev=1` bar). */
   readonly demo?: DemoControls;
+  /** A check-in is kept on the device, not yet delivered (real data only). */
+  readonly hasPending?: boolean;
+  /** Try the kept check-in again; resolves like `checkIn` (null: still not delivered). */
+  resendPending?(): Promise<CheckinOutcome | null>;
 }
 
 /** The API's answer (README §5.6): a vote counts for a country only if the connection is there. */

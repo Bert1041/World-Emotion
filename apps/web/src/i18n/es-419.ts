@@ -96,6 +96,7 @@ export const es419: Messages = {
         : "Entre las primeras {count} respuestas",
     countryFeels: "Tu país siente {mood}",
     smallCountry: "Tu país necesita {n} respuestas para mostrar su ánimo.",
+    unsent: "Guardado en este teléfono. Contará en cuanto nos llegue.",
     worldOnly: "Cuenta para el mundo (conexión: {conn}).",
     worldOnlyUnknown: "Cuenta para el mundo: no sabemos desde dónde te conectas.",
   },

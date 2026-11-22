@@ -236,3 +236,33 @@ test("does not poll while the page is hidden", async ({ page }, info) => {
   });
   await expect.poll(() => hits, "visible again").toBeGreaterThan(0);
 });
+
+test("a check-in that cannot be delivered says so, and goes out when the connection is back", async ({
+  page,
+  request,
+}, info) => {
+  // QA on the hosted app (2026-11-22): a 429, a 500 or no network looked exactly like a counted
+  // check-in, and the kept one only went again on the next start.
+  one(info.project.name);
+  const before = await served(request);
+  await open(page);
+  await page.route(`${API}/checkin`, (route) =>
+    route.request().method() === "POST" ? route.abort("internetdisconnected") : route.continue(),
+  );
+  await page.locator('#checkin .face[data-mood="sad"]').click();
+  await expect(page.locator("#checkin-unsent")).toHaveText(
+    "Saved on this phone. It will count once it reaches us.",
+  );
+
+  // The connection comes back while the page stays open: it goes at once, and the notice goes.
+  await page.unroute(`${API}/checkin`);
+  const sent = page.waitForResponse(
+    (r) => r.url() === `${API}/checkin` && r.request().method() === "POST",
+  );
+  await page.evaluate(() => dispatchEvent(new Event("online")));
+  expect((await sent).status()).toBe(200);
+  await expect(page.locator("#checkin-unsent")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("we.pendingCheckin"))).toBeNull();
+  await cron(request);
+  expect((await served(request)).world.n, "counted once").toBe(before.world.n + 1);
+});

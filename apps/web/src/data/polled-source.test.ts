@@ -169,7 +169,7 @@ describe("PolledSource: check-ins", () => {
     expect(storage.getItem(PENDING_KEY), "nothing left to send").toBeNull();
   });
 
-  it("retries once on a network error, then keeps the check-in and sends it on the next start", async () => {
+  it("retries once on a network error, then keeps the check-in until resent", async () => {
     const offline = new TypeError("Failed to fetch");
     const { src, calls, storage } = source([offline, offline]);
     expect(await src.checkIn("NG", 4)).toBeNull();
@@ -177,11 +177,18 @@ describe("PolledSource: check-ins", () => {
     const kept = JSON.parse(storage.getItem(PENDING_KEY) ?? "null");
     expect(kept).toMatchObject({ mood: 4, country: "NG" });
 
-    // Next start: the same check-in id goes again, so the server cannot count it twice (G7).
-    const again = source([json(answer), json(snap(1000))], { storage });
-    await settle();
+    expect(src.hasPending, "says one is waiting").toBe(true);
+
+    // Next start (or back online): the same check-in id goes again, so the server cannot count it
+    // twice (G7), and the answer comes back to the app.
+    const again = source([json(answer)], { storage });
+    expect(again.src.hasPending).toBe(true);
+    expect(await again.src.resendPending()).toEqual({ counted: "world", conn: "FR" });
     expect(JSON.parse(String(again.calls[0]?.init?.body)).checkinId).toBe(kept.checkinId);
     expect(storage.getItem(PENDING_KEY)).toBeNull();
+    expect(again.src.hasPending, "nothing waiting now").toBe(false);
+    expect(await again.src.resendPending(), "nothing to resend").toBeNull();
+    expect(again.calls, "and nothing sent").toHaveLength(1);
   });
 
   it("does not retry an answer: a 429 or 400 is kept for later, not hammered", async () => {

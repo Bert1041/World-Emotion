@@ -18,7 +18,7 @@ import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
 import { DemoSource } from "./data/demo-source";
 import { PolledSource } from "./data/polled-source";
-import type { SnapshotSource } from "./data/snapshot-source";
+import type { CheckinOutcome, SnapshotSource } from "./data/snapshot-source";
 import { DOCK_RIGHT_QUERY, REDUCED_MOTION_QUERY, SIDE_CARD_QUERY } from "./engine/breakpoints";
 import { Camera, STRETCH_COMMIT } from "./engine/camera";
 import { FillTween } from "./engine/fill-tween";
@@ -105,15 +105,7 @@ mount(App, {
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
         const sent = moment.checkIn(mood, from);
         if (sent !== null) saveCurrent({ mood, at: Date.now() }); // survives a reload (6 h)
-        sent?.then((o) => {
-          if (o === null) return; // kept on the device, sent with the next check-in
-          view.checkin.counted = o.counted;
-          if (o.conn !== view.checkin.conn) {
-            view.checkin.conn = o.conn;
-            saveConn(o.conn);
-          }
-          refreshResult();
-        });
+        sent?.then(delivered);
         refreshResult();
         if (view.checkin.mine !== null && view.checkin.country !== null) {
           journal = addEntry(journal, { mood, at: new Date(), country: view.checkin.country });
@@ -226,6 +218,32 @@ function recomputeFills(): void {
 function recomputeWeather(): void {
   particles.setSpawns(weatherSpawns(snapshot, land, COUNTRY_TO_CONTINENT, focus));
 }
+
+/**
+ * The API's answer to a check-in, first try or resend. Null: not delivered yet; it stays on the
+ * device and the bar says so (QA on the hosted app, 2026-11-22: a 429, a 500 or no network used to
+ * look exactly like a counted check-in).
+ */
+function delivered(o: CheckinOutcome | null): void {
+  view.checkin.unsent = source.hasPending ?? false;
+  if (o === null) return;
+  view.checkin.counted = o.counted;
+  if (o.conn !== view.checkin.conn) {
+    view.checkin.conn = o.conn;
+    saveConn(o.conn);
+  }
+  refreshResult();
+}
+
+/** A kept check-in goes again at start, when the browser is back online, and every minute. */
+function resendKept(): void {
+  if (!source.hasPending || source.resendPending === undefined) return;
+  view.checkin.unsent = true;
+  void source.resendPending().then(delivered);
+}
+resendKept();
+addEventListener("online", resendKept);
+setInterval(resendKept, 60_000);
 
 /** Real data older than this says so in the header (docs/design/phase-6-live-data.md §4). */
 const STALE_AFTER_MINUTES = 15;

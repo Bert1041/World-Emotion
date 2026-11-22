@@ -57,8 +57,6 @@ export class PolledSource implements SnapshotSource {
       ...opts,
     };
     this.snapshot = this.cached() ?? emptyWorld();
-    const pending = this.read(PENDING_KEY);
-    if (pending !== null) void this.resend(pending);
   }
 
   tick(nowMs: number): Snapshot | null {
@@ -84,13 +82,25 @@ export class PolledSource implements SnapshotSource {
     return this.send(pending);
   }
 
-  private async resend(raw: string): Promise<void> {
+  get hasPending(): boolean {
+    return this.read(PENDING_KEY) !== null;
+  }
+
+  /**
+   * Send the kept check-in again, with its own id, so the server counts it once (G7). The app
+   * calls this at start, when the browser comes back online, and every minute while one waits.
+   */
+  async resendPending(): Promise<CheckinOutcome | null> {
+    const raw = this.read(PENDING_KEY);
+    if (raw === null) return null;
     try {
       const p = JSON.parse(raw) as Pending;
-      if (typeof p.checkinId === "string" && typeof p.mood === "number") await this.send(p);
+      if (typeof p.checkinId === "string" && typeof p.mood === "number") return this.send(p);
     } catch {
-      this.remove(PENDING_KEY);
+      // corrupt: drop it below
     }
+    this.remove(PENDING_KEY);
+    return null;
   }
 
   /** One retry on a network error; never on an answer (a 4xx will not change on retry). */

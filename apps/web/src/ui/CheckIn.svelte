@@ -100,10 +100,16 @@ $effect(() => {
 });
 const countryFeels = $derived(around(i18n.t.checkin.countryFeels, "mood"));
 
-function pick(m: MoodId, el: HTMLElement): void {
+let changeLink: HTMLButtonElement | undefined = $state();
+
+async function pick(m: MoodId, el: HTMLElement): Promise<void> {
   const r = el.getBoundingClientRect();
   changingMood = false;
   actions.checkIn(m, { x: r.x + r.width / 2, y: r.y + r.height / 2 });
+  // The faces become inert, and the focused one with them: focus fell to the page, so a keyboard
+  // or screen-reader user lost their place (QA, 2026-11-22). Keep it on "change".
+  await tick();
+  changeLink?.focus({ preventScroll: true });
 }
 
 /** From the keyboard (click detail 0), go straight to the search; a tap leaves the globe free. */
@@ -169,7 +175,7 @@ function choose(code: string): void {
         <span class="chip-face" data-mood={MOODS[view.checkin.mine]}><Face mood={view.checkin.mine} size={18} /></span
         >{youFeel[0]}<strong style:color={MOOD_COLORS[view.checkin.mine]}>{i18n.t.moods.feels[view.checkin.mine]}</strong>{youFeel[1]}
         ·
-        <button type="button" class="link" onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
+        <button type="button" class="link" bind:this={changeLink} onclick={() => (changingMood = true)}>{i18n.t.checkin.change}</button>
         {#if journalOpen && view.checkin.week !== null}
           <div class="alongside" id="journal-info">
             <span class="like">{i18n.t.journal.onDevice}</span><span class="sep" aria-hidden="true">{" · "}</span><button
@@ -227,7 +233,10 @@ function choose(code: string): void {
   </div>
 
   {#if !placeFirst}{@render place()}{/if}
-  {#if worldOnly !== null && view.status === "ready"}
+  {#if view.checkin.unsent && view.checkin.mine !== null}
+    <!-- Not delivered yet (kept on the device, retried): say so, or it looks counted. -->
+    <div class="small-country unsent" id="checkin-unsent" role="status">{i18n.t.checkin.unsent}</div>
+  {:else if worldOnly !== null && view.status === "ready"}
     <!-- Where the vote counts (README §5.6, decision L3). Shown instead of the privacy-floor
          notice: a world-only vote does not help the country reach the floor. -->
     <div class="small-country world-only" id="checkin-world-only">{worldOnly}</div>

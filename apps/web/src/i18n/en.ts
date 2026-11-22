@@ -83,6 +83,7 @@ export const en: Messages = {
         : "One of the first {count} to check in",
     countryFeels: "Your country feels {mood}",
     smallCountry: "Your country needs {n} check-ins to show its own mood.",
+    unsent: "Saved on this phone. It will count once it reaches us.",
     worldOnly: "Counts for the world: your connection is in {conn}.",
     worldOnlyUnknown: "Counts for the world: we can’t tell which country you’re connecting from.",
   },

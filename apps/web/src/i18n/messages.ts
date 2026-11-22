@@ -107,6 +107,8 @@ export interface Messages {
     readonly countryFeels: string;
     /** Your country is below the privacy floor (any country can be, not only small ones); "{n}" is the floor. */
     readonly smallCountry: string;
+    /** The check-in is kept on the device and has not reached the server yet. */
+    readonly unsent: string;
     /** The vote counts for the world only: the connection is in `{conn}` (a country name). */
     readonly worldOnly: string;
     /** The vote counts for the world only, and the connection's country is unknown. */
