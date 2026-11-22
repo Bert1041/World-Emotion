@@ -67,6 +67,7 @@ const source: SnapshotSource = config.live
   : new DemoSource({
       autoCycle: config.autoCycle,
       paused: config.bench,
+      stepMs: config.demoStepMs,
       now: performance.now(),
       ...(config.votes === undefined ? {} : { votes: config.votes }),
     });

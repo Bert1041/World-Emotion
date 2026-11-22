@@ -19,7 +19,9 @@ const [FIRST] = COUNTRY_TO_CONTINENT.keys();
 const CODE = FIRST as string;
 
 async function checkInBelowTheFloor(page: Page) {
-  await page.goto("/?auto=0&votes=4");
+  // step=600000: the demo takes no snapshot of its own, so only the forced one publishes the
+  // country (its own 2 s runs raced the test on CI, 2026-11-22).
+  await page.goto("/?auto=0&votes=4&step=600000");
   await page.evaluate((code) => {
     localStorage.setItem("we.pin", JSON.stringify({ code, lon: 0, lat: 0 }));
   }, CODE);

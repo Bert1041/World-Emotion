@@ -90,3 +90,11 @@ describe("live: which data the app shows (Phase 6)", () => {
     expect(live("live=not a url", "localhost")).toBeNull();
   });
 });
+
+describe("demo cadence", () => {
+  it("one run every 2 s unless ?step= says otherwise, never faster than 100 ms", () => {
+    expect(cfg("").demoStepMs).toBe(2000);
+    expect(cfg("step=600000").demoStepMs).toBe(600000);
+    expect(cfg("step=1").demoStepMs).toBe(100);
+  });
+});
