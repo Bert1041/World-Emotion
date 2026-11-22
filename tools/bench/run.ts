@@ -229,6 +229,17 @@ function androidDevice(): Device {
     },
     supports: () => true,
     async beforeRun(s) {
+      // Android pauses a backgrounded browser's pages, so every call to the bench page hangs
+      // (2026-11-18: WhatsApp was in front; 16 min of silence, then a timeout). Say so at once.
+      // Never bring Chrome forward ourselves: that would interrupt whoever is using the phone.
+      const front = /mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/.exec(
+        adb("shell", "dumpsys", "window"),
+      )?.[1];
+      if (front !== undefined && front !== "com.android.chrome")
+        throw new Error(
+          `Chrome is not the app in front (${front}): Android pauses it, so the bench page cannot ` +
+            "answer. Open Chrome on the phone and leave it on screen until the run ends.",
+        );
       adb("shell", "settings", "put", "system", "peak_refresh_rate", `${s.hz}.0`);
       adb("shell", "settings", "put", "system", "min_refresh_rate", `${s.hz}.0`);
       // The Pixel 6 Pro throttles when warm (status 2 at 41 °C made one scenario 1.8× slower).
@@ -347,10 +358,19 @@ function desktopDevice(): Device {
 }
 
 // ---- Minimal CDP client (browser-level socket, flattened sessions) ---------------------------
+const CDP_TIMEOUT_MS = 120_000;
+
 async function cdp(url: string) {
   const ws = new WebSocket(url);
   await new Promise((res, rej) => {
-    ws.onopen = res;
+    const timer = setTimeout(
+      () => rej(new Error("Chrome DevTools: no connection in 10 s")),
+      10_000,
+    );
+    ws.onopen = (e) => {
+      clearTimeout(timer);
+      res(e);
+    };
     ws.onerror = rej;
   });
   let id = 0;
@@ -366,9 +386,19 @@ async function cdp(url: string) {
     params: object = {},
     sessionId?: string,
   ): Promise<T> => {
-    const m = await new Promise<{ result?: unknown; error?: unknown }>((res) => {
+    // A call Chrome never answers used to stall a phone run silently (16 min on 2026-11-18, no
+    // output, the driver waiting forever). Fail loudly instead: the longest call, a gate
+    // scenario's Runtime.evaluate, takes ~15 s at 4x CPU.
+    const m = await new Promise<{ result?: unknown; error?: unknown }>((res, rej) => {
       const i = ++id;
-      pending.set(i, res);
+      const timer = setTimeout(() => {
+        pending.delete(i);
+        rej(new Error(`${method}: no answer from Chrome in ${CDP_TIMEOUT_MS / 1000} s`));
+      }, CDP_TIMEOUT_MS);
+      pending.set(i, (r) => {
+        clearTimeout(timer);
+        res(r);
+      });
       ws.send(JSON.stringify({ id: i, method, params, sessionId }));
     });
     if (m.error) throw new Error(`${method}: ${JSON.stringify(m.error)}`);
