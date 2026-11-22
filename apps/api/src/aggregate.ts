@@ -13,7 +13,11 @@ import {
 } from "@world-emotion/shared";
 import { purgeExpired } from "./db";
 
-/** R2 keys. The state is private: never served, never linked. */
+/**
+ * R2 keys. The snapshot and archive go in the public bucket; the state goes in a separate private
+ * bucket that is never made public. A public bucket exposes every object in it, and the state holds
+ * unrounded numbers for regions below the privacy floor (found 2026-11-22, before any public URL).
+ */
 export const SNAPSHOT_KEY = "snapshot.json";
 export const STATE_KEY = "aggregator-state.json";
 export const archiveKey = (nowSeconds: number) => {
@@ -37,7 +41,10 @@ GROUP BY country, mood`;
 
 export interface AggregationEnv {
   DB: D1Database;
+  /** Public: snapshot.json and archive/. */
   SNAPSHOTS: R2Bucket;
+  /** Private, never public: aggregator-state.json. */
+  STATE: R2Bucket;
 }
 
 export interface RunReport {
@@ -64,7 +71,7 @@ export async function runAggregation(
   const q = await env.DB.prepare(WINDOW_SQL).bind(after, until).all<VoteCount>();
   const counts = q.results;
 
-  const previous = await readState(env.SNAPSHOTS);
+  const previous = await readState(env.STATE);
   const { snapshot, state } = buildSnapshot({
     counts,
     countryToContinent: COUNTRY_TO_CONTINENT,
@@ -87,7 +94,7 @@ export async function runAggregation(
 
   // State first: if the snapshot write then fails, the next run rebuilds it from this state.
   // The other order could publish numbers the next run's smoothing never saw.
-  await env.SNAPSHOTS.put(STATE_KEY, JSON.stringify(state), {
+  await env.STATE.put(STATE_KEY, JSON.stringify(state), {
     httpMetadata: { contentType: "application/json" },
   });
   const body = JSON.stringify(snapshot);

@@ -32,7 +32,7 @@ it on the server and a second `SnapshotSource` on the client. No maths changes.
 | Cron | `apps/api`, a `scheduled` handler in the same Worker | One deployable, one set of bindings. Every **5 minutes** (G2: reads bind before writes at 2 min). |
 | Window query | `apps/api/src/aggregate.ts` | `SELECT country, mood, COUNT(*) … WHERE created_at > ?now-window GROUP BY country, mood`, reading `idx_votes_window` in order (~1 row read per vote, measured in Phase 5). |
 | Build | `core.buildSnapshot` | Unchanged. Previous state from R2; on a missing or unparsable state, start fresh (alpha 1) and log it. |
-| Writes | R2 bucket | `snapshot.json` (public, `Cache-Control: public, max-age=30`), `aggregator-state.json` (private, never served), and once an hour `archive/YYYY/MM/DD/HH.json`. |
+| Writes | two R2 buckets | Public `world-emotion-snapshots`: `snapshot.json` (`Cache-Control: public, max-age=30`) and once an hour `archive/YYYY/MM/DD/HH.json`. Private `world-emotion-private`: `aggregator-state.json`. Separate because a public bucket exposes every object, and the state holds sub-floor numbers (found 2026-11-22, before any public address). |
 | Order | | State first, then snapshot. If the snapshot write fails, the next run rebuilds it from state; the reverse order could publish numbers the state never saw. |
 | Purge | `purgeExpired` (Phase 5) | **Hourly**, not every run: the measured index order makes the purge scan every row. |
 | Archive | ADR 0007 | A copy of the published snapshot at the top of the hour, so it holds published regions only by construction. A test feeds a region below the floor and checks it never reaches the archive. |

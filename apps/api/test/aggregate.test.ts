@@ -40,8 +40,10 @@ async function snapshot(): Promise<Snapshot> {
 }
 
 beforeEach(async () => {
-  const listed = await env.SNAPSHOTS.list();
-  await env.SNAPSHOTS.delete(listed.objects.map((o) => o.key));
+  for (const bucket of [env.SNAPSHOTS, env.STATE]) {
+    const listed = await bucket.list();
+    await bucket.delete(listed.objects.map((o) => o.key));
+  }
 });
 
 describe("runAggregation", () => {
@@ -66,6 +68,18 @@ describe("runAggregation", () => {
     const head = await env.SNAPSHOTS.head(SNAPSHOT_KEY);
     expect(head?.httpMetadata?.cacheControl).toBe(SNAPSHOT_CACHE_CONTROL);
     expect(head?.httpMetadata?.contentType).toBe("application/json");
+  });
+
+  it("the public bucket holds only the snapshot and the archive; the state is in the private one", async () => {
+    // A public bucket exposes every object in it, and the state keeps sub-floor numbers.
+    const now = nextDay() + 5 * MIN;
+    await vote("FR", 0, now - MIN, 4); // below the floor: in the state, never public
+    await vote("CA", 1, now - MIN, 6);
+    await runAggregation(env, now);
+    const publicKeys = (await env.SNAPSHOTS.list()).objects.map((o) => o.key);
+    expect(publicKeys.sort()).toEqual([archiveKey(now), SNAPSHOT_KEY].sort());
+    const privateKeys = (await env.STATE.list()).objects.map((o) => o.key);
+    expect(privateKeys).toEqual([STATE_KEY]);
   });
 
   it("privacy floor: a country with 4 votes is in neither the snapshot nor the archive", async () => {
@@ -97,7 +111,7 @@ describe("runAggregation", () => {
     expect(s.world.n).toBe(20);
     // Raw counts are now equal; smoothing keeps the earlier mood ahead for a while.
     expect(s.world.dist[0]).toBeGreaterThan(s.world.dist[5] as number);
-    const state = await ((await env.SNAPSHOTS.get(STATE_KEY)) as R2ObjectBody).json<{
+    const state = await ((await env.STATE.get(STATE_KEY)) as R2ObjectBody).json<{
       generatedAt: number;
     }>();
     expect(state.generatedAt).toBe(t + 5 * MIN);
@@ -108,7 +122,7 @@ describe("runAggregation", () => {
     await vote("CA", 1, t - MIN, 6);
     await runAggregation(env, t);
     const before = await env.SNAPSHOTS.head(SNAPSHOT_KEY);
-    const stateBefore = await env.SNAPSHOTS.head(STATE_KEY);
+    const stateBefore = await env.STATE.head(STATE_KEY);
     await new Promise((r) => setTimeout(r, 5)); // so a rewrite would get a later upload time
 
     for (const at of [t, t - MIN]) {
@@ -119,7 +133,7 @@ describe("runAggregation", () => {
     expect((await env.SNAPSHOTS.head(SNAPSHOT_KEY))?.uploaded.getTime()).toBe(
       before?.uploaded.getTime(),
     );
-    expect((await env.SNAPSHOTS.head(STATE_KEY))?.uploaded.getTime()).toBe(
+    expect((await env.STATE.head(STATE_KEY))?.uploaded.getTime()).toBe(
       stateBefore?.uploaded.getTime(),
     );
   });
@@ -127,12 +141,12 @@ describe("runAggregation", () => {
   it("an unreadable state: starts fresh and says why", async () => {
     const t = nextDay() + 5 * MIN;
     await vote("CA", 1, t - MIN, 6);
-    await env.SNAPSHOTS.put(STATE_KEY, "{not json");
+    await env.STATE.put(STATE_KEY, "{not json");
     const a = await runAggregation(env, t);
     expect(a.freshState).toBe(true);
     expect(a.stateProblem).toBe("state is not JSON");
 
-    await env.SNAPSHOTS.put(STATE_KEY, JSON.stringify({ v: 999 }));
+    await env.STATE.put(STATE_KEY, JSON.stringify({ v: 999 }));
     const b = await runAggregation(env, t + 5 * MIN);
     expect(b.freshState).toBe(true);
     expect(b.stateProblem).toMatch(/^state rejected: /);
@@ -154,10 +168,10 @@ describe("runAggregation", () => {
         return typeof v === "function" ? v.bind(target) : v;
       },
     });
-    await expect(runAggregation({ DB: env.DB, SNAPSHOTS: failing }, t)).rejects.toThrow(
-      "R2 put failed",
-    );
-    expect(await env.SNAPSHOTS.head(STATE_KEY), "state saved first").not.toBeNull();
+    await expect(
+      runAggregation({ DB: env.DB, SNAPSHOTS: failing, STATE: env.STATE }, t),
+    ).rejects.toThrow("R2 put failed");
+    expect(await env.STATE.head(STATE_KEY), "state saved first").not.toBeNull();
     expect(await env.SNAPSHOTS.head(SNAPSHOT_KEY)).toBeNull();
 
     const r = await runAggregation(env, t + 5 * MIN);

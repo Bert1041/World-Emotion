@@ -14,8 +14,10 @@ import { connection, place } from "./where";
 
 export interface Env {
   DB: D1Database;
-  /** snapshot.json (public), aggregator-state.json (private), archive/ (hourly, ADR 0007). */
+  /** Public bucket: snapshot.json and archive/ (hourly, ADR 0007). */
   SNAPSHOTS: R2Bucket;
+  /** Private bucket, never made public: aggregator-state.json. */
+  STATE: R2Bucket;
   IP_LIMITER: RateLimit;
   DEVICE_LIMITER: RateLimit;
   /** Comma-separated exact origins. */

@@ -59,7 +59,8 @@ Two paths, deliberately unequal:
 The aggregator (`apps/api/src/aggregate.ts`) runs on a timer inside the same Worker:
 
 1. Count the last six hours of votes, grouped by country and mood.
-2. Load its private memory from the last run (`aggregator-state.json`).
+2. Load its private memory from the last run (`aggregator-state.json`, in a separate bucket that is
+   never made public: it holds numbers for places too small to publish).
 3. Run the maths, all in one pure function in `packages/core`, tested without any network:
    - **Pool:** countries add up to continents, continents to the world.
    - **Shrink:** a country with 3 votes leans towards its continent's mood instead of swinging
@@ -91,7 +92,8 @@ asking. If the numbers are more than 15 minutes old, the header says "Updated 23
    it, tested by itself. The server code around it only moves data in and out.
 3. **Privacy by construction, not by promise.** No accounts, no names, no GPS. IP addresses are
    never stored; device keys are stored only scrambled. Small places are hidden so one person's
-   mood can't be read back. What's archived is only what was already public.
+   mood can't be read back. What's archived is only what was already public. The aggregator's
+   private memory, which does hold small places' numbers, is kept in a bucket that is never public.
 4. **The phone does the beauty.** Globe, weather and colour transitions all run on the device, so
    they cost the server nothing and stay smooth even when the data only changes every five minutes.
 5. **Degrade, don't die** (ADR 0006). If the server stops, the globe keeps working on old numbers
