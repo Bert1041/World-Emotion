@@ -14,6 +14,7 @@ export const en: Messages = {
   // "1 feeling something right now" reads fine in English; other languages differ.
   feelingNow: () => "{count} feeling something right now",
   worldQuiet: "The world is quiet",
+  updatedAgo: "Updated {count} min ago",
   quietCount: (n, f) =>
     f.plural(n) === "one" ? "{count} check-in so far" : "{count} check-ins so far",
   back: "← World",

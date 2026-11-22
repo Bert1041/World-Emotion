@@ -121,7 +121,10 @@ export class PolledSource implements SnapshotSource {
     this.inflight = true;
     let ok = false;
     try {
-      const res = await this.o.fetch(this.o.snapshotUrl);
+      // Always ask: the file says max-age=30 for the CDN, and the browser's own copy would
+      // otherwise answer a poll (or a forced one) with an old snapshot for up to 30 s. An
+      // unchanged file costs a 304 from the edge.
+      const res = await this.o.fetch(this.o.snapshotUrl, { cache: "no-cache" });
       if (res.ok) {
         const parsed = parseSnapshot(await res.json());
         if (parsed.ok) {

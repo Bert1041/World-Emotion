@@ -48,13 +48,13 @@ Serving `snapshot.json` costs nothing per request **only behind the CDN**, which
 
 | Piece | Where | Notes |
 |---|---|---|
-| `PolledSource` | `apps/web/src/data/polled-source.ts` | Second `SnapshotSource`. Fetches `snapshot.json` every 30–60 s with jitter; validates with `parseSnapshot`; keeps the last good snapshot on a bad version, a 500, a parse error or offline; backs off on repeated failure; **does not poll while the tab is hidden** (no cost for background tabs). |
+| `PolledSource` | `apps/web/src/data/polled-source.ts` | Second `SnapshotSource`. Fetches `snapshot.json` every 45 s ± 15 s with `cache: "no-cache"` (the browser's own 30 s copy must not answer a poll; an unchanged file costs a 304 from the edge); validates with `parseSnapshot`; takes it only if newer; keeps the last good snapshot on a bad version, a 500, invalid JSON or offline; doubles the wait after failures, up to 5 min; **does not poll while the tab is hidden**. |
 | First paint | | Last good snapshot from `localStorage` if there is one (marked as old), else the quiet world while the first fetch runs. Never demo numbers in production. |
 | Tween | `engine/fill-tween.ts` | Today only the Earth's theme cross-fades; country colours **jump** to a new snapshot (invisible at the demo's 2 s steps, a visible snap at 5 min). New: fills ease in OKLab over `DURATION.data` (1.5 s), only when a colour visibly changes, instant under reduced motion. Already eased, so unchanged: the world count (`Counter.svelte` rolls) and weather (particles live out their time before new spawn points take over). |
 | Stale data | | If `generatedAt` is more than 15 min old, the header says "Updated 23 min ago". The app keeps working on old numbers (ADR 0006, degrade-not-die). |
 | Check-in | `PolledSource.checkIn` | `POST /checkin` with a `deviceKey` (random, made once, `localStorage`) and a fresh `checkinId`. One retry on a network error; then the check-in stays on the device and is sent with the next one (latest only, G7). The full offline queue is Phase 7. |
 | Counted where | result line | The response says `counted: "country" \| "world"`. On `world`, the result line re-counts against the world ("Like 1,203 others in the world") and says why once ("Counts for the world: your connection is in another country"). |
-| Choice of source | `config.ts` | Production builds use `PolledSource`; `?demo=1` (and dev, until an API is configured) use `DemoSource`. `main.ts` changes one constructor, as the bridge promised. |
+| Choice of source | `config.ts` | Builds with `VITE_SNAPSHOT_URL` and `VITE_API_URL` (set at deploy) use `PolledSource`; without them, and with `?demo=1` or a bench run, `DemoSource`. `?live=<local API>` is honoured only on a page served from `localhost`/`127.0.0.1` and only toward this machine, so a link to the real site cannot show a made-up world. `main.ts` changes one constructor, as the bridge promised. |
 
 ## 4. Failure behaviour (ADR 0006: degrade, don't die)
 
@@ -69,7 +69,7 @@ Serving `snapshot.json` costs nothing per request **only behind the CDN**, which
 ## 5. Tests and verification
 
 - **Real storage, no mocks:** aggregator tests run in workerd with local D1 and R2 (`@cloudflare/vitest-pool-workers`, as in Phase 5).
-- **End to end, locally:** simulator → `wrangler dev` (D1) → cron triggered with `--test-scheduled` → R2 → the production web build polling it in a real browser, which shows the tween.
+- **End to end, locally:** `e2e/live.spec.ts`. Playwright starts the real API beside the app (`wrangler dev`, a fresh local D1 and R2 per run, `SIMULATE=1`); check-ins go in over HTTP, the cron is triggered over HTTP, and the production build polls the result in a real browser.
 - **Client failure paths in a real browser:** Playwright serves a bad version, a 500 and garbage for `snapshot.json`, and the app keeps the last good one.
 - Mutation-checked, as every phase.
 

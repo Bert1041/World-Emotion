@@ -2,7 +2,7 @@
 import { MOODS, type MoodId } from "@world-emotion/shared";
 import { MOOD_COLORS } from "../engine/palette";
 import { i18n } from "../i18n/i18n.svelte";
-import { around } from "../i18n/messages";
+import { around, fill } from "../i18n/messages";
 import CheckIn from "./CheckIn.svelte";
 import Counter from "./Counter.svelte";
 import Flight from "./Flight.svelte";
@@ -49,6 +49,9 @@ const feeling = $derived(
     {/if}
   </h1>
   <div id="world-count" hidden={view.status !== "ready"}>{feeling[0]}<Counter value={view.worldCount} />{feeling[1]}</div>
+  {#if view.status === "ready" && view.staleMinutes !== null}
+    <div id="updated-ago">{fill(i18n.t.updatedAgo, { count: i18n.fmt.n(view.staleMinutes) })}</div>
+  {/if}
 </header>
 
 {#if view.status === "failed"}

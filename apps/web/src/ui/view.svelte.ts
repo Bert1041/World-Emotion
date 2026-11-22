@@ -64,6 +64,11 @@ export const view = $state({
   autoCycle: true,
   /** Active check-ins in the world snapshot; ticks up when yours lands. */
   worldCount: 0,
+  /**
+   * Minutes since the shown snapshot was made, when it is old enough to say so (real data only:
+   * the aggregator stopped or the network is gone; ADR 0006, degrade-not-die). Null otherwise.
+   */
+  staleMinutes: null as number | null,
   checkin: {
     /** World view only: the bottom bar, like the card in a region. */
     visible: false,

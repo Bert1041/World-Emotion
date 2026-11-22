@@ -16,6 +16,7 @@ import { addEntry, type JournalEntry, lastWeek, loadJournal, saveJournal } from 
 import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
 import { DemoSource } from "./data/demo-source";
+import { PolledSource } from "./data/polled-source";
 import type { SnapshotSource } from "./data/snapshot-source";
 import { DOCK_RIGHT_QUERY, REDUCED_MOTION_QUERY, SIDE_CARD_QUERY } from "./engine/breakpoints";
 import { Camera, STRETCH_COMMIT } from "./engine/camera";
@@ -51,18 +52,24 @@ import { view } from "./ui/view.svelte";
  */
 
 // ---- Configuration (URL params, src/config.ts) ------------------------------------------------
-const config = readConfig(new URLSearchParams(location.search));
+const config = readConfig(new URLSearchParams(location.search), {
+  host: location.hostname,
+  env: import.meta.env,
+});
 const reducedMotion = matchMedia(REDUCED_MOTION_QUERY).matches;
 
-// ---- Data source (src/data): demo for now; Phase 6 swaps in the polled snapshot + API -----------
-// Demo cadence: one aggregation run every 2 s; the world's mood moves every 20 s unless ?auto=0.
-// Bench runs never step on their own, so frames compare across runs.
-const source: SnapshotSource = new DemoSource({
-  autoCycle: config.autoCycle,
-  paused: config.bench,
-  now: performance.now(),
-  ...(config.votes === undefined ? {} : { votes: config.votes }),
-});
+// ---- Data source (src/data) -------------------------------------------------------------------
+// Real data when the build (or a local ?live=) names the endpoints; otherwise the demo: one
+// aggregation run every 2 s, the world's mood moving every 20 s unless ?auto=0. Bench runs never
+// step on their own, so frames compare across runs.
+const source: SnapshotSource = config.live
+  ? new PolledSource(config.live)
+  : new DemoSource({
+      autoCycle: config.autoCycle,
+      paused: config.bench,
+      now: performance.now(),
+      ...(config.votes === undefined ? {} : { votes: config.votes }),
+    });
 /** Below this many check-ins the world is quiet: no headline mood (ADR 0003, README §5.4). */
 const QUIET_WORLD_BELOW = DEFAULT_CONFIG.publishMinN;
 
@@ -216,6 +223,17 @@ function recomputeWeather(): void {
   particles.setSpawns(weatherSpawns(snapshot, land, COUNTRY_TO_CONTINENT, focus));
 }
 
+/** Real data older than this says so in the header (docs/design/phase-6-live-data.md §4). */
+const STALE_AFTER_MINUTES = 15;
+function refreshStale(): void {
+  const age = (Date.now() / 1000 - snapshot.generatedAt) / 60;
+  view.staleMinutes =
+    source instanceof PolledSource && snapshot.generatedAt > 0 && age > STALE_AFTER_MINUTES
+      ? Math.floor(age)
+      : null;
+}
+setInterval(refreshStale, 30_000); // the age grows while nothing new arrives
+
 function onSnapshot(next: Snapshot): void {
   fillTween.start(fillTarget(next));
   snapshot = next;
@@ -228,6 +246,7 @@ function onSnapshot(next: Snapshot): void {
   view.checkin.published = Object.keys(next.countries);
   refreshJournal(); // the window moves at midnight while the page stays open
   refreshResult();
+  refreshStale();
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
   if (view.flight === null) view.worldCount = next.world.n;
   recomputeFills();

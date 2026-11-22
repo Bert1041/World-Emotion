@@ -53,6 +53,8 @@ export interface Messages {
   readonly worldQuiet: string;
   /** The count line under it: "{count} check-ins so far". */
   readonly quietCount: (n: number, f: Fmt) => string;
+  /** The numbers are old: "Updated {count} min ago" (real data only, after 15 minutes). */
+  readonly updatedAgo: string;
   readonly back: string;
 
   readonly moods: { readonly label: PerMood; readonly feels: PerMood };

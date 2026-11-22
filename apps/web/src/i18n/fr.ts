@@ -29,6 +29,7 @@ export const fr: Messages = {
       : "{count} personnes ressentent quelque chose",
   // Not « calme » : c'est aussi l'humeur « calm ». Silencieux = personne n'a encore parlé.
   worldQuiet: "Le monde est encore silencieux",
+  updatedAgo: "Mis à jour il y a {count} min",
   quietCount: (n, f) =>
     f.plural(n) === "one"
       ? "{count} humeur partagée pour l’instant"

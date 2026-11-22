@@ -96,6 +96,8 @@ describe("PolledSource: polling", () => {
     expect(await frame(src, 44_000), "not yet").toBeNull();
     expect(calls).toHaveLength(1);
     expect((await frame(src, 45_000))?.generatedAt).toBe(1300);
+    // Revalidated every time: the browser's 30 s copy must not answer a poll.
+    expect(calls.map((c) => c.init?.cache)).toEqual(["no-cache", "no-cache"]);
   });
 
   it("first paint uses the last snapshot saved on this device", () => {

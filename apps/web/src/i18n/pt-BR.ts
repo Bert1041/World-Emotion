@@ -26,6 +26,7 @@ export const ptBR: Messages = {
   feelingNow: (n) =>
     n === 1 ? "{count} pessoa sentindo algo agora" : "{count} pessoas sentindo algo agora",
   worldQuiet: "O mundo está em silêncio",
+  updatedAgo: "Atualizado há {count} min",
   quietCount: (n) => (n === 1 ? "{count} resposta até agora" : "{count} respostas até agora"),
   back: "← Mundo",
 
