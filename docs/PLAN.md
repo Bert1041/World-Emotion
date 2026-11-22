@@ -171,10 +171,11 @@ first check-in, launch gate (Phase 8); a named launch community and cold-start c
 
 **Scope:** CI additions (bundle budget, deploy; base `pnpm check` gate exists since Phase 0.5), limit-hit behaviour, Turnstile on spikes, CSP, usage alerts at 70%, privacy page (must state the residual risks in ADR 0003: snapshot-to-snapshot differencing at low traffic; world counts at launch).
 **Exit criteria:** limit-hit simulated (forced 429/503 from API) → app shows "will count shortly" and recovers; CI fails on a budget breach (mutation: bloat the bundle).
+**Added 2026-11-22 (ADR 0008):** the Workers Rate Limiting binding was measured to refuse nothing on the real account (65 of 65 accepted). Rate limiting moves to a WAF rule on `POST /checkin` at the edge (needs the domain) plus Turnstile on a device's first check-in. **Launch gate:** both live, and a sustained test from one IP seen refused.
 
 ### Phase 9: Soft launch
 
-Re-verify every free-tier figure and browser-capability claim (README "Sources"), deploy, small group, watch counters, then go public.
+Re-verify every free-tier figure and browser-capability claim (README "Sources"), deploy, small group, watch counters, then go public. Not before ADR 0008's gate is met.
 
 ---
 

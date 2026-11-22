@@ -3,6 +3,10 @@
   "name": "world-emotion-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+  // The API's address until there is a domain (decision L1). Preview URLs would give every
+  // uploaded version its own public address: not needed, so off.
+  "workers_dev": true,
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
