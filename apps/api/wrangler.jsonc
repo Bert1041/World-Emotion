@@ -32,7 +32,8 @@
     { "name": "DEVICE_LIMITER", "namespace_id": "1002", "simple": { "limit": 3, "period": 60 } }
   ],
   "vars": {
-    // Exact-match list, comma separated. The real domain is added in Phase 6.
-    "ALLOWED_ORIGINS": "http://localhost:5173,http://localhost:4173"
+    // Exact-match list, comma separated: local dev, and the test deploy of the app on workers.dev
+    // (2026-11-22). The real domain replaces the workers.dev one at launch.
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://localhost:4173,https://world-emotion-web.ishokarobertt.workers.dev"
   }
 }

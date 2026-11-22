@@ -67,7 +67,11 @@ Open the app, spin a hand-painted globe, tap a mood. Your check-in counts toward
 - **D1:** holds votes, one row per device. Small, SQL, easy to migrate.
 - **R2 + CDN:** the public bucket hosts `snapshot.json` (`Cache-Control: public, max-age=30`) and `archive/YYYY/MM/DD/HH.json`. Reads never invoke the API or touch D1. The aggregator's `aggregator-state.json` lives in a **separate private bucket** that is never made public: a public bucket exposes every object in it, and the state holds unrounded numbers for regions below the privacy floor (found and fixed 2026-11-22, before any public address existed).
 
-**Where things stand (2026-11-22):** the API and aggregator are deployed to the free plan at `world-emotion-api.<account>.workers.dev` with the real D1 and R2; the first cron run published a snapshot. Not yet: a domain, so no CDN in front of R2, no hosted app, and `ALLOWED_ORIGINS` is still `localhost`. Launch is gated on the domain and ADR 0008's rate limiting.
+**Where things stand (2026-11-22), a test deployment on the free plan, no domain yet:**
+- API and aggregator: `world-emotion-api.<account>.workers.dev`, with the real D1, the public bucket and the private state bucket; the cron publishes every 5 minutes.
+- The app: `world-emotion-web.<account>.workers.dev`, static files (`apps/web/wrangler.jsonc`), built with the API and snapshot addresses.
+- The snapshot: served from R2's rate-limited test address (`pub-….r2.dev`) with a CORS rule for the app, **not** through the CDN yet.
+- Not yet: the domain (then the CDN, the real origin, the edge rate limit). Launch is gated on the domain and ADR 0008.
 
 **Why polling, not WebSockets:** a cached static file costs nothing under load; a live socket per user does not. "Live enough" (30-60 s) is the right promise, and **client-side tweening makes 60-second updates feel continuous**.
 
