@@ -1,6 +1,6 @@
 # Phase 6 design: live data (aggregator, snapshot, client polling)
 
-Status: **draft, awaiting decisions L1–L4 (§8).** Scope from docs/PLAN.md §3 Phase 6, plus what
+Status: **approved** (2026-11-22): L1–L4 as recommended (§8): local first, domain and deploy at the end of the phase; no re-send on a pin move; connection country learnt from the first check-in; polling 45 s ± 15 s. Scope from docs/PLAN.md §3 Phase 6, plus what
 Phase 5 (measured) and Phase 5.5 (the bridge) handed on. Like Phase 5, everything is built and verified
 locally first (wrangler dev, local D1 and R2 in Miniflare); the deploy part depends on L1.
 
