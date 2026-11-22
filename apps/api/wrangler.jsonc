@@ -7,8 +7,9 @@
     {
       "binding": "DB",
       "database_name": "world-emotion",
-      // Local only until Phase 6 creates the real database (then: its id here).
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // The real database (created 2026-11-22, region WEUR). Local dev and every test still use a
+      // local SQLite copy: nothing here is "remote", so no test can write to it.
+      "database_id": "86fa3abd-1ac5-4c1a-8d0d-0e1c859b9223",
       "migrations_dir": "../../migrations"
     }
   ],
