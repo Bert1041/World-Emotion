@@ -26,6 +26,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@world-emotion/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@world-emotion/geo-data':
         specifier: workspace:*
         version: link:../../packages/geo-data

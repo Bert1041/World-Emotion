@@ -10,6 +10,7 @@
     "check:migrations": "node scripts/migrations.ts"
   },
   "dependencies": {
+    "@world-emotion/core": "workspace:*",
     "@world-emotion/geo-data": "workspace:*",
     "@world-emotion/shared": "workspace:*",
     "hono": "4.13.14"

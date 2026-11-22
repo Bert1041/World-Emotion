@@ -12,6 +12,11 @@
       "migrations_dir": "../../migrations"
     }
   ],
+  // docs/design/phase-6-live-data.md §2: snapshot.json is public (served through the CDN once
+  // there is a domain, L1); aggregator-state.json in the same bucket is never served.
+  "r2_buckets": [{ "binding": "SNAPSHOTS", "bucket_name": "world-emotion-snapshots" }],
+  // Every 5 minutes (G2: reads bind before writes at 2 minutes).
+  "triggers": { "crons": ["*/5 * * * *"] },
   // docs/design/phase-5-api.md §4. Approximate and per Cloudflare location, by design.
   "ratelimits": [
     { "name": "IP_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
