@@ -1,0 +1,36 @@
+[
+  {
+    "startup": true,
+    "repeat": 0,
+    "frames": 343,
+    "p50": 16.600000000000364,
+    "p95": 16.700000000000728,
+    "p99": 83.20000000000005,
+    "max": 831.5,
+    "over33": 9,
+    "over50": 8,
+    "spread": null,
+    "thermal": {
+      "status": 0,
+      "batteryC": 33.9,
+      "waitedS": 0
+    }
+  },
+  {
+    "startup": true,
+    "repeat": 1,
+    "frames": 337,
+    "p50": 16.600000000000364,
+    "p95": 16.700000000000728,
+    "p99": 99.80000000000001,
+    "max": 814.9,
+    "over33": 10,
+    "over50": 9,
+    "spread": null,
+    "thermal": {
+      "status": 0,
+      "batteryC": 33.9,
+      "waitedS": 0
+    }
+  }
+]

@@ -1,4 +1,5 @@
 import type { Continent, MoodId } from "@world-emotion/shared";
+import type { Alongside } from "../engine/regions";
 
 /**
  * Everything the DOM UI shows (README §8.1 layer 4). The engine (main.ts) writes here; Svelte
@@ -71,8 +72,17 @@ export const view = $state({
     countries: [] as readonly string[],
     /** Countries in the snapshot (at or above the privacy floor); others show their continent. */
     published: [] as readonly string[],
+    /** No check-in from this device yet: the bar leads with your place (bridge J2). */
+    firstRun: false,
     /** Your active mood this session, or null before you check in. */
     mine: null as MoodId | null,
+    /** Who else feels it, from the snapshot (bridge R1); null before you check in. */
+    result: null as Alongside | null,
+    /**
+     * Your last seven days, oldest first (bridge R2): each day's mood or null. Null until you
+     * have checked in on two different days; kept on this device only.
+     */
+    week: null as readonly (MoodId | null)[] | null,
     /** Pick mode: the globe is the country picker ("tap where you are"). */
     picking: false,
   },
@@ -91,6 +101,8 @@ export interface UiActions {
   cancelPick(): void;
   /** The flying face reached your country (flight `id`). */
   landed(id: number): void;
+  /** Forget the on-device journal (bridge R2). */
+  clearJournal(): void;
   /** The region card finished moving (peek ↔ open): re-measure and re-fit the map. */
   cardMoved(): void;
 }

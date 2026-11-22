@@ -4,12 +4,16 @@ import type { SnapshotRegion } from "@world-emotion/shared";
 import { geoOrthographic } from "d3-geo";
 import { describe, expect, it } from "vitest";
 import {
+  alongside,
   barsOf,
   clarity,
   hitCountry,
+  LAND_HALF_AREA,
   panelModel,
   QUIET_THEME,
   regionOf,
+  sizeWeight,
+  themeFor,
   weatherSpawns,
   worldHeadline,
 } from "./regions";
@@ -89,15 +93,17 @@ describe("panelModel", () => {
 });
 
 describe("weatherSpawns", () => {
+  const at = (lon: number, lat: number) => new Float32Array([lon, lat]);
+  const BIG = 0.05; // a large country's area (sr): size weight ~1
   const centroids = [
-    { code: "FR", lon: 2, lat: 46 },
-    { code: "LU", lon: 6, lat: 49.7 },
-    { code: "BR", lon: -53, lat: -10 },
-    { code: "ZZ", lon: 0, lat: 0 },
+    { code: "FR", points: at(2, 46), area: BIG },
+    { code: "LU", points: at(6, 49.7), area: BIG },
+    { code: "BR", points: at(-53, -10), area: BIG },
+    { code: "ZZ", points: at(0, 0), area: BIG },
   ];
   it("weights published regions above quiet ones, skips unknown codes", () => {
     const s = weatherSpawns(snapshot, centroids, COUNTRY_TO_CONTINENT, null);
-    const by = new Map(s.map((p) => [p.lon, p]));
+    const by = new Map(s.map((p) => [p.points[0], p]));
     expect(by.has(0), "unknown code").toBe(false);
     expect(by.has(-53), "a published country on another continent spawns in the world view").toBe(
       true,
@@ -108,7 +114,7 @@ describe("weatherSpawns", () => {
   });
   it("zoomed into a continent, only its countries spawn", () => {
     const s = weatherSpawns(snapshot, centroids, COUNTRY_TO_CONTINENT, "EU");
-    expect(s.map((p) => p.lon).sort()).toEqual([2, 6]);
+    expect(s.map((p) => p.points[0]).sort()).toEqual([2, 6]);
   });
 });
 
@@ -178,5 +184,101 @@ describe("worldHeadline", () => {
   });
   it("the quiet Earth is Waterworld (calm), which is not the tie-break mood (happy)", () => {
     expect(QUIET_THEME).toBe(1);
+  });
+});
+
+describe("alongside (the line under 'You feel …')", () => {
+  // FR in the fixture: 80 calm (1), 20 sad (4) = 100, published. LU: 1 sad, below the floor.
+  it("country with enough check-ins: others = dist × n, minus you; names its headline", () => {
+    const fr = snapshot.countries.FR as SnapshotRegion;
+    const calm = alongside(snapshot, "FR", 1);
+    expect(calm).toEqual({
+      scope: "country",
+      others: Math.round((fr.dist[1] ?? 0) * fr.n) - 1,
+      feels: fr.h,
+    });
+    expect((calm as { others: number }).others).toBeGreaterThan(50);
+  });
+  it("country below the privacy floor, or published but small: the world's numbers", () => {
+    const w = snapshot.world;
+    const expected = {
+      scope: "world",
+      others: Math.round((w.dist[4] ?? 0) * w.n) - 1,
+      feels: null,
+    };
+    expect(alongside(snapshot, "LU", 4), "suppressed").toEqual(expected);
+    // Published but small: 30 check-ins in the country, plenty in the world.
+    const small = {
+      ...snapshot,
+      countries: { ...snapshot.countries, XX: { n: 30, h: 4, dist: [0, 0, 0, 0, 1, 0] } },
+    } as unknown as typeof snapshot;
+    expect(alongside(small, "XX", 4), "published, under 50").toEqual(expected);
+  });
+  it("an early world gives the exact total, never a per-mood estimate", () => {
+    const region = (n: number) => ({ n, h: 1, dist: [0.1, 0.5, 0.1, 0.1, 0.1, 0.1] }) as never;
+    const world = (n: number) =>
+      ({
+        world: region(n),
+        continents: {},
+        countries: { XX: region(n) },
+      }) as unknown as typeof snapshot;
+    expect(alongside(world(49), "XX", 1)).toEqual({ scope: "early", total: 49 });
+    expect(alongside(world(0), "XX", 1), "you are counted").toEqual({ scope: "early", total: 1 });
+    expect(alongside(world(50), "XX", 1)).toEqual({ scope: "country", others: 24, feels: 1 });
+  });
+  it("never below zero: a mood nobody else has means you are the first", () => {
+    const region = { n: 60, h: 2, dist: [0, 0, 1, 0, 0, 0] } as never;
+    const s = {
+      world: region,
+      continents: {},
+      countries: { XX: region },
+    } as unknown as typeof snapshot;
+    expect(alongside(s, "XX", 5)).toEqual({ scope: "country", others: 0, feels: 2 });
+  });
+});
+
+describe("themeFor (the Earth follows the region in view)", () => {
+  const region = (h: number, n = 100) => ({ n, h, dist: [] }) as never;
+  const s = {
+    world: region(2), // not the quiet Earth's mood, so a fallback to the world would show
+    continents: { EU: region(3), SA: region(5) },
+    countries: {},
+  } as unknown as typeof snapshot;
+  it("world view: the world headline's Earth; quiet below the floor", () => {
+    expect(themeFor(s, null, 5)).toBe(2);
+    expect(themeFor({ ...s, world: region(3, 4) } as never, null, 5)).toBe(QUIET_THEME);
+  });
+  it("zoomed in: that continent's mood, whatever the world feels", () => {
+    expect(themeFor(s, "EU", 5)).toBe(3);
+    expect(themeFor(s, "SA", 5)).toBe(5);
+  });
+  it("a continent absent from the snapshot (below the floor) rests on the quiet Earth", () => {
+    expect(themeFor(s, "OC", 5)).toBe(QUIET_THEME);
+  });
+});
+
+describe("sizeWeight (weather follows land, up to a point)", () => {
+  it("is near 1 for large countries, fades for tiny ones, never zero, and rises with area", () => {
+    expect(sizeWeight(0.19), "Australia").toBeGreaterThan(0.98);
+    expect(sizeWeight(LAND_HALF_AREA)).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(sizeWeight(0.00002), "a Pacific atoll nation").toBeLessThan(0.07);
+    expect(sizeWeight(0.00002)).toBeGreaterThan(0);
+    expect(sizeWeight(0)).toBe(0);
+    const pairs: [number, number][] = [
+      [0.0001, 0.001],
+      [0.001, 0.01],
+      [0.01, 0.1],
+    ];
+    for (const [a, b] of pairs) expect(sizeWeight(b)).toBeGreaterThan(sizeWeight(a));
+  });
+  it("in weatherSpawns: the same region, smaller land, less weather", () => {
+    const one = (area: number) =>
+      weatherSpawns(
+        snapshot,
+        [{ code: "FR", points: new Float32Array([2, 46]), area }],
+        COUNTRY_TO_CONTINENT,
+        null,
+      )[0]?.weight ?? 0;
+    expect(one(0.0001)).toBeLessThan(one(0.05) / 5);
   });
 });

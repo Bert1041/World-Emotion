@@ -38,6 +38,14 @@
       body.zoomed header { transform: translateY(-140%); opacity: 0; }
       .kicker { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       h1 { margin: 0.25rem 0 0.15rem; font-size: clamp(1.45rem, 6vw, 2.2rem); font-weight: 650; }
+      /* Press feedback on every control (bridge M1): one rule, on the motion tokens. The faces
+         keep their own, stronger press. */
+      #ui button, #ui a { transition: transform var(--fast), filter var(--fast), opacity var(--fast); }
+      #ui button:active:not(:disabled), #ui a:active { transform: scale(0.96); filter: brightness(1.2); }
+      /* Faces react (bridge M2): a small hop when you reach for one. */
+      @keyframes hop { 0% { translate: 0 0; } 40% { translate: 0 -0.3rem; } 100% { translate: 0 0; } }
+      #checkin .face:is(:hover:not(:disabled), :focus-visible) svg { animation: hop var(--base) cubic-bezier(.2, .8, .2, 1); }
+      #checkin .chip .chip-face { display: inline-flex; vertical-align: middle; margin-right: 0.35rem; }
       /* Start-up (bridge E4): a dim disc where the globe will be; a retry control if the map failed. */
       #loading-disc { position: fixed; left: 50%; top: 50%; width: min(70vw, 50vh); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
         background: radial-gradient(circle at 50% 45%, rgba(127, 214, 224, 0.16), rgba(10, 30, 50, 0.6) 70%, transparent 71%);
@@ -110,6 +118,17 @@
       #checkin .stack > * { grid-area: 1 / 1; transition: opacity var(--base); }
       #checkin .stack > .off { opacity: 0; visibility: hidden; }
       #checkin .chip { font-size: 1rem; align-self: center; }
+      /* Who else feels it (bridge R1): quieter than "You feel …", may wrap on a phone. */
+      #checkin .chip .alongside { margin-top: 0.3rem; font-size: 0.82rem; color: var(--muted); line-height: 1.3; }
+      #checkin .chip .alongside .like { color: var(--text); }
+      /* The journal strip (bridge R2): seven small days, today marked; a 24 px tall button. */
+      #checkin .week { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 24px; margin-top: 0.15rem; padding: 0.25rem 0.5rem; border: 0; border-radius: 999px;
+        background: none; cursor: pointer; }
+      #checkin .week:hover { background: rgba(255, 255, 255, 0.07); }
+      #checkin .week:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      #checkin .week .day { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; }
+      #checkin .week .day.today { outline: 1px solid rgba(255, 255, 255, 0.45); outline-offset: 2px; border-radius: 50%; }
+      #checkin .week .empty { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); }
       /* Text links keep their look; the hit area is at least 24 px tall (WCAG 2.5.8, bridge U3). */
       #checkin .link { border: 0; padding: 0.3rem 0.25rem; margin: -0.3rem -0.25rem; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
       /* Your country is below the privacy floor (bridge SC): say so before the check-in, not after. */
@@ -122,6 +141,8 @@
       #checkin .from .place { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem 0.3rem 0.6rem; border-radius: 999px;
         background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
       #checkin .from .where { color: var(--text); }
+      /* First run (bridge J2): the place row sits above the faces. */
+      #checkin .from.first { margin: 0 0 0.65rem; }
       #checkin .pin path { fill: var(--accent); }
       #checkin .pin circle { fill: #0a0c10; }
       #checkin .pick { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; }
@@ -147,6 +168,9 @@
         #checkin .faces { flex: 1; }
         #checkin .from { flex-direction: column; gap: 0.35rem; margin: 0; padding: 0.3rem 0 0.3rem 1rem; border-left: 1px solid rgba(255, 255, 255, 0.12); align-self: stretch; }
         #checkin .from .dot { display: none; }
+        /* Columns are fixed, so the first-run order in the DOM does not swap them. */
+        #checkin .stack { grid-column: 1; grid-row: 1; }
+        #checkin .from, #checkin .from.first { grid-column: 2; grid-row: 1; margin: 0; }
       }
       /* A phone on its side has no height to spare: a panel on the right, sized to its content.
          Same query as DOCK_RIGHT in main.ts. */
@@ -155,6 +179,12 @@
         #checkin:not([hidden]) { left: auto; right: max(var(--gap), env(safe-area-inset-right)); top: 0; bottom: 0; margin: auto 0; height: fit-content;
           max-height: calc(100vh - 2 * var(--gap)); width: 12.5rem; max-width: none; display: flex; flex-direction: column; justify-content: center; }
         #checkin .faces { grid-template-columns: repeat(3, 1fr); row-gap: 0.4rem; }
+        /* No room for the first-run label in a 12.5rem column: the place row still leads, with "not you?". */
+        #checkin .from .label { display: none; }
+        /* Badge over link, in a row of fixed height: a long name or a long link ("ce n'est pas
+           ça ?") must not make the bar taller in one mode than another. */
+        #checkin .from { flex-direction: column; justify-content: center; min-height: 3.9rem; }
+        #checkin .from .dot { display: none; }
         /* Centre the headline over the globe's column, not the whole screen. */
         header { right: calc(12.5rem + 2 * var(--gap)); }
       }
@@ -171,6 +201,9 @@
 
       @media (prefers-reduced-motion: reduce) {
         #world-mood.swap, #panel, #loading-disc, #hint { animation: none; }
+        /* No movement: a pressed control dims instead of shrinking; faces do not hop. */
+        #ui button:active:not(:disabled), #ui a:active, #checkin .face:active:not(:disabled) { transform: none; filter: none; opacity: 0.7; }
+        #checkin .face:is(:hover:not(:disabled), :focus-visible) svg { animation: none; }
         .fill { transition: none; }
         /* Cross-fades only: the headline fades away when zoomed, it does not slide. */
         header { transition: opacity var(--base); }

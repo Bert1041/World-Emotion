@@ -1,6 +1,6 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
 import { describe, expect, it } from "vitest";
-import { SnapshotSim } from "./snapshot-sim";
+import { CONTINENT_LEAN, SnapshotSim } from "./snapshot-sim";
 
 /** Raw active count for one country (the world total is a sum of shrunk data, so use countries). */
 const worldN = (sim: SnapshotSim) => sim.snapshot.world.n;
@@ -41,5 +41,21 @@ describe("SnapshotSim with a fixed number of votes", () => {
     const five = new SnapshotSim(1, { votes: 5 }).snapshot;
     expect(five.countries[first as string]?.n).toBe(5);
     expect(Object.keys(five.countries), "no other country").toEqual([first]);
+  });
+});
+
+describe("the demo world is varied enough to show every Earth", () => {
+  it.each([0, 1, 2, 3, 4, 5] as const)(
+    "world bias %i: the world follows the bias, each continent its own lean",
+    (bias) => {
+      const sim = new SnapshotSim(bias);
+      for (let i = 0; i < 8; i++) sim.step();
+      expect(sim.snapshot.world.h).toBe(bias);
+      for (const [c, r] of Object.entries(sim.snapshot.continents))
+        expect(r.h, c).toBe(CONTINENT_LEAN[c as keyof typeof CONTINENT_LEAN]);
+    },
+  );
+  it("the leans cover all six moods", () => {
+    expect(new Set(Object.values(CONTINENT_LEAN)).size).toBe(6);
   });
 });

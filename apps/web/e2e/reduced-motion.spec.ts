@@ -93,6 +93,11 @@ test("drill-down and back are jumps, not glides; the headline fades, not slides"
   await page.mouse.click(p[0], p[1]);
   // The fit happens on the frame after the tap; wait for it by the app's own state, not a timer.
   await expect.poll(async () => (await layout(page)).focus).toBe("EU");
+  // `gliding` includes the one frame between the tap and the fit; read after that frame. Before,
+  // this read could land inside it under load (seen 2026-11-11 while idle work ran at start-up).
+  await page.evaluate(
+    () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
   const z = await layout(page);
   expect(z.gliding, "no glide").toBe(false);
   expect(z.zoom, "already at the continent's zoom").toBeGreaterThan(1.5);

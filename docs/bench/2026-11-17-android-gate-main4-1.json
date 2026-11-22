@@ -1,0 +1,287 @@
+[
+  {
+    "particles": 500,
+    "dragLod": "move",
+    "dpr": 2,
+    "hz": 120,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "android",
+    "deviceLabel": "Pixel 6 Pro · Chrome/158.0.8127.36",
+    "frames": 602,
+    "intervalP50": 16.600000000000364,
+    "intervalP95": 16.700000000000728,
+    "intervalP99": 16.700000000000728,
+    "scriptP50": 4.300000190734863,
+    "scriptP95": 6.200000286102295,
+    "missed": 602,
+    "missedRatio": 0.5,
+    "baseP50": 4.099999904632568,
+    "fxP50": 0.20000028610229492,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "move",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 120,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.600000000000364,
+    "idleDetail": {
+      "frames": 112,
+      "scriptP50": 0.5999999046325684,
+      "baseRedraws": 13,
+      "lods": ["move", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": 31.1,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": 31.1,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "move",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "android",
+    "deviceLabel": "Pixel 6 Pro · Chrome/158.0.8127.36",
+    "frames": 603,
+    "intervalP50": 16.600000000000364,
+    "intervalP95": 16.700000000000728,
+    "intervalP99": 16.700000000000728,
+    "scriptP50": 6.899999618530273,
+    "scriptP95": 9.400000095367432,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 6.400000095367432,
+    "fxP50": 0.3000001907348633,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "move",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.59999999999991,
+    "idleDetail": {
+      "frames": 111,
+      "scriptP50": 0.7000002861022949,
+      "baseRedraws": 13,
+      "lods": ["move", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": 31.1,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": 31.4,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "move",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "android",
+    "deviceLabel": "Pixel 6 Pro · Chrome/158.0.8127.36",
+    "frames": 601,
+    "intervalP50": 16.600000000000364,
+    "intervalP95": 16.700000000000728,
+    "intervalP99": 16.700000000000728,
+    "scriptP50": 12,
+    "scriptP95": 15.699999809265137,
+    "missed": 1,
+    "missedRatio": 0.0016611295681063123,
+    "baseP50": 11.299999713897705,
+    "fxP50": 0.7000002861022949,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "move",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.600000000000364,
+    "idleDetail": {
+      "frames": 72,
+      "scriptP50": 1.299999713897705,
+      "baseRedraws": 14,
+      "lods": ["move", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": 31.4,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": 31.4,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "android",
+    "deviceLabel": "Pixel 6 Pro · Chrome/158.0.8127.36",
+    "frames": 603,
+    "intervalP50": 16.600000000000364,
+    "intervalP95": 16.700000000000728,
+    "intervalP99": 16.700000000000728,
+    "scriptP50": 10,
+    "scriptP95": 11.599999904632568,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 9.699999809265137,
+    "fxP50": 0.2999997138977051,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "110m",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.600000000000136,
+    "idleDetail": {
+      "frames": 111,
+      "scriptP50": 0.6999998092651367,
+      "baseRedraws": 14,
+      "lods": ["110m", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": 31.4,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": 31.5,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "android",
+    "deviceLabel": "Pixel 6 Pro · Chrome/158.0.8127.36",
+    "frames": 387,
+    "intervalP50": 33.19999999999891,
+    "intervalP95": 33.399999999999636,
+    "intervalP99": 49.899999999999636,
+    "scriptP50": 22.40000009536743,
+    "scriptP95": 33.09999990463257,
+    "missed": 216,
+    "missedRatio": 0.3582089552238806,
+    "baseP50": 21.799999713897705,
+    "fxP50": 0.5999999046325684,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "110m",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.59999999999991,
+    "idleDetail": {
+      "frames": 94,
+      "scriptP50": 1.299999713897705,
+      "baseRedraws": 9,
+      "lods": ["110m", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": 31.5,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": 31.8,
+      "waitedS": 0
+    }
+  }
+]

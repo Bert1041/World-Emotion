@@ -69,12 +69,29 @@ export const ptBR: Messages = {
     move: "mover",
     showMe: "escolher",
     whereAreYou: "Onde você está?",
+    yourCountry: "Seu país:",
+    notYou: "não é aqui?",
     tapYourCountry: "Toque no seu país no globo",
     tooSmall: "Pequeno demais para tocar?",
     typeIt: "Digite o nome…",
     noMatch: "Nada encontrado",
     cancel: "cancelar",
-    smallCountry: "Países pequenos mostram seu continente até que {n} pessoas respondam.",
+    likeCountry: (n) =>
+      n === 1 ? "Como mais {count} pessoa no seu país" : "Como mais {count} pessoas no seu país",
+    likeWorld: (n) =>
+      n === 1 ? "Como mais {count} pessoa no mundo" : "Como mais {count} pessoas no mundo",
+    firstCountry: "A primeira pessoa a sentir isso no seu país agora",
+    firstWorld: "A primeira pessoa a sentir isso no mundo agora",
+    early: (n) => (n === 1 ? "A primeira resposta agora" : "Entre as primeiras {count} respostas"),
+    countryFeels: "Seu país sente {mood}",
+    smallCountry: "Seu país mostra seu humor com {n} respostas.",
+  },
+
+  journal: {
+    label: "Seus últimos 7 dias",
+    none: "nada",
+    onDevice: "Fica só neste aparelho",
+    clear: "apagar",
   },
 
   hints: { tapCountry: "Toque em um país" },

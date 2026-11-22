@@ -166,7 +166,7 @@ Distributions are arrays indexed by mood id and are **final**: already shrunk an
 
 `h` is the headline mood **after hysteresis**, computed once in the aggregator so every client shows the same word (ADR 0003). **Privacy floor:** countries and continents with fewer than 5 votes are omitted; the client falls back to the parent and shows "quiet here". Because a parent minus its published children would still reveal the hidden rest, **complementary suppression** also hides the smallest published sibling whenever that remainder would be 1–4 votes. Residual risks (snapshot-to-snapshot differencing at low traffic) are in ADR 0003 and go on the privacy page.
 
-**Retention:** purge votes older than the window plus a small buffer on each aggregation run. Deletes count as rows written, so purging is part of the write budget (section 7). No history at launch (also a privacy feature).
+**Retention:** purge votes older than the window plus a small buffer on each aggregation run. Deletes count as rows written, so purging is part of the write budget (section 7). **No personal history.** From Phase 6 the aggregator keeps hourly public totals (what the snapshot already showed at that hour, published regions only; no votes, devices or IPs), so a later "compared to usual" is possible (ADR 0007, decided 2026-11-10; replaces "no history at launch").
 
 ---
 
@@ -369,7 +369,7 @@ world-emotion/
 - ~~Which reference low-end phone do we test on?~~ Pixel 6 Pro (ADR 0004). Pass bar: see `docs/design/phase-3-globe-spike.md`.
 - Is sound in scope for launch, or a later polish?
 - Domain name and brand name.
-- Any daily "world mood" history, and if so how do we keep it anonymous?
+- ~~Any daily "world mood" history, and if so how do we keep it anonymous?~~ Hourly public totals only (ADR 0007).
 
 ---
 

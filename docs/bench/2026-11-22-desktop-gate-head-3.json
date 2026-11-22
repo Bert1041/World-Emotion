@@ -1,0 +1,230 @@
+[
+  {
+    "particles": 500,
+    "dragLod": "move",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "desktop",
+    "deviceLabel": "Apple M2 desktop · Chrome/157.0.8103.79 (NOT the gate device)",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 18.600000000000364,
+    "intervalP99": 18.700000000000728,
+    "scriptP50": 3.400000035762787,
+    "scriptP95": 3.900000035762787,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 3.199999988079071,
+    "fxP50": 0.19999998807907104,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "move",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.699999999999932,
+    "idleDetail": {
+      "frames": 119,
+      "scriptP50": 1,
+      "baseRedraws": 17,
+      "lods": ["move", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "move",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "desktop",
+    "deviceLabel": "Apple M2 desktop · Chrome/157.0.8103.79 (NOT the gate device)",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 18.399999999999636,
+    "intervalP99": 18.600000000000364,
+    "scriptP50": 5,
+    "scriptP95": 6.899999976158142,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 4.600000023841858,
+    "fxP50": 0.19999998807907104,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "move",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.700000000000045,
+    "idleDetail": {
+      "frames": 100,
+      "scriptP50": 0.5,
+      "baseRedraws": 17,
+      "lods": ["move", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 1,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "desktop",
+    "deviceLabel": "Apple M2 desktop · Chrome/157.0.8103.79 (NOT the gate device)",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 18.600000000000364,
+    "intervalP99": 18.700000000000728,
+    "scriptP50": 4.900000035762787,
+    "scriptP95": 5.600000023841858,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 4.800000011920929,
+    "fxP50": 0.10000002384185791,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "110m",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.699999999999818,
+    "idleDetail": {
+      "frames": 116,
+      "scriptP50": 0.6000000238418579,
+      "baseRedraws": 20,
+      "lods": ["110m", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  },
+  {
+    "particles": 500,
+    "dragLod": "110m",
+    "dpr": 2,
+    "hz": 60,
+    "throttle": 4,
+    "opt": "precision0,cull",
+    "repeat": 0,
+    "device": "desktop",
+    "deviceLabel": "Apple M2 desktop · Chrome/157.0.8103.79 (NOT the gate device)",
+    "frames": 601,
+    "intervalP50": 16.69999999999891,
+    "intervalP95": 18.400000000000546,
+    "intervalP99": 18.699999999999818,
+    "scriptP50": 11.199999988079071,
+    "scriptP95": 15.099999964237213,
+    "missed": 0,
+    "missedRatio": 0,
+    "baseP50": 10.800000011920929,
+    "fxP50": 0.19999998807907104,
+    "config": {
+      "bench": true,
+      "particles": 500,
+      "dragLod": "110m",
+      "moveKeep": 0.25,
+      "dprCap": 2,
+      "benchSeconds": 10,
+      "expectedHz": 60,
+      "opt": ["precision0", "cull"],
+      "debug": false,
+      "benchRipple": false,
+      "dev": false,
+      "autoCycle": false
+    },
+    "points": {
+      "move": 3653,
+      "110m": 10591
+    },
+    "idleIntervalP50": 16.700000000000045,
+    "idleDetail": {
+      "frames": 98,
+      "scriptP50": 0.5999999642372131,
+      "baseRedraws": 18,
+      "lods": ["110m", "50m"],
+      "rotatingFrames": 0
+    },
+    "thermalBefore": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    },
+    "thermalAfter": {
+      "status": 0,
+      "batteryC": null,
+      "waitedS": 0
+    }
+  }
+]
