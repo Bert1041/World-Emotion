@@ -6,6 +6,7 @@
 import { isKnownCountry } from "@world-emotion/geo-data";
 import { type CheckinResponse, checkinRequestSchema } from "@world-emotion/shared";
 import { Hono } from "hono";
+import { SNAPSHOT_CACHE_CONTROL, SNAPSHOT_KEY } from "./aggregate";
 import { readLimited } from "./body";
 import { saveVote } from "./db";
 import { ipKey, voterHash } from "./hash";
@@ -131,6 +132,25 @@ app.post("/checkin", async (c) => {
       { ...cors, "Retry-After": String(RETRY_AFTER_SECONDS) },
     );
   }
+});
+
+/**
+ * Local development only (SIMULATE=1): serve snapshot.json from R2, so the app on a laptop can
+ * poll it. In production this answers 404 and the CDN serves the file from R2 (README §3: the API
+ * has no read endpoints). Public data, so any origin may read it.
+ */
+app.get("/snapshot.json", async (c) => {
+  if (c.env.SIMULATE !== "1") return reply(404, { error: "not found" });
+  const obj = await c.env.SNAPSHOTS.get(SNAPSHOT_KEY);
+  if (obj === null)
+    return reply(404, { error: "no snapshot yet" }, { "Access-Control-Allow-Origin": "*" });
+  return new Response(obj.body, {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": SNAPSHOT_CACHE_CONTROL,
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 });
 
 app.all("/checkin", () => reply(405, { error: "method" }, { Allow: "POST, OPTIONS" }));

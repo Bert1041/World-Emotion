@@ -13,6 +13,7 @@ import {
   SNAPSHOT_KEY,
   STATE_KEY,
 } from "../src/aggregate";
+import { call } from "./helpers";
 
 /** 2001-09-09 02:00:00 UTC, the top of an hour. Each test takes its own day. */
 const H0 = 1_000_000_800;
@@ -212,5 +213,28 @@ describe("runAggregation", () => {
       expect(s.read, JSON.stringify(s)).toBeGreaterThanOrEqual(s.inWindow);
       expect(s.read, JSON.stringify(s)).toBeLessThanOrEqual(s.stored + 10);
     }
+  });
+});
+
+describe("GET /snapshot.json (local development only)", () => {
+  it("is served from R2 when SIMULATE=1, for the app on a laptop to poll", async () => {
+    const now = nextDay() + 5 * MIN;
+    await vote("CA", 1, now - MIN, 6);
+    await runAggregation(env, now);
+    const res = await call(null, { method: "GET", path: "/snapshot.json", env: { SIMULATE: "1" } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe(SNAPSHOT_CACHE_CONTROL);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const s = parseSnapshot(await res.json());
+    expect(s.ok && s.value.generatedAt).toBe(now);
+  });
+
+  it("is not served in production: the API has no read endpoints (the CDN serves the file)", async () => {
+    const now = nextDay() + 5 * MIN;
+    await vote("CA", 1, now - MIN, 6);
+    await runAggregation(env, now);
+    const res = await call(null, { method: "GET", path: "/snapshot.json" }); // SIMULATE "0"
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("generatedAt");
   });
 });

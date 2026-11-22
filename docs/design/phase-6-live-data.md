@@ -36,6 +36,7 @@ it on the server and a second `SnapshotSource` on the client. No maths changes.
 | Order | | State first, then snapshot. If the snapshot write fails, the next run rebuilds it from state; the reverse order could publish numbers the state never saw. |
 | Purge | `purgeExpired` (Phase 5) | **Hourly**, not every run: the measured index order makes the purge scan every row. |
 | Archive | ADR 0007 | A copy of the published snapshot at the top of the hour, so it holds published regions only by construction. A test feeds a region below the floor and checks it never reaches the archive. |
+| Local serving | `GET /snapshot.json` in the Worker, **only with `SIMULATE=1`** | On a laptop nothing else serves R2, so the app polls the Worker. In production it answers 404 and the CDN serves the file (the API keeps no read endpoints). **Deploy note:** the R2 bucket needs a CORS rule allowing `GET` from the app's origin, since the app fetches the file cross-origin. |
 | Guard | | A run that overlaps the previous one (slow D1) or comes early does nothing: `nextState` already ignores `now <= previous.generatedAt`. |
 
 **Budget per day at 5 min** (README §7, re-measured on real D1 if L1 allows): 288 runs × votes in window
