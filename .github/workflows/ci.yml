@@ -42,7 +42,8 @@ jobs:
     # run from 2026-11-10 to 2026-11-22 was cancelled at 15 min, all tests passing until then).
     name: e2e (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 20, not 15: the shard holding the live API tests took 12m47s on PR #14 (2026-11-22).
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
