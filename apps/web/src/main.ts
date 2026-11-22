@@ -235,6 +235,9 @@ const sampled = (f: Lod["countries"][number], random: () => number): LandPoints 
  * only while the browser says there is idle time left, so the cost of any one slice is one
  * country's (the slowest ~13 ms on a laptop), never a batch.
  */
+const SPREAD_SLICE_MS = 8;
+const SPREAD_FORCE_MS = 200;
+
 function spreadWeatherWhenIdle(countries: Lod["countries"]): void {
   const random = rng(7);
   const next: LandPoints[] = [];
@@ -249,9 +252,20 @@ function spreadWeatherWhenIdle(countries: Lod["countries"]): void {
       recomputeWeather();
     }
   };
+  // A page with no idle time (a slow device, every frame over budget) only ever gets the forced
+  // callback, and one country per forced call took 279 s to finish (no GPU, 4x CPU, 2026-11-22).
+  // So a forced call spends a fixed slice instead: at most ~SPREAD_SLICE_MS every
+  // SPREAD_FORCE_MS, and only until the spread is done.
   const schedule =
     "requestIdleCallback" in window
-      ? () => requestIdleCallback((d) => work(() => d.timeRemaining() > 4), { timeout: 1000 })
+      ? () =>
+          requestIdleCallback(
+            (d) => {
+              const end = performance.now() + SPREAD_SLICE_MS;
+              work(() => (d.didTimeout ? performance.now() < end : d.timeRemaining() > 4));
+            },
+            { timeout: SPREAD_FORCE_MS },
+          )
       : () => setTimeout(() => work(() => false), 16); // Safari: no requestIdleCallback
   schedule();
 }

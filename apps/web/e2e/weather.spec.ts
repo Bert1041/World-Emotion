@@ -73,7 +73,8 @@ test("every particle is anchored on land, before and after weather spreads", asy
   const offEarly = early.anchors.filter(([lon, lat]) => !onLand([lon, lat]));
   expect(offEarly, "before spreading (pin points)").toEqual([]);
 
-  await expect.poll(async () => (await weather()).spread, { timeout: 10_000 }).toBe(true);
+  // A busy CI runner can have little idle time; the bound itself is tested below.
+  await expect.poll(async () => (await weather()).spread, { timeout: 45_000 }).toBe(true);
   await page.waitForTimeout(4500); // every mood's particles live at most 7 s; most respawn by now
   const late = await weather();
   const distinctEarly = new Set(early.anchors.map(([a, b]) => `${a},${b}`)).size;
@@ -83,6 +84,38 @@ test("every particle is anchored on land, before and after weather spreads", asy
   );
   const offLate = late.anchors.filter(([lon, lat]) => !onLand([lon, lat]));
   expect(offLate, "after spreading").toEqual([]);
+});
+
+test("weather spreads within 45 s even on a page with no idle time at all", async ({
+  page,
+}, info) => {
+  // A slow device can have every frame over budget, so idle callbacks only ever run when forced.
+  // Spreading one country per forced call took 279 s (no GPU, 4x CPU, 2026-11-22). Here the page
+  // burns 20 ms of every frame, which leaves no idle time on any machine.
+  test.skip(!["phone-390", "laptop-1440"].includes(info.project.name), "behaviour, not layout");
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    const burn = () => {
+      const end = performance.now() + 20;
+      while (performance.now() < end) {
+        // busy
+      }
+      requestAnimationFrame(burn);
+    };
+    requestAnimationFrame(burn);
+  });
+  await page.goto("/?auto=0");
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  const t0 = Date.now();
+  await expect
+    .poll(
+      () => page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.weather().spread),
+      { timeout: 45_000, intervals: [500] },
+    )
+    .toBe(true);
+  console.log(
+    `${info.project.name}: spread ${((Date.now() - t0) / 1000).toFixed(1)} s after ready`,
+  );
 });
 
 test("soft halos fade out while a finger drags the globe, and come back on release", async ({
