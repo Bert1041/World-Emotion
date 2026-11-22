@@ -240,8 +240,14 @@ export type Alongside =
  * (the aggregator's estimate, the same one the card's bars show). Until the next aggregation run
  * counts your vote it reads one low; it never reads high and never below zero.
  */
-export function alongside(snapshot: Snapshot, country: string, mood: MoodId): Alongside {
-  const own = snapshot.countries[country];
+export function alongside(
+  snapshot: Snapshot,
+  country: string,
+  mood: MoodId,
+  /** The API counted this vote for the world only (README §5.6): compare with the world. */
+  worldOnly = false,
+): Alongside {
+  const own = worldOnly ? undefined : snapshot.countries[country];
   const region = own && own.n >= ALONGSIDE_MIN_N ? own : snapshot.world;
   if (region.n < ALONGSIDE_MIN_N) return { scope: "early", total: Math.max(1, snapshot.world.n) };
   const withYou = Math.round((region.dist[mood] ?? 0) * region.n);

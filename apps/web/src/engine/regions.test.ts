@@ -199,6 +199,15 @@ describe("alongside (the line under 'You feel …')", () => {
     });
     expect((calm as { others: number }).others).toBeGreaterThan(50);
   });
+  it("a vote the API counted for the world only: the world's numbers, even for a published country", () => {
+    const w = snapshot.world;
+    expect(snapshot.countries.FR, "fixture: FR is published").toBeDefined();
+    expect(alongside(snapshot, "FR", 1, true)).toEqual({
+      scope: "world",
+      others: Math.round((w.dist[1] ?? 0) * w.n) - 1,
+      feels: null,
+    });
+  });
   it("country below the privacy floor, or published but small: the world's numbers", () => {
     const w = snapshot.world;
     const expected = {

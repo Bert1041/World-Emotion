@@ -30,6 +30,19 @@ const countryName = $derived(
 const countryQuiet = $derived(
   view.checkin.country !== null && !view.checkin.published.includes(view.checkin.country),
 );
+/**
+ * The vote counts for the world only: after the API says so, or before a tap when the connection
+ * remembered on this device is in another country than your pin (decision L3).
+ */
+const worldOnly = $derived.by(() => {
+  const { counted, conn, country, mine } = view.checkin;
+  const after = counted === "world";
+  const before = mine === null && conn !== null && country !== null && conn !== country;
+  if (!after && !before) return null;
+  return conn === null
+    ? i18n.t.checkin.worldOnlyUnknown
+    : fill(i18n.t.checkin.worldOnly, { conn: i18n.country(conn) });
+});
 const smallCountry = $derived(
   fill(i18n.t.checkin.smallCountry, { n: i18n.fmt.n(DEFAULT_CONFIG.publishMinN) }),
 );
@@ -214,7 +227,11 @@ function choose(code: string): void {
   </div>
 
   {#if !placeFirst}{@render place()}{/if}
-  {#if countryQuiet && view.status === "ready"}
+  {#if worldOnly !== null && view.status === "ready"}
+    <!-- Where the vote counts (README §5.6, decision L3). Shown instead of the privacy-floor
+         notice: a world-only vote does not help the country reach the floor. -->
+    <div class="small-country world-only" id="checkin-world-only">{worldOnly}</div>
+  {:else if countryQuiet && view.status === "ready"}
     <div class="small-country">{smallCountry}</div>
   {/if}
 </section>

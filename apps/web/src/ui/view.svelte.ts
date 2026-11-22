@@ -78,6 +78,13 @@ export const view = $state({
     mine: null as MoodId | null,
     /** Who else feels it, from the snapshot (bridge R1); null before you check in. */
     result: null as Alongside | null,
+    /** Where your last check-in counted (the API's answer); null before the answer arrives. */
+    counted: null as "country" | "world" | null,
+    /**
+     * Your connection's country as the API last saw it, remembered on this device (decision L3),
+     * so the bar can say before a tap that a pick elsewhere counts for the world only.
+     */
+    conn: null as string | null,
     /**
      * Your last seven days, oldest first (bridge R2): each day's mood or null. Null until you
      * have checked in on two different days; kept on this device only.

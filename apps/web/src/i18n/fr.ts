@@ -106,6 +106,8 @@ export const fr: Messages = {
         : "Parmi les {count} premières humeurs partagées",
     countryFeels: "Ton pays ressent {mood}",
     smallCountry: "Il faut {n} réponses pour voir l’humeur de ton pays.",
+    worldOnly: "Compte pour le monde (connexion : {conn}).",
+    worldOnlyUnknown: "Compte pour le monde : on ne sait pas d’où tu te connectes.",
   },
 
   journal: {

@@ -11,6 +11,7 @@ import { geoArea, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
+import { loadConn, saveConn } from "./checkin/conn";
 import { addEntry, type JournalEntry, lastWeek, loadJournal, saveJournal } from "./checkin/journal";
 import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
@@ -93,7 +94,15 @@ mount(App, {
         view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
-        moment.checkIn(mood, from);
+        moment.checkIn(mood, from)?.then((o) => {
+          if (o === null) return; // kept on the device, sent with the next check-in
+          view.checkin.counted = o.counted;
+          if (o.conn !== view.checkin.conn) {
+            view.checkin.conn = o.conn;
+            saveConn(o.conn);
+          }
+          refreshResult();
+        });
         refreshResult();
         if (view.checkin.mine !== null && view.checkin.country !== null) {
           journal = addEntry(journal, { mood, at: new Date(), country: view.checkin.country });
@@ -291,7 +300,9 @@ function refreshResult(): void {
   const mine = view.checkin.mine;
   const country = view.checkin.country;
   view.checkin.result =
-    mine === null || country === null ? null : alongside(snapshot, country, mine);
+    mine === null || country === null
+      ? null
+      : alongside(snapshot, country, mine, view.checkin.counted === "world");
 }
 
 function renderPanel(): void {
@@ -380,6 +391,7 @@ view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()];
 // The bar's final layout from the first paint (bridge J2): both need storage only, not the map.
 view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
 moment.preview(navigator.languages);
+view.checkin.conn = loadConn(COUNTRY_TO_CONTINENT);
 
 const hitAt = (x: number, y: number) =>
   hitCountry(x, y, {

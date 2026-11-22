@@ -1,6 +1,6 @@
 import { MOOD_COUNT, type MoodId, type Snapshot } from "@world-emotion/shared";
 import { SnapshotSim } from "../demo/snapshot-sim";
-import type { DemoControls, SnapshotSource } from "./snapshot-source";
+import type { CheckinOutcome, DemoControls, SnapshotSource } from "./snapshot-source";
 
 export interface DemoOptions {
   /** One aggregation run every this many ms (the real pipeline: 5 min; the demo: 2 s). */
@@ -69,8 +69,10 @@ export class DemoSource implements SnapshotSource {
     return this.aggregate();
   }
 
-  checkIn(country: string, mood: MoodId): void {
+  /** The demo has no connection to compare with: every check-in counts for its country. */
+  checkIn(country: string, mood: MoodId): Promise<CheckinOutcome> {
     this.sim.checkIn(country, mood);
+    return Promise.resolve({ counted: "country", conn: country });
   }
 
   aggregate(): Snapshot {
