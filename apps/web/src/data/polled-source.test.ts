@@ -4,7 +4,7 @@
  */
 import { buildSnapshot } from "@world-emotion/core";
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
-import type { Snapshot } from "@world-emotion/shared";
+import { checkinRequestSchema, type Snapshot } from "@world-emotion/shared";
 import { describe, expect, it } from "vitest";
 import {
   DEVICE_KEY,
@@ -204,6 +204,64 @@ describe("PolledSource: check-ins", () => {
     await src.checkIn("NG", 1);
     await src.checkIn("NG", 5);
     expect(JSON.parse(storage.getItem(PENDING_KEY) ?? "{}").mood).toBe(5);
+  });
+});
+
+describe("PolledSource: a kept check-in expires with its window", () => {
+  // Found 2026-11-23 while planning Phase 7: the kept check-in had no time, so a phone offline
+  // overnight sent yesterday's mood in the morning and the server counted it for 6 more hours.
+  const HOUR = 3_600_000;
+  const WINDOW = 6 * HOUR;
+  const answer = { counted: "country", conn: "NG", replay: false };
+  const offline = new TypeError("Failed to fetch");
+
+  /** Check in while offline at `t0`; return the storage holding the kept check-in. */
+  async function keptAt(t0: number) {
+    const { src, storage } = source([offline, offline], { clock: () => t0 });
+    await src.checkIn("NG", 2);
+    return storage;
+  }
+
+  it("the time stays on the device: what is sent passes the API's strict schema", async () => {
+    const { src, calls, storage } = source([offline, offline, json(answer)], { clock: () => 0 });
+    await src.checkIn("NG", 2);
+    expect(JSON.parse(storage.getItem(PENDING_KEY) ?? "{}").at, "kept with its time").toBe(0);
+    await src.resendPending();
+    for (const c of calls) {
+      const body = JSON.parse(String(c.init?.body));
+      expect(checkinRequestSchema.safeParse(body).success, JSON.stringify(body)).toBe(true);
+    }
+  });
+
+  it("still inside its window: sent", async () => {
+    const storage = await keptAt(0);
+    const later = source([json(answer)], { storage, clock: () => WINDOW - 1 });
+    expect(later.src.hasPending).toBe(true);
+    expect(await later.src.resendPending()).toEqual({ counted: "country", conn: "NG" });
+    expect(later.calls).toHaveLength(1);
+  });
+
+  it("its window over (the phone was offline all night): dropped, never sent", async () => {
+    const storage = await keptAt(0);
+    const morning = source([json(answer)], { storage, clock: () => WINDOW });
+    expect(morning.src.hasPending, "no unsent notice for it").toBe(false);
+    expect(await morning.src.resendPending()).toBeNull();
+    expect(morning.calls, "nothing sent").toHaveLength(0);
+    expect(storage.getItem(PENDING_KEY), "and forgotten").toBeNull();
+  });
+
+  it("kept by the previous version without a time, or dated in the future: dropped", async () => {
+    for (const kept of [
+      { mood: 2, country: "NG", checkinId: crypto.randomUUID() },
+      { mood: 2, country: "NG", checkinId: crypto.randomUUID(), at: 10 * HOUR },
+    ]) {
+      const storage = new MemoryStorage() as unknown as Storage;
+      storage.setItem(PENDING_KEY, JSON.stringify(kept));
+      const s = source([json(answer)], { storage, clock: () => 5 * HOUR });
+      expect(await s.src.resendPending(), JSON.stringify(kept)).toBeNull();
+      expect(s.calls).toHaveLength(0);
+      expect(storage.getItem(PENDING_KEY)).toBeNull();
+    }
   });
 });
 

@@ -3,6 +3,7 @@ import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
 import {
   type CheckinRequest,
   checkinResponseSchema,
+  DEFAULT_CONFIG,
   type MoodId,
   parseSnapshot,
   type Snapshot,
@@ -28,9 +29,18 @@ export interface PolledOptions {
   readonly jitterMs?: number;
   /** After failures the wait doubles from `intervalMs`, up to this. */
   readonly maxBackoffMs?: number;
+  /** Wall clock, ms (tests). */
+  readonly clock?: () => number;
+  /** How long a check-in counts (README §5.2); a kept one older than this is never sent. */
+  readonly windowMs?: number;
 }
 
-type Pending = Pick<CheckinRequest, "mood" | "country" | "checkinId">;
+/**
+ * A check-in kept on the device until the API answers. `at` is when it was made, on this device's
+ * clock, and never leaves the device (the API's request schema is strict, and the server trusts
+ * only its own clock): it only decides whether the check-in may still be sent.
+ */
+type Pending = Pick<CheckinRequest, "mood" | "country" | "checkinId"> & { at: number };
 
 /**
  * Real data (docs/design/phase-6-live-data.md §3): polls `snapshot.json` and sends check-ins to the
@@ -54,6 +64,8 @@ export class PolledSource implements SnapshotSource {
       intervalMs: 45_000,
       jitterMs: 15_000,
       maxBackoffMs: 300_000,
+      clock: Date.now,
+      windowMs: DEFAULT_CONFIG.windowSeconds * 1000,
       ...opts,
     };
     this.snapshot = this.cached() ?? emptyWorld();
@@ -80,14 +92,14 @@ export class PolledSource implements SnapshotSource {
   }
 
   async checkIn(country: string, mood: MoodId): Promise<CheckinOutcome | null> {
-    const pending: Pending = { mood, country, checkinId: crypto.randomUUID() };
+    const pending: Pending = { mood, country, checkinId: crypto.randomUUID(), at: this.o.clock() };
     // Kept until the API answers: only the latest check-in is ever kept (README G7).
     this.write(PENDING_KEY, JSON.stringify(pending));
     return this.send(pending);
   }
 
   get hasPending(): boolean {
-    return this.read(PENDING_KEY) !== null;
+    return this.kept() !== null;
   }
 
   /**
@@ -95,13 +107,32 @@ export class PolledSource implements SnapshotSource {
    * calls this at start, when the browser comes back online, and every minute while one waits.
    */
   async resendPending(): Promise<CheckinOutcome | null> {
+    const p = this.kept();
+    return p === null ? null : this.send(p);
+  }
+
+  /**
+   * The kept check-in, if it may still be sent; anything else is dropped. A phone offline overnight
+   * must not send yesterday's mood in the morning: the server would stamp it with its own clock
+   * and count it for another full window, while the app (which forgets it on the same clock,
+   * checkin/current.ts) already asks for a mood again. Dropped too: a check-in kept by an older
+   * version without its time (age unknown), and one dated in the future (the clock was moved).
+   */
+  private kept(): Pending | null {
     const raw = this.read(PENDING_KEY);
     if (raw === null) return null;
     try {
-      const p = JSON.parse(raw) as Pending;
-      if (typeof p.checkinId === "string" && typeof p.mood === "number") return this.send(p);
+      const p = JSON.parse(raw) as Partial<Pending>;
+      const age = this.o.clock() - (p.at ?? Number.NaN);
+      if (
+        typeof p.checkinId === "string" &&
+        typeof p.mood === "number" &&
+        age >= 0 &&
+        age < this.o.windowMs
+      )
+        return p as Pending;
     } catch {
-      // corrupt: drop it below
+      // corrupt: dropped below
     }
     this.remove(PENDING_KEY);
     return null;
@@ -109,7 +140,8 @@ export class PolledSource implements SnapshotSource {
 
   /** One retry on a network error; never on an answer (a 4xx will not change on retry). */
   private async send(p: Pending): Promise<CheckinOutcome | null> {
-    const body: CheckinRequest = { ...p, deviceKey: this.deviceKey() };
+    const { mood, country, checkinId } = p;
+    const body: CheckinRequest = { mood, country, checkinId, deviceKey: this.deviceKey() };
     for (let attempt = 0; attempt < 2; attempt++) {
       let res: Response;
       try {

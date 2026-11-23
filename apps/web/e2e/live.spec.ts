@@ -267,6 +267,43 @@ test("a check-in that cannot be delivered says so, and goes out when the connect
   expect((await served(request)).world.n, "counted once").toBe(before.world.n + 1);
 });
 
+test("a kept check-in older than its window is never sent", async ({ page, request }, info) => {
+  // Found 2026-11-23: the kept check-in had no time, so a phone offline overnight sent
+  // yesterday's mood in the morning and the server counted it for another 6 hours.
+  one(info.project.name);
+  const before = await served(request);
+  await open(page);
+  await page.route(`${API}/checkin`, (route) =>
+    route.request().method() === "POST" ? route.abort("internetdisconnected") : route.continue(),
+  );
+  await page.locator('#checkin .face[data-mood="angry"]').click();
+  await expect(page.locator("#checkin-unsent")).toBeVisible();
+
+  // Seven hours pass offline (both the kept check-in and the remembered mood are that old).
+  await page.evaluate(() => {
+    const ago = Date.now() - 7 * 3_600_000;
+    const kept = JSON.parse(localStorage.getItem("we.pendingCheckin") ?? "{}");
+    localStorage.setItem("we.pendingCheckin", JSON.stringify({ ...kept, at: ago }));
+    localStorage.setItem("we.current", JSON.stringify({ mood: 5, at: ago }));
+  });
+  await page.unroute(`${API}/checkin`);
+  const posts: string[] = [];
+  page.on("request", (r) => {
+    if (r.url() === `${API}/checkin` && r.method() === "POST") posts.push(r.url());
+  });
+  await page.reload();
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  await page.evaluate(() => dispatchEvent(new Event("online")));
+  await page.waitForTimeout(1500);
+
+  expect(posts, "nothing sent").toHaveLength(0);
+  expect(await page.evaluate(() => localStorage.getItem("we.pendingCheckin"))).toBeNull();
+  await expect(page.locator("#checkin-unsent")).toHaveCount(0);
+  await expect(page.locator("#checkin")).toHaveAttribute("data-mode", "faces");
+  await cron(request);
+  expect((await served(request)).world.n, "not counted").toBe(before.world.n);
+});
+
 test("the count includes you even when you tap before the first snapshot has loaded", async ({
   page,
   request,
