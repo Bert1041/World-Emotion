@@ -30,6 +30,11 @@ export interface Config {
   readonly demoStepMs: number;
   /** Real data (Phase 6): where to poll the snapshot and send check-ins; null means the demo. */
   readonly live: LiveEndpoints | null;
+  /**
+   * Phase 6.5 prototype (docs/design/phase-6.5-motion-sound.md, D1): `?look=next` shows the new
+   * motion and the sound button; anything else is today's app. Bench runs may compare both.
+   */
+  readonly look: "now" | "next";
 }
 
 export interface LiveEndpoints {
@@ -101,5 +106,6 @@ export function readConfig(
         : undefined,
     demoStepMs: Math.max(100, num("step", 2000)),
     live: liveEndpoints(params, bench, ctx),
+    look: params.get("look") === "next" ? "next" : "now",
   };
 }

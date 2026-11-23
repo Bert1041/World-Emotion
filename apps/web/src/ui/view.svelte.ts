@@ -101,6 +101,10 @@ export const view = $state({
     picking: false,
   },
   flight: null as Flight | null,
+  /** Phase 6.5 prototype (`?look=next`): the new motion and the sound button. */
+  look: false,
+  /** Music on (Phase 6.5, S3). */
+  sound: false,
 });
 
 export interface UiActions {
@@ -119,4 +123,6 @@ export interface UiActions {
   clearJournal(): void;
   /** The region card finished moving (peek ↔ open): re-measure and re-fit the map. */
   cardMoved(): void;
+  /** The music button (a user gesture: audio may start). */
+  toggleSound(): void;
 }

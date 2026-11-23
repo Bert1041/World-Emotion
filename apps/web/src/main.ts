@@ -1,5 +1,5 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
-import { DURATION, hexToOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
+import { DURATION, hexToOklab, mixOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
 import {
   type Continent,
   DEFAULT_CONFIG,
@@ -7,8 +7,9 @@ import {
   type MoodId,
   type Snapshot,
 } from "@world-emotion/shared";
-import { geoArea, geoOrthographic, geoPath } from "d3-geo";
+import { geoArea, geoDistance, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
+import { Sound } from "./audio/sound";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
 import { loadConn, saveConn } from "./checkin/conn";
@@ -20,8 +21,10 @@ import { DemoSource } from "./data/demo-source";
 import { PolledSource } from "./data/polled-source";
 import type { CheckinOutcome, SnapshotSource } from "./data/snapshot-source";
 import { DOCK_RIGHT_QUERY, REDUCED_MOTION_QUERY, SIDE_CARD_QUERY } from "./engine/breakpoints";
+import { Burst, FLASH_END, flashAmount } from "./engine/burst";
 import { Camera, STRETCH_COMMIT } from "./engine/camera";
 import { FillTween } from "./engine/fill-tween";
+import { FillWave, waveDelays } from "./engine/fill-wave";
 import { LayoutFit } from "./engine/fit";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
@@ -40,6 +43,7 @@ import {
   weatherSpawns,
   worldHeadline,
 } from "./engine/regions";
+import { Space } from "./engine/space";
 import { ThemeMixer } from "./engine/themes";
 import { i18n } from "./i18n/i18n.svelte";
 import App from "./ui/App.svelte";
@@ -58,6 +62,12 @@ const config = readConfig(new URLSearchParams(location.search), {
   env: import.meta.env,
 });
 const reducedMotion = matchMedia(REDUCED_MOTION_QUERY).matches;
+/** Phase 6.5 prototype: `?look=next` (docs/design/phase-6.5-motion-sound.md). */
+const look = config.look === "next";
+view.look = look;
+if (look) document.body.classList.add("look-next");
+const sound = look ? new Sound((on) => (view.sound = on)) : null;
+view.sound = sound?.on ?? false;
 
 // ---- Data source (src/data) -------------------------------------------------------------------
 // Real data when the build (or a local ?live=) names the endpoints; otherwise the demo: one
@@ -80,7 +90,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const baseCanvas = $<HTMLCanvasElement>("base");
 const fxCanvas = $<HTMLCanvasElement>("fx");
 const perf = $("perf");
-const baseCtx = baseCanvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
+// The new look clears the sky so the stars behind show through (the canvas needs alpha then).
+const baseCtx = baseCanvas.getContext("2d", { alpha: look }) as CanvasRenderingContext2D;
 const fxCtx = fxCanvas.getContext("2d") as CanvasRenderingContext2D;
 /**
  * Layout callbacks from the UI are ignored until start() has measured once: a component may
@@ -133,6 +144,7 @@ mount(App, {
       cardMoved: () => {
         if (layoutReady) refitToCard();
       },
+      toggleSound: () => sound?.toggle(),
     },
   },
 });
@@ -195,6 +207,11 @@ let headline = worldHeadline(snapshot, QUIET_WORLD_BELOW);
 const mixer = new ThemeMixer(headline.theme, 2.5);
 const moodLab = MOOD_COLORS.map(hexToOklab);
 let fills = new Map<string, string>();
+// ---- Phase 6.5 prototype (?look=next): arrival wave, landing flash and burst, space ---------
+let wave: FillWave | null = null;
+let flash: { code: string; lab: ReturnType<typeof hexToOklab>; t: number } | null = null;
+const burst = new Burst(rng(5));
+const space = look ? new Space($("space"), { reducedMotion, rng: rng(11) }) : null;
 let colorVersion = 0;
 let focus: Continent | null = null;
 let selected: string | null = null;
@@ -210,8 +227,14 @@ const fillTarget = (s: Snapshot) =>
 
 function recomputeFills(): void {
   fills = new Map();
-  for (const [code, lab] of fillTween.colours(fillTarget(snapshot)))
-    fills.set(code, oklabToCss(lab));
+  let labs = fillTween.colours(fillTarget(snapshot));
+  if (wave !== null) labs = wave.colours(labs);
+  if (flash !== null) {
+    const k = flashAmount(flash.t);
+    const was = labs.get(flash.code);
+    if (was !== undefined) labs.set(flash.code, mixOklab(was, flash.lab, 0.85 * k));
+  }
+  for (const [code, lab] of labs) fills.set(code, oklabToCss(lab));
   colorVersion++;
   dirty = true;
 }
@@ -279,6 +302,7 @@ function onSnapshot(next: Snapshot): void {
   retheme();
   view.worldQuiet = headline.quiet;
   view.worldMood = headline.mood;
+  sound?.setMood(headline.quiet ? null : headline.mood);
   view.checkin.published = Object.keys(next.countries);
   refreshJournal(); // the window moves at midnight while the page stays open
   refreshResult();
@@ -440,6 +464,17 @@ const moment = new CheckInMoment({
   worldShown: () => worldShown(),
   invalidate,
   touched,
+  ...(look
+    ? {
+        softRings: true,
+        impact: (code: string, center: readonly [number, number], mood: MoodId) => {
+          const color = MOOD_COLORS[mood] ?? "#fff";
+          flash = { code, lab: hexToOklab(color), t: 0 };
+          burst.fire(center, color);
+          sound?.chime();
+        },
+      }
+    : {}),
 });
 // Codes only: the check-in bar names and sorts them in the active language.
 view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()];
@@ -569,7 +604,16 @@ function frame(ts: number): void {
   // Keyed on "was easing before this step", so the frame the tween ends still draws its target.
   const fillsEasing = fillTween.tweening;
   fillTween.step(dt);
-  if (themeChanging || fillsEasing) recomputeFills();
+  const lookEasing = wave !== null || flash !== null;
+  if (wave !== null) {
+    wave.step(dt);
+    if (!wave.running) wave = null;
+  }
+  if (flash !== null) {
+    flash.t += dt;
+    if (flash.t >= FLASH_END) flash = null;
+  }
+  if (themeChanging || fillsEasing || lookEasing) recomputeFills();
   if (themeChanging) applyTheme();
 
   const anchorEasing = fit.ease(dt);
@@ -581,7 +625,7 @@ function frame(ts: number): void {
   // points) is drawn once, when everything has settled. Before this, the theme cross-fade and
   // layout easing redrew 50m every frame: 7–8 full redraws in a 2 s "idle" window, 531 ms
   // frames at 4× on the Pixel (2026-11-07 gate run).
-  const animating = moving || anchorEasing || themeChanging || fillsEasing;
+  const animating = moving || anchorEasing || themeChanging || fillsEasing || lookEasing;
   if (wasAnimating && !animating) dirty = true; // settle: one detailed redraw
   wasAnimating = animating;
   // Zoomed into a continent the simplified outline is visibly crude, and culling already skips
@@ -602,6 +646,7 @@ function frame(ts: number): void {
         borders: !(moving && config.opt.has("noborders")),
         viewCenter: camera.view.center,
         ...(showNight ? { night: sun } : {}),
+        ...(look ? { clearSky: true } : {}),
       },
       {
         skyInner: th.skyInner,
@@ -642,6 +687,18 @@ function frame(ts: number): void {
     particles.draw(fxCtx, [rl, rp], cx, cy, r, MOOD_COLORS, dpr, haloAmount);
   }
   moment.draw(dt);
+  if (burst.active) {
+    burst.update(dt);
+    const at = projection(burst.anchor as [number, number]);
+    if (at && geoDistance(burst.anchor as [number, number], camera.rendered.center) < Math.PI / 2)
+      burst.draw(fxCtx, at, dpr);
+  }
+  if (space !== null) {
+    const [rl, rp] = projection.rotate();
+    space.follow([rl, rp]);
+    const th = mixer.current.css;
+    space.sky(th.skyInner, th.skyOuter, cx / dpr, cy / dpr);
+  }
 
   const tEnd = performance.now();
   const script = tEnd - t0;
@@ -663,6 +720,34 @@ function frame(ts: number): void {
   requestAnimationFrame(frame);
 }
 
+/**
+ * The arrival (Phase 6.5, V5): the Earth swings in to face your pin while the countries take on
+ * their moods in a wave from you, and the header and the bar fade up in turn (CSS, body.arriving).
+ * Any touch or key ends it at once.
+ */
+function arrive(pins: ReadonlyMap<string, [number, number]>): void {
+  const home: [number, number] = moment.pin?.lonLat ?? [10, 20];
+  document.body.classList.add("arriving");
+  camera.view = { center: [home[0] + 80, Math.max(-60, Math.min(60, home[1] - 12))], zoom: 1 };
+  const delays = new Map([...waveDelays(home, pins, 1.3)].map(([c, d]) => [c, 0.35 + d]));
+  wave = new FillWave(mixer.current.lab.land, delays, 0.8);
+  const done = () => {
+    removeEventListener("pointerdown", done, true);
+    removeEventListener("keydown", done, true);
+    wave?.finish();
+    document.body.classList.remove("arriving");
+  };
+  addEventListener("pointerdown", done, true);
+  addEventListener("keydown", done, true);
+  // Two frames: the hidden state is painted first, so the CSS transitions run from it.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      document.body.classList.remove("arriving");
+      camera.glideTo({ center: home, zoom: 1 }, 2.2);
+    }),
+  );
+}
+
 // ---- Startup ----------------------------------------------------------------------------------
 async function start(): Promise<void> {
   const [m, a, b] = await Promise.all([
@@ -677,6 +762,8 @@ async function start(): Promise<void> {
   // Open facing your pin (decision B2): "you are here" is on screen before any tap, so a wrong
   // guess is obvious. Bench runs keep the fixed start pose so frames compare across runs.
   if (moment.pin !== null && !config.bench) camera.view = { center: moment.pin.lonLat, zoom: 1 };
+  if (space !== null) void space.build(dpr);
+  if (look && !reducedMotion && !config.bench) arrive(pins);
   // Weather starts at each country's pin point (always inside it) and spreads over the land in
   // idle time: sampling every country takes ~0.25 s on a laptop, too long to hold the first paint.
   // Bench runs sample up front, so every frame they measure has the same weather.

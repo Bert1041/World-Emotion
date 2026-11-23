@@ -210,9 +210,75 @@
         header { transition: opacity var(--base); }
         body.zoomed header { transform: none; }
       }
+
+      /* ---- Phase 6.5 prototype (?look=next): space, arrival, check-in. Off unless body.look-next. */
+      #space { display: none; }
+      body.look-next #space { display: block; position: fixed; inset: 0; overflow: hidden; pointer-events: none;
+        --sky-inner: #0b1622; --sky-outer: #020306; --gx: 50%; --gy: 45%;
+        opacity: 0; transition: opacity 1.6s ease-out; }
+      body.look-next #space[data-ready] { opacity: 1; }
+      body.look-next.arriving #space { opacity: 0; transition: none; }
+      #space .sky { position: absolute; inset: 0;
+        background: radial-gradient(circle at var(--gx) var(--gy), var(--sky-inner), var(--sky-outer) 75%); }
+      #space .stars { position: absolute; left: 0; top: 0; width: calc(100% + 1024px); height: calc(100% + 1024px);
+        background-repeat: repeat; background-size: 512px 512px; will-change: transform; }
+      #space .stars:nth-of-type(2) { animation: twinkle 7s ease-in-out infinite alternate; }
+      #space .stars:nth-of-type(3) { animation: twinkle 5s ease-in-out -2s infinite alternate; }
+      @keyframes twinkle { from { opacity: 1; } to { opacity: 0.55; } }
+      #space .nebula { position: absolute; inset: -20%; opacity: 0.9; mix-blend-mode: screen;
+        background:
+          radial-gradient(ellipse 45% 30% at 22% 28%, color-mix(in oklab, var(--accent) 30%, transparent), transparent 70%),
+          radial-gradient(ellipse 40% 35% at 80% 72%, color-mix(in oklab, var(--accent) 20%, transparent), transparent 70%),
+          radial-gradient(ellipse 32% 24% at 72% 18%, rgba(150, 110, 255, 0.16), transparent 70%),
+          radial-gradient(ellipse 28% 20% at 15% 80%, rgba(255, 140, 120, 0.08), transparent 70%);
+        animation: nebula 140s ease-in-out infinite alternate; }
+      @keyframes nebula { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(2%, 1.5%, 0) scale(1.06); } }
+      #space .meteor { position: absolute; width: 140px; height: 1.5px; opacity: 0; transform: rotate(-28deg);
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9)); border-radius: 1px; }
+      #space .meteor.go { animation: meteor 1.1s ease-out forwards; }
+      @keyframes meteor { 0% { opacity: 0; translate: 0 0; } 15% { opacity: 1; } 100% { opacity: 0; translate: 380px -200px; } }
+      body.look-next { background: #020306; }
+
+      /* Arrival (V5): the header's lines and the bar fade up in turn as the Earth swings in. */
+      /* biome-ignore lint/style/noDescendingSpecificity: prototype overrides, scoped to body.look-next */
+      body.look-next header > * { transition: opacity 0.7s ease-out, translate 0.7s cubic-bezier(.2, .8, .2, 1); }
+      body.look-next header > .kicker { transition-delay: 0.5s; }
+      body.look-next header > h1 { transition-delay: 0.8s; }
+      body.look-next header > #world-count { transition-delay: 1.1s; }
+      /* biome-ignore lint/style/noDescendingSpecificity: prototype overrides, scoped to body.look-next */
+      body.look-next.arriving header > * { opacity: 0; translate: 0 0.6rem; transition: none; }
+      body.look-next #checkin { transition: opacity 0.8s ease-out 1.3s; }
+      body.look-next.arriving #checkin { opacity: 0; transition: none; }
+      body.look-next #checkin .face { transition: scale 0.5s cubic-bezier(.2, .8, .2, 1); }
+      body.look-next #checkin .face:nth-child(1) { transition-delay: 1.4s; }
+      body.look-next #checkin .face:nth-child(2) { transition-delay: 1.47s; }
+      body.look-next #checkin .face:nth-child(3) { transition-delay: 1.54s; }
+      body.look-next #checkin .face:nth-child(4) { transition-delay: 1.61s; }
+      body.look-next #checkin .face:nth-child(5) { transition-delay: 1.68s; }
+      body.look-next #checkin .face:nth-child(6) { transition-delay: 1.75s; }
+      body.look-next.arriving #checkin .face { scale: 0.4; transition: none; }
+
+      /* Check-in (V6): the count glows as it goes up; the result line comes in after the landing. */
+      body.look-next .count { transition: text-shadow 0.9s ease-out, color 0.9s ease-out; }
+      body.look-next .count.bump { color: #fff; text-shadow: 0 0 0.6rem var(--accent), 0 0 1.4rem var(--accent); transition-duration: 0.15s; }
+      body.look-next #checkin .chip:not(.off) #checkin-result { animation: rise 0.6s cubic-bezier(.2, .8, .2, 1) 1.1s both; }
+      @keyframes rise { from { opacity: 0; translate: 0 0.5rem; } to { opacity: 1; translate: 0 0; } }
+
+      /* The music button (S3), mirrored from the language button. */
+      #sound { position: fixed; top: max(var(--gap), env(safe-area-inset-top)); left: max(var(--gap), env(safe-area-inset-left)); z-index: 3;
+        display: grid; place-items: center; width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2); background: var(--glass); color: var(--muted); cursor: pointer; }
+      #sound[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in oklab, var(--accent) 60%, transparent); }
+      #sound:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      @media (prefers-reduced-motion: reduce) {
+        body.look-next.arriving header > *, body.look-next.arriving #checkin, body.look-next.arriving #checkin .face { opacity: 1; translate: none; scale: none; }
+        #space .stars, #space .nebula { animation: none; }
+      }
     </style>
   </head>
   <body>
+    <!-- Phase 6.5 prototype (?look=next): space behind the globe. Decorative. -->
+    <div id="space" aria-hidden="true"><div class="sky"></div><div class="nebula"></div><div class="stars"></div><div class="stars"></div><div class="stars"></div><div class="meteor"></div></div>
     <div id="stage"><canvas id="base"></canvas><canvas id="fx" aria-label="Globe showing how the world feels. Tap a country to explore its continent."></canvas></div>
     <div id="scanlines" class="overlay"></div>
     <div id="frost" class="overlay"></div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 import { DURATION, easeInOutCubic, FixedStep, SPRING, Spring } from "@world-emotion/motion";
 import Face from "./Face.svelte";
-import { type Flight, type UiActions } from "./view.svelte";
+import { type Flight, type UiActions, view } from "./view.svelte";
 
 /**
  * The check-in face (README §8.2.5): pops on a bouncy spring where you tapped it, then arcs onto
@@ -13,6 +13,9 @@ const POP = 0.35; // seconds of pop before it leaves
 let x = $state(0);
 let y = $state(0);
 let scale = $state(1);
+/** The new look (Phase 6.5, V6): a little squash and stretch. */
+let sx = $state(1);
+let sy = $state(1);
 
 $effect(() => {
   const f = flight;
@@ -31,13 +34,23 @@ $effect(() => {
     stepper.advance(dt, (h) => spring.step(h));
     if (t < POP) {
       scale = spring.value * 1.15;
+      // Squash against the spring's overshoot: wider as it rebounds, taller as it rises.
+      const v = Math.max(-1, Math.min(1, spring.velocity / 8));
+      sx = 1 - 0.12 * v;
+      sy = 1 + 0.12 * v;
     } else {
       const p = Math.min(1, (t - POP) / DURATION.flight);
       const e = easeInOutCubic(p);
       x = f.from.x + (f.to.x - f.from.x) * e;
       // An arc: rises first, then drops onto the country.
       y = f.from.y + (f.to.y - f.from.y) * e - Math.sin(Math.PI * e) * 120;
-      scale = 1.15 * (1 - 0.6 * e);
+      if (view.look) {
+        // Keeps its size until the last stretch, and stretches along its path in mid-flight.
+        scale = 1.15 * (1 - 0.35 * e ** 3);
+        const s = Math.sin(Math.PI * e);
+        sx = 1 - 0.1 * s;
+        sy = 1 + 0.14 * s;
+      } else scale = 1.15 * (1 - 0.6 * e);
       if (p >= 1) {
         actions.landed(f.id);
         return;
@@ -50,6 +63,6 @@ $effect(() => {
 });
 </script>
 
-<div class="flight" aria-hidden="true" style:translate="{x}px {y}px" style:scale={scale}>
+<div class="flight" aria-hidden="true" style:translate="{x}px {y}px" style:scale={view.look ? `${scale * sx} ${scale * sy}` : scale}>
   <Face mood={flight.mood} size={44} />
 </div>

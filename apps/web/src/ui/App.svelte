@@ -8,6 +8,7 @@ import Counter from "./Counter.svelte";
 import Flight from "./Flight.svelte";
 import LanguageMenu from "./LanguageMenu.svelte";
 import Panel from "./Panel.svelte";
+import SoundButton from "./SoundButton.svelte";
 import { type UiActions, view } from "./view.svelte";
 
 let { actions }: { actions: UiActions } = $props();
@@ -62,6 +63,7 @@ const feeling = $derived(
 {/if}
 
 <LanguageMenu />
+{#if view.look}<SoundButton {actions} />{/if}
 
 <button id="back" type="button" hidden={!view.zoomed} onclick={() => actions.back()}>{i18n.t.back}</button>
 {#if view.hint === "tapCountry"}
