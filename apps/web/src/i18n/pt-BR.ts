@@ -29,6 +29,7 @@ export const ptBR: Messages = {
   updatedAgo: "Atualizado há {count} min",
   quietCount: (n) => (n === 1 ? "{count} resposta até agora" : "{count} respostas até agora"),
   back: "← Mundo",
+  music: "Música",
 
   moods: {
     label: ["alegria", "calma", "empolgação", "estresse", "tristeza", "raiva"],

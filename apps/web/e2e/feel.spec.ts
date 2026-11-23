@@ -34,6 +34,12 @@ const controls = (page: Page) =>
           getComputedStyle(el).visibility !== "hidden"
         );
       })
+      // An open menu's own items first: pressing anything outside it closes it (the music
+      // button, before the language button in page order since Phase 6.5).
+      .sort(
+        (a, b) =>
+          Number(a.closest("#lang-menu") === null) - Number(b.closest("#lang-menu") === null),
+      )
       .map((el, i) => {
         el.setAttribute("data-probe", String(i));
         return `${el.id ? `#${el.id}` : el.className || el.tagName}|${i}`;

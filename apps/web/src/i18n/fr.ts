@@ -35,6 +35,7 @@ export const fr: Messages = {
       ? "{count} humeur partagée pour l’instant"
       : "{count} humeurs partagées pour l’instant",
   back: "← Monde",
+  music: "Musique",
 
   moods: {
     label: ["joie", "calme", "enthousiasme", "stress", "tristesse", "colère"],

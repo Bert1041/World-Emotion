@@ -2,7 +2,7 @@
 
 Companion to `README.md` (the spec). The README says **what** and **why**; this file says **in what order, how we know a phase is done, and what is still undecided**.
 
-Status: **Phase 6 complete on branch `phase-6/live-data`, awaiting PR review.** Phases 0–5.5 merged. A test deployment runs on the free plan without a domain; launch is gated on the domain and ADR 0008.
+Status: **Phases 0–6 merged (Phase 6 = PR #14, 2026-11-23). Phase 6.5 (motion and sound) approved and starting: prototype first. Phase 7 design drafted (decisions pending).** A test deployment runs on the free plan without a domain; launch is gated on the domain and ADR 0008.
 
 Previous status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
 
@@ -66,7 +66,7 @@ These come from reading the README closely. Each one would ship as a defect if b
 
 **Phase 3 device:** Pixel 6 Pro, the only reference device (ADR 0004, low-end risk accepted).
 
-**Can wait:** sound (recommend: post-launch), domain/brand (needed before Phase 6 for the CDN), daily history (decided 2026-11-10, ADR 0007: hourly public totals archived from Phase 6; nothing displayed until there is real data).
+**Can wait:** ~~sound (recommend: post-launch)~~ (in scope from Phase 6.5, decided 2026-11-23), domain/brand (needed before Phase 6 for the CDN), daily history (decided 2026-11-10, ADR 0007: hourly public totals archived from Phase 6; nothing displayed until there is real data).
 
 ---
 
@@ -162,6 +162,13 @@ first check-in, launch gate (Phase 8); a named launch community and cold-start c
 **Exit criteria:** end-to-end locally: simulator → D1 → aggregator → R2 → app shows tween. Rows read per run measured against the G2 budget. Client keeps the last good snapshot on a bad version/500 (verified in a browser).
 **Design:** `docs/design/phase-6-live-data.md` (approved 2026-11-22, L1–L4). Domain and Cloudflare account at the end of the phase (L1); everything before that is local.
 **Done (2026-11-22):** exit criteria met (results in the design doc §6); deployed to workers.dev for testing; QA on the hosted app fixed four defects. The phase report is in the PR.
+
+### Phase 6.5: Motion and sound (added 2026-11-23)
+
+**Why:** user review of the live app: "the animations are boring; add background music". All four moments felt flat (first open, idle globe, check-in, moving around). Sound moves from "post-launch" into scope: generated in the app, off by default.
+**Scope:** space backdrop with parallax, breathing atmosphere, visible weather at rest, changed countries glint, an arrival sequence, a check-in landing with impact, journeys between regions; a generative Web Audio score that follows the world's mood, a check-in chime, a sound button.
+**Exit criteria:** prototype approved by the user on a phone; reduced motion and tiers honoured; desktop bench within 3 % of `main` on drag; Pixel 6 Pro drag p95 within 10 % of `main` (also closes issue #13); initial JS within 5 KB of 86.4 KB gz.
+**Design:** `docs/design/phase-6.5-motion-sound.md` (approved 2026-11-23, D1–D4).
 
 ### Phase 7: PWA, offline, accessibility, sharing
 

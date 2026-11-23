@@ -33,6 +33,10 @@ export interface MomentDeps {
   worldShown(): number;
   invalidate(): void;
   touched(): void;
+  /** The new look (Phase 6.5, V6): soft glowing rings instead of thin lines. */
+  readonly softRings?: boolean;
+  /** The new look: your face has landed on `code` (flash, burst, chime). */
+  impact?(code: string, center: readonly [number, number], mood: MoodId): void;
 }
 
 function savedPin(): string | null {
@@ -149,6 +153,7 @@ export class CheckInMoment {
     view.worldCount = this.d.worldShown();
     if (this.d.reducedMotion) return;
     this.ripples.add(l.center, MOOD_COLORS[l.mood] ?? "#fff");
+    if (this.pin !== null) this.d.impact?.(this.pin.code, l.center, l.mood);
     // Android; iOS has no vibration API (README §8.6). 30 ms: 12 ms could not be felt on a Pixel 6 Pro.
     navigator.vibrate?.(30);
   }
@@ -163,6 +168,13 @@ export class CheckInMoment {
       for (const ring of this.ripples.rings()) {
         fx.beginPath();
         fxPath(ringOutline(ring.center, ring.radius));
+        if (this.d.softRings) {
+          // A wide, faint band under the line: a glow travelling across the globe.
+          fx.globalAlpha = ring.alpha * 0.22;
+          fx.strokeStyle = ring.color;
+          fx.lineWidth = (16 - ring.index * 4) * dpr;
+          fx.stroke();
+        }
         fx.globalAlpha = ring.alpha;
         fx.strokeStyle = ring.color;
         fx.lineWidth = (3 - ring.index * 0.8) * dpr;

@@ -18,6 +18,7 @@ export const en: Messages = {
   quietCount: (n, f) =>
     f.plural(n) === "one" ? "{count} check-in so far" : "{count} check-ins so far",
   back: "← World",
+  music: "Music",
 
   moods: {
     label: ["happy", "calm", "excited", "stressed", "sad", "angry"],

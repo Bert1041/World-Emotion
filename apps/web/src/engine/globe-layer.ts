@@ -15,6 +15,8 @@ export interface DrawOptions {
   readonly viewCenter: [number, number];
   /** Sub-solar point [lon, lat] for the night shade (engine/night.ts); omitted = no night. */
   readonly night?: readonly [number, number];
+  /** Leave the sky clear (the canvas has alpha): the space behind the globe shows through. */
+  readonly clearSky?: boolean;
 }
 
 export interface GlobeStyle {
@@ -110,14 +112,15 @@ export class GlobeLayer {
     // Sky. The canvas is opaque (alpha: false), so it must be painted, never cleared.
     const [cx, cy] = this.projection.translate();
     const r = this.projection.scale();
-    if (style.skyInner === style.skyOuter) ctx.fillStyle = style.skyInner;
+    if (opts.clearSky) ctx.clearRect(0, 0, width, height);
+    else if (style.skyInner === style.skyOuter) ctx.fillStyle = style.skyInner;
     else {
       const g = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, Math.hypot(width, height) * 0.6);
       g.addColorStop(0, style.skyInner);
       g.addColorStop(1, style.skyOuter);
       ctx.fillStyle = g;
     }
-    ctx.fillRect(0, 0, width, height);
+    if (!opts.clearSky) ctx.fillRect(0, 0, width, height);
 
     if (this.groupedFor?.lod !== lod || this.groupedFor.version !== colorVersion) {
       const byColor = new Map<string, Feature[]>();

@@ -20,6 +20,19 @@ describe("readConfig", () => {
     expect([...c.opt]).toEqual(["precision0", "cull"]);
   });
 
+  it("look: today's unless the URL or the build says next; the URL wins", () => {
+    const ctx = (VITE_LOOK?: string) => ({
+      host: "example.org",
+      env: VITE_LOOK ? { VITE_LOOK } : {},
+    });
+    const look = (q: string, env?: string) => readConfig(new URLSearchParams(q), ctx(env)).look;
+    expect(look("")).toBe("now");
+    expect(look("look=next")).toBe("next");
+    expect(look("look=other")).toBe("now");
+    expect(look("", "next")).toBe("next");
+    expect(look("look=now", "next"), "the URL wins").toBe("now");
+  });
+
   it("reads numbers only when present and finite", () => {
     expect(cfg("particles=0").particles).toBe(0);
     expect(cfg("particles=abc").particles).toBe(700);

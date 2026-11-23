@@ -30,6 +30,11 @@ async function load(page: Page, query: string) {
   await page.clock.setFixedTime(EQUINOX_NOON); // Date only; timers and frames run normally
   await page.goto(`/${query}`);
   await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  // The new look (Phase 6.5) swings the globe in for 2.2 s; facing or sampling it before then
+  // measures the swing. Today's look has no glide here, so this returns at once.
+  await page.waitForFunction(
+    () => !(window as unknown as { __bench: Bench }).__bench.layout().gliding,
+  );
   // Face the terminator over the eastern Pacific: day to the left, night to the right.
   await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.face(-90, 0));
   await page.waitForFunction(() => {

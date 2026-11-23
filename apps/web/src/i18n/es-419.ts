@@ -32,6 +32,7 @@ export const es419: Messages = {
   quietCount: (n, f) =>
     f.plural(n) === "one" ? "{count} respuesta hasta ahora" : "{count} respuestas hasta ahora",
   back: "← Mundo",
+  music: "Música",
 
   moods: {
     label: ["alegría", "calma", "entusiasmo", "estrés", "tristeza", "enojo"],

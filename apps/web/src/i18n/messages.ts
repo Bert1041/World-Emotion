@@ -56,6 +56,8 @@ export interface Messages {
   /** The numbers are old: "Updated {count} min ago" (real data only, after 15 minutes). */
   readonly updatedAgo: string;
   readonly back: string;
+  /** The music button's name (Phase 6.5, S3). */
+  readonly music: string;
 
   readonly moods: { readonly label: PerMood; readonly feels: PerMood };
   /** Theme names under the headline, by world mood (Overgrown Earth, Waterworld, …). */
