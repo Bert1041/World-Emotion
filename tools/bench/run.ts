@@ -186,6 +186,17 @@ function androidDevice(): Device {
       `Chrome's DevTools socket not found (tried: ${candidates.join(", ") || "none"}). Open Chrome on the phone and keep it unlocked.`,
     );
   };
+  /** Android pauses a backgrounded browser's pages, so every call to the bench page would hang. */
+  const chromeInFront = (): void => {
+    const front = /mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/.exec(
+      adb("shell", "dumpsys", "window"),
+    )?.[1];
+    if (front !== undefined && front !== "com.android.chrome")
+      throw new Error(
+        `Chrome is not the app in front (${front}): Android pauses it, so the bench page cannot ` +
+          "answer. Open Chrome on the phone, keep it unlocked and on screen until the run ends.",
+      );
+  };
   /** Battery temperature at the first run; later runs wait to come back near it. */
   let sessionStartC: number | undefined;
   const COOL_MARGIN_C = 0.7;
@@ -217,7 +228,9 @@ function androidDevice(): Device {
       adb("reverse", `tcp:${PORT}`, `tcp:${PORT}`);
       const socket = await connectChrome();
       console.log(`chrome socket: ${socket}`);
-      adb("shell", "svc", "power", "stayon", "usb");
+      // Any power source: on some USB-C ports (this Mac, 2026-11-23) the phone reports AC, not USB,
+      // and "stayon usb" let the screen sleep during a cool-down wait, so Chrome stopped answering.
+      adb("shell", "svc", "power", "stayon", "true");
       const v = (await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).json()) as {
         webSocketDebuggerUrl: string;
         Browser: string;
@@ -232,14 +245,7 @@ function androidDevice(): Device {
       // Android pauses a backgrounded browser's pages, so every call to the bench page hangs
       // (2026-11-18: WhatsApp was in front; 16 min of silence, then a timeout). Say so at once.
       // Never bring Chrome forward ourselves: that would interrupt whoever is using the phone.
-      const front = /mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/.exec(
-        adb("shell", "dumpsys", "window"),
-      )?.[1];
-      if (front !== undefined && front !== "com.android.chrome")
-        throw new Error(
-          `Chrome is not the app in front (${front}): Android pauses it, so the bench page cannot ` +
-            "answer. Open Chrome on the phone and leave it on screen until the run ends.",
-        );
+      chromeInFront();
       adb("shell", "settings", "put", "system", "peak_refresh_rate", `${s.hz}.0`);
       adb("shell", "settings", "put", "system", "min_refresh_rate", `${s.hz}.0`);
       // The Pixel 6 Pro throttles when warm (status 2 at 41 °C made one scenario 1.8× slower).
@@ -275,6 +281,7 @@ function androidDevice(): Device {
         await sleep(15_000);
         th = thermalNow();
       }
+      chromeInFront(); // again: a long wait is when the screen may have slept or been used
       return { ...th, waitedS: Math.round((Date.now() - t0) / 1000) };
     },
     thermalNow,
