@@ -7,7 +7,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 type Bench = {
   ready: Promise<void>;
-  layout(): { center: [number, number]; pin: [number, number] | null };
+  layout(): { center: [number, number]; pin: [number, number] | null; gliding: boolean };
   screenPoint(lon: number, lat: number): [number, number] | null;
 };
 const only = (name: string) =>
@@ -68,6 +68,11 @@ test.describe("Nigeria (en-NG)", () => {
   test("first visit: the globe faces your pin, and it is on screen", async ({ page }, info) => {
     only(info.project.name);
     await load(page);
+    // The new look (Phase 6.5) swings the globe in for 2.2 s; facing or sampling it before then
+    // measures the swing. Today's look has no glide here, so this returns at once.
+    await page.waitForFunction(
+      () => !(window as unknown as { __bench: Bench }).__bench.layout().gliding,
+    );
     const l = await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.layout());
     expect(l.pin, "a pin from the guess").not.toBeNull();
     const [lon, lat] = l.pin as [number, number];

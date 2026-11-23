@@ -15,6 +15,23 @@ export const VIEWPORTS = [
   { name: "ultrawide-3440", width: 3440, height: 1440 },
 ] as const;
 
+/** Project order for sharding (see `projects` below); every viewport exactly once. */
+const SHARD_ORDER = [
+  "tablet-landscape",
+  "phone-landscape",
+  "phone-390",
+  "desktop-1920",
+  "phone-430",
+  "laptop-1280",
+  "laptop-1440",
+  "ultrawide-3440",
+  "desktop-2560",
+  "phone-360",
+  "tablet-portrait",
+] as const satisfies readonly (typeof VIEWPORTS)[number]["name"][];
+if (new Set(SHARD_ORDER).size !== VIEWPORTS.length)
+  throw new Error("SHARD_ORDER must list every viewport exactly once");
+
 const PORT = 4174; // not 4173 (bench) or 5173 (dev)
 /** The local API for e2e/live.spec.ts; not 8787 (wrangler dev). */
 export const API_PORT = 8788;
@@ -32,10 +49,16 @@ export default defineConfig({
     // PW_NO_GPU=1 renders like CI (no GPU: software raster), to reproduce its timing locally.
     launchOptions: { args: process.env.PW_NO_GPU ? ["--disable-gpu"] : [] },
   },
-  projects: VIEWPORTS.map((v) => ({
-    name: v.name,
-    use: { viewport: { width: v.width, height: v.height } },
-  })),
+  // CI runs the suite in 3 shards, cut into equal test counts in project order. The big screens
+  // have few tests but are the slowest to draw (software raster), and listed last they all landed
+  // in shard 3: 1,726 test-seconds against 622 and 859 (PR #15, 2026-11-23). This order mixes
+  // heavy and light in each third: 1,028 / 1,033 / 1,038 s by that run's per-test timings
+  // (checked against Playwright's own --shard listing; re-check if the suite's shape changes).
+  projects: SHARD_ORDER.map((name) => {
+    const v = VIEWPORTS.find((x) => x.name === name);
+    if (v === undefined) throw new Error(`unknown viewport ${name}`);
+    return { name, use: { viewport: { width: v.width, height: v.height } } };
+  }),
   webServer: [
     {
       command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,

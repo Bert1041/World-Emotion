@@ -46,7 +46,11 @@ export interface ConfigContext {
   /** The page's own host name. */
   readonly host: string;
   /** Build-time endpoints (Vite env), set at deploy (docs/design/phase-6-live-data.md, L1). */
-  readonly env: { readonly VITE_SNAPSHOT_URL?: string; readonly VITE_API_URL?: string };
+  readonly env: {
+    readonly VITE_SNAPSHOT_URL?: string;
+    readonly VITE_API_URL?: string;
+    readonly VITE_LOOK?: string;
+  };
 }
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
@@ -106,6 +110,7 @@ export function readConfig(
         : undefined,
     demoStepMs: Math.max(100, num("step", 2000)),
     live: liveEndpoints(params, bench, ctx),
-    look: params.get("look") === "next" ? "next" : "now",
+    // The URL wins; a build may set the default (VITE_LOOK=next runs the whole suite in the new look).
+    look: (params.get("look") ?? ctx.env.VITE_LOOK) === "next" ? "next" : "now",
   };
 }

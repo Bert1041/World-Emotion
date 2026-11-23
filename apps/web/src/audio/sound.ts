@@ -32,7 +32,7 @@ export class Sound {
     }
     document.addEventListener("visibilitychange", () => {
       if (!this.on || this.score === null) return;
-      if (document.hidden) void this.score.stop().then(() => this.ctx?.suspend());
+      if (document.hidden) void this.score.stop().then(() => this.suspendIfSilent());
       else void this.ctx?.resume().then(() => this.score?.start());
     });
   }
@@ -43,7 +43,15 @@ export class Sound {
     write(this.on ? "1" : "0");
     this.changed(this.on);
     if (this.on) void this.play();
-    else void this.score?.stop().then(() => this.ctx?.suspend());
+    else void this.score?.stop().then(() => this.suspendIfSilent());
+  }
+
+  /**
+   * After a fade-out: suspend, unless the music was turned back on (or the tab came back) during
+   * the fade. QA 2026-11-23: on-off-on in quick succession left the button on and the music silent.
+   */
+  private suspendIfSilent(): void {
+    if (!this.on || document.hidden) void this.ctx?.suspend();
   }
 
   setMood(mood: MoodId | null): void {

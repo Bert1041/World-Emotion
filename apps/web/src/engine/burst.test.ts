@@ -22,14 +22,14 @@ describe("landing burst", () => {
   it("drag: a spark's sideways speed more than halves in half a second", () => {
     const b = new Burst(rng(6));
     b.fire([0, 0], "#fff");
-    const dx = (from: number) => {
+    const dx = () => {
       const before = b.offset(0)[0];
       b.update(0.05);
       return Math.abs(b.offset(0)[0] - before) / 0.05;
     };
-    const early = dx(0);
+    const early = dx();
     for (let i = 0; i < 9; i++) b.update(0.05);
-    const late = dx(0.5);
+    const late = dx();
     expect(early).toBeGreaterThan(1);
     expect(late).toBeLessThan(early / 2);
   });

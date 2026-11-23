@@ -53,7 +53,10 @@ describe("score theory", () => {
       const note = noteAt(m, n, r);
       if (n % STEPS_PER_BAR === 0) expect(note).not.toBeNull();
       if (note === null) rests++;
-      else expect(note.velocity).toBeGreaterThan(0), expect(note.velocity).toBeLessThanOrEqual(1);
+      else {
+        expect(note.velocity).toBeGreaterThan(0);
+        expect(note.velocity).toBeLessThanOrEqual(1);
+      }
     }
     expect(rests).toBeGreaterThan(0);
     expect(rests).toBeLessThan(4000 * 0.15);

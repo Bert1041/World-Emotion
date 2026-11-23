@@ -62,8 +62,11 @@ const feeling = $derived(
   </div>
 {/if}
 
-<LanguageMenu />
-{#if view.look}<SoundButton {actions} />{/if}
+<!-- Top right: music (new look only), then the language. The back button owns the top left. -->
+<div id="corner">
+  {#if view.look}<SoundButton {actions} />{/if}
+  <LanguageMenu />
+</div>
 
 <button id="back" type="button" hidden={!view.zoomed} onclick={() => actions.back()}>{i18n.t.back}</button>
 {#if view.hint === "tapCountry"}

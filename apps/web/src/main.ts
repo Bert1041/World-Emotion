@@ -731,19 +731,42 @@ function arrive(pins: ReadonlyMap<string, [number, number]>): void {
   camera.view = { center: [home[0] + 80, Math.max(-60, Math.min(60, home[1] - 12))], zoom: 1 };
   const delays = new Map([...waveDelays(home, pins, 1.3)].map(([c, d]) => [c, 0.35 + d]));
   wave = new FillWave(mixer.current.lab.land, delays, 0.8);
-  const done = () => {
-    removeEventListener("pointerdown", done, true);
-    removeEventListener("keydown", done, true);
+  let over = false;
+  const ARRIVAL_S = 2.2;
+  const INPUTS = ["pointerdown", "keydown", "wheel"] as const;
+  /**
+   * Any input ends the arrival: every country in its colour, the UI shown. Capture phase, so this
+   * runs before the input itself acts. QA 2026-11-23: a wheel or pinch during the swing fought the
+   * glide's zoom (only touch and keys ended it). A pointer or wheel stops the globe where it is, at
+   * zoom 1, so what you aimed at stays under your finger; a key (not aimed at the globe) puts it
+   * at the end of the swing, facing your pin.
+   */
+  const done = (e: Event) => {
+    if (over) return;
+    over = true;
+    for (const t of INPUTS) removeEventListener(t, done, true);
     wave?.finish();
     document.body.classList.remove("arriving");
+    if (performance.now() < glideEnds) {
+      camera.stop();
+      camera.view = { center: e.type === "keydown" ? home : camera.view.center, zoom: 1 };
+      invalidate();
+    }
   };
-  addEventListener("pointerdown", done, true);
-  addEventListener("keydown", done, true);
+  let glideEnds = Number.POSITIVE_INFINITY; // until the glide starts, any input still snaps home
+  for (const t of INPUTS) addEventListener(t, done, { capture: true, passive: true });
   // Two frames: the hidden state is painted first, so the CSS transitions run from it.
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
+      if (over) return; // ended before it began: done() already put the globe home
       document.body.classList.remove("arriving");
-      camera.glideTo({ center: home, zoom: 1 }, 2.2);
+      camera.glideTo({ center: home, zoom: 1 }, ARRIVAL_S);
+      glideEnds = performance.now() + ARRIVAL_S * 1000;
+      // Ended by time, not input: stop listening.
+      setTimeout(() => {
+        over = true;
+        for (const t of INPUTS) removeEventListener(t, done, true);
+      }, ARRIVAL_S * 1000);
     }),
   );
 }

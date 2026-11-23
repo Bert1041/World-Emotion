@@ -1,4 +1,5 @@
 <script lang="ts">
+import { i18n } from "../i18n/i18n.svelte";
 import { type UiActions, view } from "./view.svelte";
 
 /** The sound switch (Phase 6.5, S3): a speaker beside the language button; off by default. */
@@ -9,8 +10,8 @@ let { actions }: { actions: UiActions } = $props();
   id="sound"
   type="button"
   aria-pressed={view.sound}
-  aria-label="Music"
-  title="Music"
+  aria-label={i18n.t.music}
+  title={i18n.t.music}
   onclick={() => actions.toggleSound()}
 >
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">

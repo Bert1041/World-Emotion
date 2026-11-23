@@ -21,7 +21,7 @@ const layout = (page: Page) =>
 /** Every visible piece of UI that contains text or controls. */
 async function uiBoxes(page: Page): Promise<{ name: string; box: Rect }[]> {
   const out: { name: string; box: Rect }[] = [];
-  for (const sel of ["header", "#back", "#panel", "#dev", "#checkin", "#lang"]) {
+  for (const sel of ["header", "#back", "#panel", "#dev", "#checkin", "#lang", "#sound"]) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     const b = await el.boundingBox();
