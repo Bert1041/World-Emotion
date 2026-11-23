@@ -728,6 +728,8 @@ function frame(ts: number): void {
 function arrive(pins: ReadonlyMap<string, [number, number]>): void {
   const home: [number, number] = moment.pin?.lonLat ?? [10, 20];
   document.body.classList.add("arriving");
+  // For tests and CSS: set for the whole arrival, not just the two hidden frames ("arriving").
+  document.body.dataset.arrival = "on";
   camera.view = { center: [home[0] + 80, Math.max(-60, Math.min(60, home[1] - 12))], zoom: 1 };
   const delays = new Map([...waveDelays(home, pins, 1.3)].map(([c, d]) => [c, 0.35 + d]));
   wave = new FillWave(mixer.current.lab.land, delays, 0.8);
@@ -745,6 +747,7 @@ function arrive(pins: ReadonlyMap<string, [number, number]>): void {
     if (over) return;
     over = true;
     for (const t of INPUTS) removeEventListener(t, done, true);
+    delete document.body.dataset.arrival;
     wave?.finish();
     document.body.classList.remove("arriving");
     if (performance.now() < glideEnds) {
@@ -766,6 +769,7 @@ function arrive(pins: ReadonlyMap<string, [number, number]>): void {
       setTimeout(() => {
         over = true;
         for (const t of INPUTS) removeEventListener(t, done, true);
+        delete document.body.dataset.arrival;
       }, ARRIVAL_S * 1000);
     }),
   );

@@ -17,17 +17,17 @@ export const VIEWPORTS = [
 
 /** Project order for sharding (see `projects` below); every viewport exactly once. */
 const SHARD_ORDER = [
-  "tablet-landscape",
-  "phone-landscape",
-  "phone-390",
-  "desktop-1920",
-  "phone-430",
   "laptop-1280",
-  "laptop-1440",
   "ultrawide-3440",
   "desktop-2560",
+  "phone-430",
+  "phone-landscape",
+  "tablet-landscape",
+  "laptop-1440",
   "phone-360",
+  "phone-390",
   "tablet-portrait",
+  "desktop-1920",
 ] as const satisfies readonly (typeof VIEWPORTS)[number]["name"][];
 if (new Set(SHARD_ORDER).size !== VIEWPORTS.length)
   throw new Error("SHARD_ORDER must list every viewport exactly once");
@@ -51,9 +51,12 @@ export default defineConfig({
   },
   // CI runs the suite in 3 shards, cut into equal test counts in project order. The big screens
   // have few tests but are the slowest to draw (software raster), and listed last they all landed
-  // in shard 3: 1,726 test-seconds against 622 and 859 (PR #15, 2026-11-23). This order mixes
-  // heavy and light in each third: 1,028 / 1,033 / 1,038 s by that run's per-test timings
-  // (checked against Playwright's own --shard listing; re-check if the suite's shape changes).
+  // in shard 3: 1,726 test-seconds against 622 and 859 (PR #15, 2026-11-23). A first reorder was
+  // balanced on paper, but tests added afterwards moved the cut and put both big screens back
+  // together (1,359 / 850 / 840, PR #16). This order was chosen by search over both runs' per-test
+  // times to stay under ~1,090 s per shard even if the cuts move 20 tests either way. Re-run the
+  // search if a shard drifts past ~1,200 s: sum each test's time from the CI logs per shard of
+  // `playwright test --list --shard=k/3` for candidate orders (method in PR #16).
   projects: SHARD_ORDER.map((name) => {
     const v = VIEWPORTS.find((x) => x.name === name);
     if (v === undefined) throw new Error(`unknown viewport ${name}`);

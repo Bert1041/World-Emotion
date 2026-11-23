@@ -117,7 +117,9 @@ test("the arrival ends at the first touch or key, and never under reduced motion
   browser,
 }, info) => {
   only(info.project.name);
-  const arriving = (p: Page) => p.evaluate(() => document.body.classList.contains("arriving"));
+  // data-arrival is set for the whole 2.2 s swing. (The "arriving" class lasts two frames only:
+  // checking it raced on CI, PR #16.)
+  const arriving = (p: Page) => p.evaluate(() => document.body.dataset.arrival === "on");
   await open(page);
   expect(await arriving(page), "arriving after load").toBe(true);
   await page.keyboard.press("Tab");
@@ -132,6 +134,22 @@ test("the arrival ends at the first touch or key, and never under reduced motion
   expect(Math.abs((l.center[0] as number) - (l.pin?.[0] as number)), "facing the pin").toBeLessThan(
     1,
   );
+
+  // A tap ends it too, and leaves the globe where it was (what you aimed at stays under you).
+  await page.reload();
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  expect(await arriving(page), "arriving after reload").toBe(true);
+  await page.mouse.click(5, 5);
+  expect(await arriving(page)).toBe(false);
+  const t = await page.evaluate(() =>
+    (
+      window as unknown as { __bench: { layout(): { center: number[]; pin: number[] | null } } }
+    ).__bench.layout(),
+  );
+  expect(
+    Math.abs((t.center[0] as number) - (t.pin?.[0] as number)),
+    "stopped mid-swing, not snapped to the pin",
+  ).toBeGreaterThan(5);
 
   const ctx = await browser.newContext({
     reducedMotion: "reduce",
