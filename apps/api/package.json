@@ -10,9 +10,10 @@
     "check:migrations": "node scripts/migrations.ts"
   },
   "dependencies": {
+    "@world-emotion/core": "workspace:*",
     "@world-emotion/geo-data": "workspace:*",
     "@world-emotion/shared": "workspace:*",
-    "hono": "4.13.14"
+    "hono": "4.13.16"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.4.8",

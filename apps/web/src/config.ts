@@ -23,9 +23,58 @@ export interface Config {
   readonly autoCycle: boolean;
   /** Demo data: ?votes=N gives a world of exactly N check-ins (tests: the quiet state). */
   readonly votes: number | undefined;
+  /**
+   * Demo data: one aggregation run every ?step= ms (default 2000). Tests set it very long so that
+   * only the snapshots they force happen (a run of its own made the tween tests racy on CI).
+   */
+  readonly demoStepMs: number;
+  /** Real data (Phase 6): where to poll the snapshot and send check-ins; null means the demo. */
+  readonly live: LiveEndpoints | null;
 }
 
-export function readConfig(params: URLSearchParams): Config {
+export interface LiveEndpoints {
+  readonly snapshotUrl: string;
+  readonly apiUrl: string;
+}
+
+export interface ConfigContext {
+  /** The page's own host name. */
+  readonly host: string;
+  /** Build-time endpoints (Vite env), set at deploy (docs/design/phase-6-live-data.md, L1). */
+  readonly env: { readonly VITE_SNAPSHOT_URL?: string; readonly VITE_API_URL?: string };
+}
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+/**
+ * Which data to show. `?demo=1` and bench runs: the demo. `?live=<api origin>`: a local API, but
+ * only for a page served from this machine, so nobody can send a link to the real site that shows
+ * a made-up world. Otherwise the build's endpoints, if it has them; else the demo.
+ */
+function liveEndpoints(
+  params: URLSearchParams,
+  bench: boolean,
+  ctx: ConfigContext,
+): LiveEndpoints | null {
+  if (bench || params.get("demo") === "1") return null;
+  const local = params.get("live");
+  if (local !== null && LOCAL_HOSTS.has(ctx.host)) {
+    try {
+      const u = new URL(local);
+      if (LOCAL_HOSTS.has(u.hostname))
+        return { snapshotUrl: `${u.origin}/snapshot.json`, apiUrl: u.origin };
+    } catch {
+      // not a URL: fall through
+    }
+  }
+  const { VITE_SNAPSHOT_URL: s, VITE_API_URL: a } = ctx.env;
+  return s && a ? { snapshotUrl: s, apiUrl: a } : null;
+}
+
+export function readConfig(
+  params: URLSearchParams,
+  ctx: ConfigContext = { host: "", env: {} },
+): Config {
   const num = (k: string, d: number) => {
     const v = Number(params.get(k));
     return Number.isFinite(v) && params.has(k) ? v : d;
@@ -50,5 +99,7 @@ export function readConfig(params: URLSearchParams): Config {
       params.has("votes") && Number.isInteger(num("votes", -1)) && num("votes", -1) >= 0
         ? num("votes", 0)
         : undefined,
+    demoStepMs: Math.max(100, num("step", 2000)),
+    live: liveEndpoints(params, bench, ctx),
   };
 }

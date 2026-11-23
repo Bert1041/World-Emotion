@@ -26,6 +26,10 @@ export interface HooksDeps {
   pin(): Pin | null;
   sun(): [number, number] | null;
   worldMood(): string;
+  /** A country's fill as drawn right now (CSS), mid-tween included. */
+  fill(code: string): string | null;
+  /** The current snapshot's `generatedAt`, to count snapshots. */
+  snapshotAt(): number;
   /** The Earth being shown or cross-faded to, by mood name. */
   theme(): string;
   /**
@@ -80,6 +84,8 @@ export function installTestHooks(d: HooksDeps): void {
     ready: d.ready,
     layout,
     aggregate: () => d.aggregate(),
+    fill: (code) => d.fill(code),
+    snapshotAt: () => d.snapshotAt(),
     weather: () => d.weather(),
     face: (lon, lat) => d.face(lon, lat),
     screenPoint(lon, lat) {

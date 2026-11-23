@@ -138,3 +138,20 @@ test("the bar keeps its height with the longest line (French, largest country)",
   );
   expect(line?.x ?? -1).toBeGreaterThanOrEqual(box?.x ?? 0);
 });
+
+test("the world count adds you once: not again when a snapshot includes your vote", async ({
+  page,
+}, info) => {
+  only(info.project.name);
+  // A quiet demo world of exactly 4, and no runs of its own: only the one forced below.
+  await page.goto("/?auto=0&votes=4&step=600000");
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
+  const count = page.locator("#world-count .count");
+  await expect(count).toHaveAttribute("data-value", "4");
+  await page.locator('#checkin .face[data-mood="calm"]').click();
+  await expect(page.locator(".flight")).toHaveCount(0, { timeout: 15_000 });
+  await expect(count, "you, before any run counts you").toHaveAttribute("data-value", "5");
+  await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.aggregate());
+  await page.waitForTimeout(500);
+  await expect(count, "the run counted you: still 5, not 6").toHaveAttribute("data-value", "5");
+});

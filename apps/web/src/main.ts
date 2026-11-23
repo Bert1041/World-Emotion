@@ -1,5 +1,5 @@
 import { COUNTRY_TO_CONTINENT } from "@world-emotion/geo-data";
-import { hexToOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
+import { DURATION, hexToOklab, oklabToCss, subsolarPoint } from "@world-emotion/motion";
 import {
   type Continent,
   DEFAULT_CONFIG,
@@ -11,13 +11,17 @@ import { geoArea, geoOrthographic, geoPath } from "d3-geo";
 import { flushSync, mount } from "svelte";
 import { installTestHooks } from "./bench/hooks";
 import type { FrameProbe } from "./bench/probe";
+import { loadConn, saveConn } from "./checkin/conn";
+import { loadCurrent, saveCurrent } from "./checkin/current";
 import { addEntry, type JournalEntry, lastWeek, loadJournal, saveJournal } from "./checkin/journal";
 import { CheckInMoment } from "./checkin/moment";
 import { readConfig } from "./config";
 import { DemoSource } from "./data/demo-source";
-import type { SnapshotSource } from "./data/snapshot-source";
+import { PolledSource } from "./data/polled-source";
+import type { CheckinOutcome, SnapshotSource } from "./data/snapshot-source";
 import { DOCK_RIGHT_QUERY, REDUCED_MOTION_QUERY, SIDE_CARD_QUERY } from "./engine/breakpoints";
 import { Camera, STRETCH_COMMIT } from "./engine/camera";
+import { FillTween } from "./engine/fill-tween";
 import { LayoutFit } from "./engine/fit";
 import { CLIP_ANGLE, type Lod, type LodName, loadLod, loadMoveLod } from "./engine/geo";
 import { GlobeLayer } from "./engine/globe-layer";
@@ -28,7 +32,7 @@ import { ParticleField, rng } from "./engine/particles";
 import { pinPoint } from "./engine/pin";
 import {
   alongside,
-  countryFills,
+  countryFillLabs,
   hitCountry,
   type LandPoints,
   panelModel,
@@ -49,18 +53,25 @@ import { view } from "./ui/view.svelte";
  */
 
 // ---- Configuration (URL params, src/config.ts) ------------------------------------------------
-const config = readConfig(new URLSearchParams(location.search));
+const config = readConfig(new URLSearchParams(location.search), {
+  host: location.hostname,
+  env: import.meta.env,
+});
 const reducedMotion = matchMedia(REDUCED_MOTION_QUERY).matches;
 
-// ---- Data source (src/data): demo for now; Phase 6 swaps in the polled snapshot + API -----------
-// Demo cadence: one aggregation run every 2 s; the world's mood moves every 20 s unless ?auto=0.
-// Bench runs never step on their own, so frames compare across runs.
-const source: SnapshotSource = new DemoSource({
-  autoCycle: config.autoCycle,
-  paused: config.bench,
-  now: performance.now(),
-  ...(config.votes === undefined ? {} : { votes: config.votes }),
-});
+// ---- Data source (src/data) -------------------------------------------------------------------
+// Real data when the build (or a local ?live=) names the endpoints; otherwise the demo: one
+// aggregation run every 2 s, the world's mood moving every 20 s unless ?auto=0. Bench runs never
+// step on their own, so frames compare across runs.
+const source: SnapshotSource = config.live
+  ? new PolledSource(config.live)
+  : new DemoSource({
+      autoCycle: config.autoCycle,
+      paused: config.bench,
+      stepMs: config.demoStepMs,
+      now: performance.now(),
+      ...(config.votes === undefined ? {} : { votes: config.votes }),
+    });
 /** Below this many check-ins the world is quiet: no headline mood (ADR 0003, README §5.4). */
 const QUIET_WORLD_BELOW = DEFAULT_CONFIG.publishMinN;
 
@@ -92,7 +103,10 @@ mount(App, {
         view.autoCycle = source.demo?.toggleAuto() ?? false;
       },
       checkIn: (mood: MoodId, from: { x: number; y: number }) => {
-        moment.checkIn(mood, from);
+        if (view.checkin.mine === null && view.checkin.country !== null) selfSince = source.now();
+        const sent = moment.checkIn(mood, from);
+        if (sent !== null) saveCurrent({ mood, at: Date.now() }); // survives a reload (6 h)
+        sent?.then(delivered);
         refreshResult();
         if (view.checkin.mine !== null && view.checkin.country !== null) {
           journal = addEntry(journal, { mood, at: new Date(), country: view.checkin.country });
@@ -189,8 +203,15 @@ let land: LandPoints[] = [];
 let lods: Record<LodName, Lod> | undefined;
 let particles: ParticleField;
 
+/** Country colours ease to a new snapshot instead of jumping (Phase 6; instant under reduced motion). */
+const fillTween = new FillTween(reducedMotion ? 0 : DURATION.data);
+const fillTarget = (s: Snapshot) =>
+  countryFillLabs(s, COUNTRY_TO_CONTINENT, focus, mixer.current.lab, moodLab);
+
 function recomputeFills(): void {
-  fills = countryFills(snapshot, COUNTRY_TO_CONTINENT, focus, mixer.current.lab, moodLab);
+  fills = new Map();
+  for (const [code, lab] of fillTween.colours(fillTarget(snapshot)))
+    fills.set(code, oklabToCss(lab));
   colorVersion++;
   dirty = true;
 }
@@ -199,7 +220,58 @@ function recomputeWeather(): void {
   particles.setSpawns(weatherSpawns(snapshot, land, COUNTRY_TO_CONTINENT, focus));
 }
 
+/**
+ * The API's answer to a check-in, first try or resend. Null: not delivered yet; it stays on the
+ * device and the bar says so (QA on the hosted app, 2026-11-22: a 429, a 500 or no network used to
+ * look exactly like a counted check-in).
+ */
+function delivered(o: CheckinOutcome | null): void {
+  view.checkin.unsent = source.hasPending ?? false;
+  if (o === null) return;
+  view.checkin.counted = o.counted;
+  if (o.conn !== view.checkin.conn) {
+    view.checkin.conn = o.conn;
+    saveConn(o.conn);
+  }
+  refreshResult();
+}
+
+/** A kept check-in goes again at start, when the browser is back online, and every minute. */
+function resendKept(): void {
+  if (!source.hasPending || source.resendPending === undefined) return;
+  view.checkin.unsent = true;
+  void source.resendPending().then(delivered);
+}
+resendKept();
+addEventListener("online", resendKept);
+setInterval(resendKept, 60_000);
+
+/** Real data older than this says so in the header (docs/design/phase-6-live-data.md §4). */
+const STALE_AFTER_MINUTES = 15;
+function refreshStale(): void {
+  const age = (Date.now() / 1000 - snapshot.generatedAt) / 60;
+  view.staleMinutes =
+    source instanceof PolledSource && snapshot.generatedAt > 0 && age > STALE_AFTER_MINUTES
+      ? Math.floor(age)
+      : null;
+}
+setInterval(refreshStale, 30_000); // the age grows while nothing new arrives
+
+/**
+ * When your first check-in (a new vote, not a change of mood) was made, until a snapshot made after
+ * it arrives. Until then the count shows the snapshot's number plus you. Before this the landing
+ * took max(count + 1, snapshot), which lost you when you tapped before the first snapshot loaded,
+ * and a snapshot made just before your vote dropped the count by one (QA, 2026-11-22).
+ */
+let selfSince: number | null = null;
+function worldShown(): number {
+  // On the source's own clock: the demo's runs five minutes a step, not in real time.
+  if (selfSince !== null && snapshot.generatedAt > selfSince) selfSince = null;
+  return snapshot.world.n + (selfSince === null ? 0 : 1);
+}
+
 function onSnapshot(next: Snapshot): void {
+  fillTween.start(fillTarget(next));
   snapshot = next;
   headline = worldHeadline(next, QUIET_WORLD_BELOW);
   // Replay the word's entrance when the mood changes (not for the very first one).
@@ -210,8 +282,9 @@ function onSnapshot(next: Snapshot): void {
   view.checkin.published = Object.keys(next.countries);
   refreshJournal(); // the window moves at midnight while the page stays open
   refreshResult();
+  refreshStale();
   // Held still while your face is in flight: the landing ticks it (see CheckInMoment.landed).
-  if (view.flight === null) view.worldCount = next.world.n;
+  if (view.flight === null) view.worldCount = worldShown();
   recomputeFills();
   recomputeWeather();
   renderPanel();
@@ -282,7 +355,9 @@ function refreshResult(): void {
   const mine = view.checkin.mine;
   const country = view.checkin.country;
   view.checkin.result =
-    mine === null || country === null ? null : alongside(snapshot, country, mine);
+    mine === null || country === null
+      ? null
+      : alongside(snapshot, country, mine, view.checkin.counted === "world");
 }
 
 function renderPanel(): void {
@@ -362,7 +437,7 @@ const moment = new CheckInMoment({
   accent: () => mixer.current.css.rim,
   landingPoint: () => ({ x: fit.goal.x / dpr, y: fit.goal.y / dpr }),
   dpr: () => dpr,
-  worldN: () => snapshot.world.n,
+  worldShown: () => worldShown(),
   invalidate,
   touched,
 });
@@ -371,6 +446,9 @@ view.checkin.countries = [...COUNTRY_TO_CONTINENT.keys()];
 // The bar's final layout from the first paint (bridge J2): both need storage only, not the map.
 view.checkin.firstRun = !seen(FLAG_CHECKED_IN);
 moment.preview(navigator.languages);
+view.checkin.conn = loadConn(COUNTRY_TO_CONTINENT);
+// A check-in still inside its window shows as "You feel …" after a reload, not as a fresh ask.
+view.checkin.mine = loadCurrent(Date.now(), DEFAULT_CONFIG.windowSeconds * 1000)?.mood ?? null;
 
 const hitAt = (x: number, y: number) =>
   hitCountry(x, y, {
@@ -488,10 +566,11 @@ function frame(ts: number): void {
   }
 
   const themeChanging = mixer.update(dt);
-  if (themeChanging) {
-    recomputeFills();
-    applyTheme();
-  }
+  // Keyed on "was easing before this step", so the frame the tween ends still draws its target.
+  const fillsEasing = fillTween.tweening;
+  fillTween.step(dt);
+  if (themeChanging || fillsEasing) recomputeFills();
+  if (themeChanging) applyTheme();
 
   const anchorEasing = fit.ease(dt);
   layoutEasing = anchorEasing;
@@ -502,7 +581,7 @@ function frame(ts: number): void {
   // points) is drawn once, when everything has settled. Before this, the theme cross-fade and
   // layout easing redrew 50m every frame: 7–8 full redraws in a 2 s "idle" window, 531 ms
   // frames at 4× on the Pixel (2026-11-07 gate run).
-  const animating = moving || anchorEasing || themeChanging;
+  const animating = moving || anchorEasing || themeChanging || fillsEasing;
   if (wasAnimating && !animating) dirty = true; // settle: one detailed redraw
   wasAnimating = animating;
   // Zoomed into a continent the simplified outline is visibly crude, and culling already skips
@@ -668,6 +747,8 @@ installTestHooks({
   pin: () => moment.pin,
   sun: () => (showNight ? [sun[0], sun[1]] : null),
   worldMood: () => MOODS[snapshot.world.h] ?? "",
+  fill: (code) => fills.get(code) ?? null,
+  snapshotAt: () => snapshot.generatedAt,
   theme: () => MOODS[mixer.target] ?? "",
   weather: () => ({ spread: landSpread, anchors: particles?.anchors() ?? [], halo: haloAmount }),
   aggregate: () => onSnapshot(source.aggregate()),

@@ -64,6 +64,11 @@ export const view = $state({
   autoCycle: true,
   /** Active check-ins in the world snapshot; ticks up when yours lands. */
   worldCount: 0,
+  /**
+   * Minutes since the shown snapshot was made, when it is old enough to say so (real data only:
+   * the aggregator stopped or the network is gone; ADR 0006, degrade-not-die). Null otherwise.
+   */
+  staleMinutes: null as number | null,
   checkin: {
     /** World view only: the bottom bar, like the card in a region. */
     visible: false,
@@ -78,6 +83,15 @@ export const view = $state({
     mine: null as MoodId | null,
     /** Who else feels it, from the snapshot (bridge R1); null before you check in. */
     result: null as Alongside | null,
+    /** Your check-in is kept on this device, not yet delivered (an error, a limit, or offline). */
+    unsent: false,
+    /** Where your last check-in counted (the API's answer); null before the answer arrives. */
+    counted: null as "country" | "world" | null,
+    /**
+     * Your connection's country as the API last saw it, remembered on this device (decision L3),
+     * so the bar can say before a tap that a pick elsewhere counts for the world only.
+     */
+    conn: null as string | null,
     /**
      * Your last seven days, oldest first (bridge R2): each day's mood or null. Null until you
      * have checked in on two different days; kept on this device only.

@@ -111,7 +111,21 @@ export function countryFills(
   theme: { readonly land: Lab; readonly ocean: Lab },
   moodLab: readonly Lab[],
 ): Map<string, string> {
-  const fills = new Map<string, string>();
+  const css = new Map<string, string>();
+  for (const [code, lab] of countryFillLabs(snapshot, map, focus, theme, moodLab))
+    css.set(code, oklabToCss(lab));
+  return css;
+}
+
+/** `countryFills` in OKLab, so a change of snapshot can be eased (engine/fill-tween.ts). */
+export function countryFillLabs(
+  snapshot: Snapshot,
+  map: CountryToContinent,
+  focus: Continent | null,
+  theme: { readonly land: Lab; readonly ocean: Lab },
+  moodLab: readonly Lab[],
+): Map<string, Lab> {
+  const fills = new Map<string, Lab>();
   for (const code of map.keys()) {
     const r = regionOf(snapshot, code, map);
     // Quantised strength keeps the number of distinct fills (= fill calls) small.
@@ -120,7 +134,7 @@ export function countryFills(
       ? mixOklab(theme.land, moodLab[r.region.h] ?? theme.land, 0.12 + 0.7 * strength)
       : theme.land;
     if (focus !== null && map.get(code) !== focus) col = mixOklab(col, theme.ocean, 0.7);
-    fills.set(code, oklabToCss(col));
+    fills.set(code, col);
   }
   return fills;
 }
@@ -226,8 +240,14 @@ export type Alongside =
  * (the aggregator's estimate, the same one the card's bars show). Until the next aggregation run
  * counts your vote it reads one low; it never reads high and never below zero.
  */
-export function alongside(snapshot: Snapshot, country: string, mood: MoodId): Alongside {
-  const own = snapshot.countries[country];
+export function alongside(
+  snapshot: Snapshot,
+  country: string,
+  mood: MoodId,
+  /** The API counted this vote for the world only (README §5.6): compare with the world. */
+  worldOnly = false,
+): Alongside {
+  const own = worldOnly ? undefined : snapshot.countries[country];
   const region = own && own.n >= ALONGSIDE_MIN_N ? own : snapshot.world;
   if (region.n < ALONGSIDE_MIN_N) return { scope: "early", total: Math.max(1, snapshot.world.n) };
   const withYou = Math.round((region.dist[mood] ?? 0) * region.n);

@@ -28,6 +28,7 @@ export const es419: Messages = {
       ? "{count} persona siente algo ahora mismo"
       : "{count} personas sienten algo ahora mismo",
   worldQuiet: "El mundo está en silencio",
+  updatedAgo: "Actualizado hace {count} min",
   quietCount: (n, f) =>
     f.plural(n) === "one" ? "{count} respuesta hasta ahora" : "{count} respuestas hasta ahora",
   back: "← Mundo",
@@ -95,6 +96,9 @@ export const es419: Messages = {
         : "Entre las primeras {count} respuestas",
     countryFeels: "Tu país siente {mood}",
     smallCountry: "Tu país necesita {n} respuestas para mostrar su ánimo.",
+    unsent: "Guardado en este teléfono. Contará en cuanto nos llegue.",
+    worldOnly: "Cuenta para el mundo (conexión: {conn}).",
+    worldOnlyUnknown: "Cuenta para el mundo: no sabemos desde dónde te conectas.",
   },
 
   journal: {

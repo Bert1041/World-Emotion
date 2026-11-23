@@ -1,7 +1,7 @@
 import { FixedStep, SPRING, Spring } from "@world-emotion/motion";
 import type { MoodId } from "@world-emotion/shared";
 import { type GeoPath, type GeoProjection, geoDistance } from "d3-geo";
-import type { SnapshotSource } from "../data/snapshot-source";
+import type { CheckinOutcome, SnapshotSource } from "../data/snapshot-source";
 import type { Camera } from "../engine/camera";
 import { guessCountry } from "../engine/country-guess";
 import { MOOD_COLORS } from "../engine/palette";
@@ -29,7 +29,8 @@ export interface MomentDeps {
   landingPoint(): { x: number; y: number };
   dpr(): number;
   /** Active check-ins in the world snapshot, so a landing never counts below it. */
-  worldN(): number;
+  /** The world count to show now: the snapshot's, plus your new check-in until it is in one. */
+  worldShown(): number;
   invalidate(): void;
   touched(): void;
 }
@@ -117,11 +118,12 @@ export class CheckInMoment {
     view.checkin.picking = false;
   }
 
-  checkIn(mood: MoodId, from: { x: number; y: number }): void {
-    if (this.pin === null) return;
+  /** Returns where the check-in counted (the source's answer), or null with no pin to send. */
+  checkIn(mood: MoodId, from: { x: number; y: number }): Promise<CheckinOutcome | null> | null {
+    if (this.pin === null) return null;
     const { code, lonLat } = this.pin;
     const first = view.checkin.mine === null;
-    this.d.source.checkIn(code, mood); // counted from the next aggregation run, like the real pipeline
+    const sent = this.d.source.checkIn(code, mood); // counted from the next aggregation run
     view.checkin.mine = mood;
     this.d.touched();
     // Turn your pin to the front; the face lands where it will be (the globe's centre).
@@ -130,10 +132,11 @@ export class CheckInMoment {
     this.landing = { center: lonLat, mood, first };
     if (this.d.reducedMotion) {
       this.landed(-1); // no pop, flight or ripple: the chip cross-fades in and the count updates
-      return;
+      return sent;
     }
     this.flightId++;
     view.flight = { id: this.flightId, mood, from, to: this.d.landingPoint() };
+    return sent;
   }
 
   landed(id: number): void {
@@ -142,8 +145,8 @@ export class CheckInMoment {
     const l = this.landing;
     this.landing = null;
     if (l === null) return;
-    // A first check-in adds one; a change of mood replaces your vote. Never below the snapshot.
-    view.worldCount = Math.max(view.worldCount + (l.first ? 1 : 0), this.d.worldN());
+    // The count the flight held still catches up: the snapshot's, plus you if you are new to it.
+    view.worldCount = this.d.worldShown();
     if (this.d.reducedMotion) return;
     this.ripples.add(l.center, MOOD_COLORS[l.mood] ?? "#fff");
     // Android; iOS has no vibration API (README §8.6). 30 ms: 12 ms could not be felt on a Pixel 6 Pro.

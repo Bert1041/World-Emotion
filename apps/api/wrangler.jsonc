@@ -3,22 +3,37 @@
   "name": "world-emotion-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+  // The API's address until there is a domain (decision L1). Preview URLs would give every
+  // uploaded version its own public address: not needed, so off.
+  "workers_dev": true,
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "world-emotion",
-      // Local only until Phase 6 creates the real database (then: its id here).
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // The real database (created 2026-11-22, region WEUR). Local dev and every test still use a
+      // local SQLite copy: nothing here is "remote", so no test can write to it.
+      "database_id": "86fa3abd-1ac5-4c1a-8d0d-0e1c859b9223",
       "migrations_dir": "../../migrations"
     }
   ],
+  // docs/design/phase-6-live-data.md §2. SNAPSHOTS is public (snapshot.json and archive/, through
+  // the CDN once there is a domain, L1). STATE is a separate bucket that is never made public: a
+  // public bucket exposes every object, and the state holds sub-floor numbers.
+  "r2_buckets": [
+    { "binding": "SNAPSHOTS", "bucket_name": "world-emotion-snapshots" },
+    { "binding": "STATE", "bucket_name": "world-emotion-private" }
+  ],
+  // Every 5 minutes (G2: reads bind before writes at 2 minutes).
+  "triggers": { "crons": ["*/5 * * * *"] },
   // docs/design/phase-5-api.md §4. Approximate and per Cloudflare location, by design.
   "ratelimits": [
     { "name": "IP_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
     { "name": "DEVICE_LIMITER", "namespace_id": "1002", "simple": { "limit": 3, "period": 60 } }
   ],
   "vars": {
-    // Exact-match list, comma separated. The real domain is added in Phase 6.
-    "ALLOWED_ORIGINS": "http://localhost:5173,http://localhost:4173"
+    // Exact-match list, comma separated: local dev, and the test deploy of the app on workers.dev
+    // (2026-11-22). The real domain replaces the workers.dev one at launch.
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://localhost:4173,https://world-emotion-web.ishokarobertt.workers.dev"
   }
 }

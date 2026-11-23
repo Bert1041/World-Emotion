@@ -29,6 +29,7 @@ export const fr: Messages = {
       : "{count} personnes ressentent quelque chose",
   // Not « calme » : c'est aussi l'humeur « calm ». Silencieux = personne n'a encore parlé.
   worldQuiet: "Le monde est encore silencieux",
+  updatedAgo: "Mis à jour il y a {count} min",
   quietCount: (n, f) =>
     f.plural(n) === "one"
       ? "{count} humeur partagée pour l’instant"
@@ -106,6 +107,9 @@ export const fr: Messages = {
         : "Parmi les {count} premières humeurs partagées",
     countryFeels: "Ton pays ressent {mood}",
     smallCountry: "Il faut {n} réponses pour voir l’humeur de ton pays.",
+    unsent: "Enregistré sur ce téléphone. Il comptera dès qu’il nous parvient.",
+    worldOnly: "Compte pour le monde (connexion : {conn}).",
+    worldOnlyUnknown: "Compte pour le monde : on ne sait pas d’où tu te connectes.",
   },
 
   journal: {

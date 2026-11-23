@@ -26,6 +26,7 @@ export const ptBR: Messages = {
   feelingNow: (n) =>
     n === 1 ? "{count} pessoa sentindo algo agora" : "{count} pessoas sentindo algo agora",
   worldQuiet: "O mundo está em silêncio",
+  updatedAgo: "Atualizado há {count} min",
   quietCount: (n) => (n === 1 ? "{count} resposta até agora" : "{count} respostas até agora"),
   back: "← Mundo",
 
@@ -85,6 +86,9 @@ export const ptBR: Messages = {
     early: (n) => (n === 1 ? "A primeira resposta agora" : "Entre as primeiras {count} respostas"),
     countryFeels: "Seu país sente {mood}",
     smallCountry: "Seu país mostra seu humor com {n} respostas.",
+    unsent: "Salvo neste celular. Vai contar assim que chegar até nós.",
+    worldOnly: "Conta para o mundo (conexão: {conn}).",
+    worldOnlyUnknown: "Conta para o mundo: não sabemos de onde você se conecta.",
   },
 
   journal: {

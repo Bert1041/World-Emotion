@@ -2,7 +2,7 @@
 
 Companion to `README.md` (the spec). The README says **what** and **why**; this file says **in what order, how we know a phase is done, and what is still undecided**.
 
-Status: **Phase 3 (+3b) complete on branch `phase-3/globe-spike`, awaiting PR review: Canvas 2D GO ([ADR 0005](decisions/0005-globe-go-no-go.md)).** Phases 0–2 merged.
+Status: **Phase 6 complete on branch `phase-6/live-data`, awaiting PR review.** Phases 0–5.5 merged. A test deployment runs on the free plan without a domain; launch is gated on the domain and ADR 0008.
 
 Previous status: **Phase 0 complete (2026-11-05), awaiting sign-off. Decisions D1–D4 accepted ([ADR 0001](decisions/0001-launch-product-decisions.md)); gaps G1–G10 written into README revision 3.**
 
@@ -160,7 +160,8 @@ first check-in, launch gate (Phase 8); a named launch community and cold-start c
 **From Phase 5 (measured):** purge hourly, not every run (the measured index order makes the purge scan everything); the app starts sending `deviceKey` and shows the `counted`/`conn` answer ("counts for the world only"); re-measure `rows_written`/`rows_read` on the real D1; confirm the Rate Limiting binding exists on the free plan (fallback: D1 counter table).
 **Added 2026-11-10 (ADR 0007):** the aggregator archives hourly public totals to R2 (published regions only); a test proves a region below the floor never reaches the archive. No display yet: "compared to usual" waits for about four weeks of real data.
 **Exit criteria:** end-to-end locally: simulator → D1 → aggregator → R2 → app shows tween. Rows read per run measured against the G2 budget. Client keeps the last good snapshot on a bad version/500 (verified in a browser).
-**Needs from you:** domain decision.
+**Design:** `docs/design/phase-6-live-data.md` (approved 2026-11-22, L1–L4). Domain and Cloudflare account at the end of the phase (L1); everything before that is local.
+**Done (2026-11-22):** exit criteria met (results in the design doc §6); deployed to workers.dev for testing; QA on the hosted app fixed four defects. The phase report is in the PR.
 
 ### Phase 7: PWA, offline, accessibility, sharing
 
@@ -171,10 +172,11 @@ first check-in, launch gate (Phase 8); a named launch community and cold-start c
 
 **Scope:** CI additions (bundle budget, deploy; base `pnpm check` gate exists since Phase 0.5), limit-hit behaviour, Turnstile on spikes, CSP, usage alerts at 70%, privacy page (must state the residual risks in ADR 0003: snapshot-to-snapshot differencing at low traffic; world counts at launch).
 **Exit criteria:** limit-hit simulated (forced 429/503 from API) → app shows "will count shortly" and recovers; CI fails on a budget breach (mutation: bloat the bundle).
+**Added 2026-11-22 (ADR 0008):** the Workers Rate Limiting binding was measured to refuse nothing on the real account (65 of 65 accepted). Rate limiting moves to a WAF rule on `POST /checkin` at the edge (needs the domain) plus Turnstile on a device's first check-in. **Launch gate:** both live, and a sustained test from one IP seen refused.
 
 ### Phase 9: Soft launch
 
-Re-verify every free-tier figure and browser-capability claim (README "Sources"), deploy, small group, watch counters, then go public.
+Re-verify every free-tier figure and browser-capability claim (README "Sources"), deploy, small group, watch counters, then go public. Not before ADR 0008's gate is met.
 
 ---
 

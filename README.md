@@ -4,6 +4,8 @@ A small, warm PWA where anyone can check in with how they feel right now and wat
 
 This README is the source of truth for **what we are building, why it is shaped this way, and what we chose not to do**. Sketches and other planning docs live in `/docs` and are referenced from here.
 
+> Revision 5 (2026-11-22): §3 updated to what Phase 6 built and deployed (aggregator inside the API Worker every 5 minutes, private state, hourly archive and purge, polling 45 s ± 15 s); §5.6 rate limiting moved to the edge plus Turnstile after the Workers binding was measured to refuse nothing (ADR 0008); §7 confirmed on the real database. A plain-language walk-through for explaining the design is in `docs/architecture.md`.
+>
 > Revision 4 (2026-11-07): §8.5 design direction replaced by the mood-driven Earth; reference device is a Pixel 6 Pro (ADR 0004).
 >
 > Revision 3. Changes from revision 2: resolved spec gaps G1–G10 from `docs/PLAN.md` (write cost of purges, 5-minute cadence, time-based smoothing, aggregator state, shrinkage chain, processed snapshot, idempotent replays, manual-country validation, unknown-country handling); closed the launch open questions (`docs/decisions/0001-launch-product-decisions.md`).
@@ -41,28 +43,35 @@ Open the app, spin a hand-painted globe, tap a mood. Your check-in counts toward
 ```
                       READ PATH (99% of traffic, ~free)
  ┌────────────┐   GET /snapshot.json    ┌────────────────────┐
- │  PWA (SPA) │ ──────────────────────► │ CDN cache (30-60s) │
+ │  PWA (SPA) │ ──────────────────────► │ CDN cache (30 s)   │
  │  Svelte +  │                         └─────────┬──────────┘
  │  canvas    │                                   │ miss
  │  engine    │                          ┌────────▼───────┐
  └─────┬──────┘                          │ R2: snapshot   │ ◄───┐ written every
-       │                                 └────────────────┘     │ 1-5 min
+       │                                 └────────────────┘     │ 5 min
        │   WRITE PATH (tiny)                                    │
        │   POST /checkin        ┌──────────────┐   cron   ┌─────┴──────┐
        └──────────────────────► │ Worker (API) │ ───────► │ Aggregator │
-                                └──────┬───────┘          │ (Worker    │
-                                       │ upsert           │  cron)     │
+                                └──────┬───────┘          │ (same      │
+                                       │ upsert           │  Worker,   │
+                                       │                  │  cron)     │
                                        ▼                  └─────┬──────┘
                                 ┌──────────────┐  reads window    │
                                 │ D1 (SQLite)  │ ◄────────────────┘
                                 └──────────────┘
 ```
 
-- **Web app (PWA):** static SPA with a canvas rendering engine. Renders the globe locally from bundled map data; polls `snapshot.json` every 30-60 s (with jitter); tweens smoothly between snapshots. Works offline from the last cached snapshot.
-- **API Worker:** one endpoint that matters, `POST /checkin`. Validates, derives country from the request, upserts the vote. Idempotent. No other write endpoints.
-- **Aggregator (scheduled Worker):** turns recent votes into a snapshot (section 5) and writes it to R2.
-- **D1:** holds votes. Small, SQL, easy to migrate.
-- **R2 + CDN:** hosts `snapshot.json`. Reads never invoke the API or touch D1.
+- **Web app (PWA):** static SPA with a canvas rendering engine. Renders the globe locally from bundled map data; polls `snapshot.json` every **45 s ± 15 s**, always revalidating (`cache: "no-cache"`, an unchanged file costs a 304); takes a snapshot only if it parses and is newer; eases colours into the new numbers. On a bad version, an error, invalid JSON or no network it keeps the last good snapshot and backs off (up to 5 min). It does not poll in a hidden tab. First paint uses the last snapshot saved on the device. Numbers older than 15 minutes say so ("Updated 23 min ago"). The source is behind one seam (`SnapshotSource`): `PolledSource` for real data, `DemoSource` for the demo.
+- **API Worker:** one endpoint that matters, `POST /checkin`. Validates, derives country from the request, upserts the vote. Idempotent. No other write endpoints, and no read endpoints in production.
+- **Aggregator (cron in the same Worker, every 5 minutes):** reads the window from D1 and its private state from R2, runs the pure function in `packages/core` (section 5), then writes the **private state first and the public snapshot second** (a failed snapshot write is rebuilt by the next run). The first run of each hour also archives the public snapshot (ADR 0007) and purges expired votes. A duplicate or early run writes nothing.
+- **D1:** holds votes, one row per device. Small, SQL, easy to migrate.
+- **R2 + CDN:** the public bucket hosts `snapshot.json` (`Cache-Control: public, max-age=30`) and `archive/YYYY/MM/DD/HH.json`. Reads never invoke the API or touch D1. The aggregator's `aggregator-state.json` lives in a **separate private bucket** that is never made public: a public bucket exposes every object in it, and the state holds unrounded numbers for regions below the privacy floor (found and fixed 2026-11-22, before any public address existed).
+
+**Where things stand (2026-11-22), a test deployment on the free plan, no domain yet:**
+- API and aggregator: `world-emotion-api.<account>.workers.dev`, with the real D1, the public bucket and the private state bucket; the cron publishes every 5 minutes.
+- The app: `world-emotion-web.<account>.workers.dev`, static files (`apps/web/wrangler.jsonc`), built with the API and snapshot addresses.
+- The snapshot: served from R2's rate-limited test address (`pub-….r2.dev`) with a CORS rule for the app, **not** through the CDN yet.
+- Not yet: the domain (then the CDN, the real origin, the edge rate limit). Launch is gated on the domain and ADR 0008.
 
 **Why polling, not WebSockets:** a cached static file costs nothing under load; a live socket per user does not. "Live enough" (30-60 s) is the right promise, and **client-side tweening makes 60-second updates feel continuous**.
 
@@ -133,9 +142,10 @@ Raw per-minute data twitches, and a twitchy globe feels fake.
 - **A vote counts for a country only where it is cast from** (decided 2026-11-09). The API compares the chosen country with `request.cf.country`, at request time, without storing the IP: if they match, the vote counts for the country, its continent and the world; if not (someone in Canada picking the United States, a traveller), or if the connection country is unknown, it counts for the **world only**. This stops people outside a country from setting its mood; GPS was rejected (a permission prompt for a mood app). The app says so when the two differ, rather than silently discounting.
 - Country detection is "good enough", not truth: VPNs will fool it. Accepted for a parody app.
 - `request.cf.country` can return non-countries (`XX` unknown, `T1` Tor). These are treated as unknown: the user is asked to pick a country, otherwise the vote counts toward the world only.
-- A manually chosen country is validated against the generated ISO list from `packages/geo-data`. Rate-limit counters use the **Workers Rate Limiting binding** (no D1 writes; approximate, per location), keyed by daily-salted IP hash and by device hash. Free-plan availability is unverified until there is an account; the fallback is a D1 counter table (docs/design/phase-5-api.md §4).
+- A manually chosen country is validated against the generated ISO list from `packages/geo-data`.
+- **Rate limiting (ADR 0008):** the API calls the Workers Rate Limiting binding (10 a minute per daily-salted IP hash, 3 per device hash), but on the real free-plan account it was **measured to refuse nothing** (65 of 65 test check-ins accepted, 40 from one IP in a minute). So the real limit moves to the edge: a Cloudflare WAF rate-limiting rule on `POST /checkin` (needs the domain), plus Turnstile on a device's first check-in so scripts cannot mint device keys. Both are a launch gate.
 - A picked country that does not count (mismatch or unknown connection) is **not stored**: the row keeps `country = NULL`. The check-in reply tells the app the connection country, so it can say the vote counted for the world only.
-- Turnstile challenge only when a suspicious spike is detected.
+- The connection's country from the API's answer is remembered on the device (decision L3), so next time a pin in another country is told **before** the tap that the vote will count for the world only.
 
 ---
 
@@ -166,7 +176,7 @@ Distributions are arrays indexed by mood id and are **final**: already shrunk an
 
 `h` is the headline mood **after hysteresis**, computed once in the aggregator so every client shows the same word (ADR 0003). **Privacy floor:** countries and continents with fewer than 5 votes are omitted; the client falls back to the parent and shows "quiet here". Because a parent minus its published children would still reveal the hidden rest, **complementary suppression** also hides the smallest published sibling whenever that remainder would be 1–4 votes. Residual risks (snapshot-to-snapshot differencing at low traffic) are in ADR 0003 and go on the privacy page.
 
-**Retention:** purge votes older than the window plus a small buffer on each aggregation run. Deletes count as rows written, so purging is part of the write budget (section 7). **No personal history.** From Phase 6 the aggregator keeps hourly public totals (what the snapshot already showed at that hour, published regions only; no votes, devices or IPs), so a later "compared to usual" is possible (ADR 0007, decided 2026-11-10; replaces "no history at launch").
+**Retention:** purge votes older than the window plus a 10-minute buffer **once an hour** (the purge scans the whole index, so not on every 5-minute run). Deletes count as rows written, so purging is part of the write budget (section 7). **No personal history.** From Phase 6 the aggregator keeps hourly public totals (what the snapshot already showed at that hour, published regions only; no votes, devices or IPs), so a later "compared to usual" is possible (ADR 0007, decided 2026-11-10; replaces "no history at launch").
 
 ---
 
@@ -179,10 +189,10 @@ Limits read from Cloudflare's published docs on 2026-11-05. **They change. Re-ve
 | Worker requests | 100,000 / day | Reads bypass Workers via CDN-cached R2 file. Only check-ins and cache misses invoke a Worker. |
 | Worker CPU time | 10 ms / request | `POST /checkin` does one validated upsert. Keep it boring. |
 | Cron triggers | 5 / account | We need one. |
-| D1 rows written | 100,000 / day | **Measured** (local D1, 2026-11-10): a new device's first check-in costs 2 (row + index), a changed mood 2, a replay **0**, and the purge 1 per vote ⇒ **3 over a vote's life**, roughly **33k new devices/day** before the ceiling (each re-vote costs 2 more). Re-measure on the real database in Phase 6. |
-| D1 rows read | 5,000,000 / day | **Measured:** the aggregation reads 1 row per *stored* vote (not 2: index order chosen to avoid a billed sort). See aggregation note below. |
+| D1 rows written | 100,000 / day | **Measured** (local D1, 2026-11-10): a new device's first check-in costs 2 (row + index), a changed mood 2, a replay **0**, and the purge 1 per vote ⇒ **3 over a vote's life**, roughly **33k new devices/day** before the ceiling (each re-vote costs 2 more). **Confirmed on the real database (2026-11-22): 2 / 0 / 2 / 1, identical.** |
+| D1 rows read | 5,000,000 / day | **Measured:** the aggregation reads exactly 1 row per *stored* vote, in the window or not (56 of 56, 200 of 200 in Phase 6's tests; the index leads with country, so the time filter cannot narrow the scan). See aggregation note below. |
 | D1 storage | 5 GB | Votes are tiny and purged. |
-| R2 | 10 GB-month, 1M Class A ops/month | One snapshot write per minute is ~43k/month. |
+| R2 | 10 GB-month, 1M Class A ops/month | State + snapshot every 5 minutes, archive hourly: ~600 writes/day, ~18k/month. |
 
 **At the limit:** the API errors once a daily cap is hit. The app handles it quietly: queue the check-in locally, show "Saved, will count shortly", keep showing the last snapshot. A viral day that exhausts the free tier should look like a slightly delayed globe, not a broken app. A paid plan is the escape hatch.
 
@@ -352,7 +362,7 @@ world-emotion/
 | Canvas 2D too slow on low-end phones | Spike first with a go/no-go gate; OffscreenCanvas, then WebGL fallback; adaptive tiers. |
 | Animation jank or battery drain | Dirty-flagged layers, pooled particles, pause when hidden, tiers, reduced-motion support. |
 | Free-tier limit hit on a viral day | Local check-in queue, stale-snapshot fallback, Stage 2 counters, usage alerts, paid plan as escape hatch. |
-| Trolls skew a small country | Shrinkage, hysteresis, rate limits, Turnstile on spikes. |
+| Trolls skew a small country | Shrinkage, hysteresis, a WAF rate limit at the edge and Turnstile on a device's first check-in (ADR 0008; the Workers binding was measured to do nothing). |
 | Empty globe feels dead at launch | "Quiet here" state leaning on the continent; labelled warm-up only if needed. |
 | Geo edge cases cause arguments | Decide once, document, make the map data-driven. |
 | Cloudflare lock-in | Pure `core` and `motion` packages; thin adapters. |
@@ -368,7 +378,7 @@ world-emotion/
 **Still open:**
 - ~~Which reference low-end phone do we test on?~~ Pixel 6 Pro (ADR 0004). Pass bar: see `docs/design/phase-3-globe-spike.md`.
 - Is sound in scope for launch, or a later polish?
-- Domain name and brand name.
+- Domain name and brand name. **Now also a security prerequisite:** the edge rate limit (ADR 0008) needs it.
 - ~~Any daily "world mood" history, and if so how do we keep it anonymous?~~ Hourly public totals only (ADR 0007).
 
 ---

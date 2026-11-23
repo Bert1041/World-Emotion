@@ -79,7 +79,10 @@ test("second day: seven days, oldest first, today last and marked; a change of m
 
   await page.reload();
   await page.evaluate(() => (window as unknown as { __bench: Bench }).__bench.ready);
-  await page.locator('#checkin .face[data-mood="excited"]').click();
+  // Still checked in after a reload (the check-in counts for 6 hours; it used to be forgotten, so
+  // this test tapped a face again here).
+  await expect(page.locator("#checkin")).toHaveAttribute("data-mode", "chip");
+  await expect(page.locator("#checkin .chip")).toContainText("You feel excited");
   expect(await days(page), "kept across a reload").toEqual([
     "",
     "",

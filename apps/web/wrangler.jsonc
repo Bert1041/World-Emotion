@@ -1,0 +1,12 @@
+{
+  // The web app on Cloudflare: static files only (the production build in dist/), no code and no
+  // bindings. Deployed with `wrangler deploy --config apps/web/wrangler.jsonc` after a build that
+  // names the endpoints (VITE_SNAPSHOT_URL, VITE_API_URL). Until there is a domain (decision L1) it
+  // lives on workers.dev; preview URLs off.
+  "$schema": "../api/node_modules/wrangler/config-schema.json",
+  "name": "world-emotion-web",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" },
+  "workers_dev": true,
+  "preview_urls": false
+}
